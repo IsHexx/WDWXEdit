@@ -73313,6 +73313,17 @@ var PreviewStatus = class {
     this.showStatus(message, "loading");
     this.showProgress(true);
   }
+  showUploading(message, duration) {
+    this.showStatus(message, "upload", duration);
+    this.showProgress(true);
+  }
+  showCopying(message, duration) {
+    this.showStatus(message, "copy", duration);
+  }
+  showProcessing(message, duration) {
+    this.showStatus(message, "processing", duration);
+    this.showProgress(true);
+  }
   showStatus(message, type, duration) {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
@@ -73370,6 +73381,37 @@ var PreviewStatus = class {
         iconSvg = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="loading-spinner">
                         <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>
+                `;
+        break;
+      case "upload":
+        iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                `;
+        break;
+      case "copy":
+        iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                `;
+        break;
+      case "processing":
+        iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="processing-icon">
+                        <path d="M12 2v6"/>
+                        <path d="M12 18v4"/>
+                        <path d="M4.93 4.93l4.24 4.24"/>
+                        <path d="M14.83 14.83l4.24 4.24"/>
+                        <path d="M2 12h6"/>
+                        <path d="M18 12h4"/>
+                        <path d="M4.93 19.07l4.24-4.24"/>
+                        <path d="M14.83 9.17l4.24-4.24"/>
                     </svg>
                 `;
         break;
@@ -73552,7 +73594,11 @@ var PreviewController = class {
       },
       onCopy: async () => {
         await this.copyWithImageUpload();
-        new import_obsidian8.Notice("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+        if (this.currentAppId) {
+          new import_obsidian8.Notice("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+        } else {
+          new import_obsidian8.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002");
+        }
       },
       onPost: async () => {
         await this.postArticle();
@@ -73618,42 +73664,44 @@ var PreviewController = class {
     this.toolbar.updateFromMetadata(metadata, this.currentTheme, this.currentHighlight);
   }
   async uploadImages() {
-    this.showLoading("\u56FE\u7247\u4E0A\u4F20\u4E2D...");
+    this.status.showUploading("\u56FE\u7247\u4E0A\u4F20\u4E2D...");
     try {
       await this.render.uploadImages(this.currentAppId);
-      this.showMsg("\u56FE\u7247\u4E0A\u4F20\u6210\u529F\uFF0C\u5E76\u4E14\u6587\u7AE0\u5185\u5BB9\u5DF2\u590D\u5236\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+      this.status.showSuccess("\u56FE\u7247\u4E0A\u4F20\u6210\u529F\uFF0C\u5E76\u4E14\u6587\u7AE0\u5185\u5BB9\u5DF2\u590D\u5236\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
     } catch (error) {
-      this.showMsg("\u56FE\u7247\u4E0A\u4F20\u5931\u8D25: " + error.message);
+      this.status.showError("\u56FE\u7247\u4E0A\u4F20\u5931\u8D25: " + error.message);
     }
   }
   async postArticle() {
     const localCover = this.toolbar.getCoverFile();
     if (this.toolbar.isUsingLocalCover() && !localCover) {
-      this.showMsg("\u8BF7\u9009\u62E9\u5C01\u9762\u6587\u4EF6");
+      this.status.showWarning("\u8BF7\u9009\u62E9\u5C01\u9762\u6587\u4EF6");
       return;
     }
     if (!this.currentAppId) {
-      this.showMsg("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7");
+      this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7");
       return;
     }
-    this.showLoading("\u53D1\u5E03\u4E2D...");
+    this.status.showProcessing("\u53D1\u5E03\u4E2D...");
     try {
       await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
-      this.showMsg("\u53D1\u5E03\u6210\u529F");
+      this.status.showSuccess("\u53D1\u5E03\u6210\u529F");
     } catch (error) {
-      this.showMsg("\u53D1\u5E03\u5931\u8D25: " + error.message);
+      this.status.showError("\u53D1\u5E03\u5931\u8D25: " + error.message);
     }
   }
   async copyWithImageUpload() {
     if (!this.currentAppId) {
-      throw new Error("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7\u4EE5\u4FBF\u4E0A\u4F20\u56FE\u7247");
+      this.status.showWarning("\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\uFF0C\u4F46\u5185\u5BB9\u5DF2\u590D\u5236", 3e3);
+      await this.copyWithoutImageUpload();
+      return;
     }
-    this.showLoading("\u5904\u7406\u56FE\u7247...");
+    this.status.showProcessing("\u5904\u7406\u56FE\u7247...");
     const token = await this.render.getToken(this.currentAppId);
     if (!token) {
       throw new Error("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
     }
-    this.showLoading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
+    this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
     const lm = LocalImageManager.getInstance();
     const imageKeys = Array.from(lm.images.keys());
     const localImages = imageKeys.filter((key) => {
@@ -73666,13 +73714,13 @@ var PreviewController = class {
         initApiClients2();
       }
       const wechatClient = getWechatClient3();
-      this.showLoading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (0/${localImages.length})`);
+      this.status.showUploading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (0/${localImages.length})`);
       for (let i = 0; i < localImages.length; i++) {
         const imageKey = localImages[i];
         const imageInfo = lm.images.get(imageKey);
         if (!imageInfo || !imageInfo.filePath)
           continue;
-        this.showLoading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (${i + 1}/${localImages.length})`);
+        this.status.showUploading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (${i + 1}/${localImages.length})`);
         try {
           const file = this.app.vault.getFileByPath(imageInfo.filePath);
           if (!file) {
@@ -73698,22 +73746,22 @@ var PreviewController = class {
         } catch (error) {
         }
       }
-      this.showLoading("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
+      this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
       lm.replaceImages(this.content.getElements().articleDiv);
     } else {
     }
-    this.showLoading("\u590D\u5236\u5230\u526A\u8D34\u677F...");
+    this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F...");
     try {
       if (document.hasFocus && !document.hasFocus()) {
         window.focus();
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       await this.render.copyArticle();
-      this.status.hideMessage();
+      this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
     } catch (error) {
       try {
         await this.fallbackCopyToClipboard();
-        this.status.hideMessage();
+        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
       } catch (fallbackError) {
         this.status.hideMessage();
         throw new Error("\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u4FDD\u6D4F\u89C8\u5668\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\uFF0C\u7136\u540E\u91CD\u8BD5");
@@ -73727,18 +73775,18 @@ var PreviewController = class {
       initApiClients2();
     }
     const wechatClient = getWechatClient3();
-    this.showLoading("\u83B7\u53D6\u8BA4\u8BC1\u4FE1\u606F...");
+    this.status.showProcessing("\u83B7\u53D6\u8BA4\u8BC1\u4FE1\u606F...");
     const token = await this.render.getToken(appid);
     if (!token) {
       throw new Error("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
     }
-    this.showLoading("\u68C0\u67E5\u8349\u7A3F\u72B6\u6001...");
+    this.status.showProcessing("\u68C0\u67E5\u8349\u7A3F\u72B6\u6001...");
     const draftStatus = await this.shouldUpdateDraft(token);
     const isUpdate = draftStatus.shouldUpdate;
     if (isUpdate) {
     } else {
     }
-    this.showLoading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
+    this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
     const lm = LocalImageManager.getInstance();
     const imageKeys = Array.from(lm.images.keys());
     const localImages = imageKeys.filter((key) => {
@@ -73746,13 +73794,13 @@ var PreviewController = class {
       return image && image.url == null && image.filePath;
     });
     if (localImages.length > 0) {
-      this.showLoading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (0/${localImages.length})`);
+      this.status.showUploading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (0/${localImages.length})`);
       for (let i = 0; i < localImages.length; i++) {
         const imageKey = localImages[i];
         const imageInfo = lm.images.get(imageKey);
         if (!imageInfo || !imageInfo.filePath)
           continue;
-        this.showLoading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (${i + 1}/${localImages.length})`);
+        this.status.showUploading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (${i + 1}/${localImages.length})`);
         try {
           const file = this.app.vault.getFileByPath(imageInfo.filePath);
           if (!file) {
@@ -73778,11 +73826,11 @@ var PreviewController = class {
         } catch (error) {
         }
       }
-      this.showLoading("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
+      this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
       lm.replaceImages(this.content.getElements().articleDiv);
     } else {
     }
-    this.showLoading("\u5904\u7406\u5C01\u9762...");
+    this.status.showUploading("\u5904\u7406\u5C01\u9762...");
     let mediaId = "";
     if (localCover) {
       const coverData = await localCover.arrayBuffer();
@@ -73824,7 +73872,7 @@ var PreviewController = class {
     };
     let draftRes;
     if (isUpdate && draftStatus.media_id) {
-      this.showLoading("\u66F4\u65B0\u8349\u7A3F...");
+      this.status.showProcessing("\u66F4\u65B0\u8349\u7A3F...");
       const v3Article = {
         title: article.title,
         content: article.content,
@@ -73843,7 +73891,7 @@ var PreviewController = class {
         token
       );
     } else {
-      this.showLoading("\u521B\u5EFA\u8349\u7A3F...");
+      this.status.showProcessing("\u521B\u5EFA\u8349\u7A3F...");
       const v3Article = {
         title: article.title,
         content: article.content,
@@ -73963,6 +74011,25 @@ var PreviewController = class {
       }
     } finally {
       document.body.removeChild(textarea);
+    }
+  }
+  async copyWithoutImageUpload() {
+    this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F...");
+    try {
+      if (document.hasFocus && !document.hasFocus()) {
+        window.focus();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      await this.render.copyArticle();
+      this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF08\u672A\u4E0A\u4F20\u56FE\u7247\uFF09", 2e3);
+    } catch (error) {
+      try {
+        await this.fallbackCopyToClipboard();
+        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF08\u672A\u4E0A\u4F20\u56FE\u7247\uFF09", 2e3);
+      } catch (fallbackError) {
+        this.status.hideMessage();
+        throw new Error("\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u4FDD\u6D4F\u89C8\u5668\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\uFF0C\u7136\u540E\u91CD\u8BD5");
+      }
     }
   }
   arrayBufferToBase64(buffer) {

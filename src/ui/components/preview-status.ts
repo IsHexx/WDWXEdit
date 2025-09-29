@@ -47,7 +47,21 @@ export class PreviewStatus {
         this.showProgress(true);
     }
 
-    private showStatus(message: string, type: 'info' | 'success' | 'warning' | 'error' | 'loading', duration?: number) {
+    showUploading(message: string, duration?: number) {
+        this.showStatus(message, 'upload', duration);
+        this.showProgress(true);
+    }
+
+    showCopying(message: string, duration?: number) {
+        this.showStatus(message, 'copy', duration);
+    }
+
+    showProcessing(message: string, duration?: number) {
+        this.showStatus(message, 'processing', duration);
+        this.showProgress(true);
+    }
+
+    private showStatus(message: string, type: 'info' | 'success' | 'warning' | 'error' | 'loading' | 'upload' | 'copy' | 'processing', duration?: number) {
 
         if (this.hideTimeout) {
             clearTimeout(this.hideTimeout);
@@ -111,6 +125,37 @@ export class PreviewStatus {
                 iconSvg = `
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="loading-spinner">
                         <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>
+                `;
+                break;
+            case 'upload':
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                `;
+                break;
+            case 'copy':
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                `;
+                break;
+            case 'processing':
+                iconSvg = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="processing-icon">
+                        <path d="M12 2v6"/>
+                        <path d="M12 18v4"/>
+                        <path d="M4.93 4.93l4.24 4.24"/>
+                        <path d="M14.83 14.83l4.24 4.24"/>
+                        <path d="M2 12h6"/>
+                        <path d="M18 12h4"/>
+                        <path d="M4.93 19.07l4.24-4.24"/>
+                        <path d="M14.83 9.17l4.24-4.24"/>
                     </svg>
                 `;
                 break;

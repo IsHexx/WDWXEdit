@@ -150,7 +150,11 @@ export class PreviewController {
             },
             onCopy: async () => {
                 await this.copyWithImageUpload();
-                new Notice('复制成功，图片已上传到微信服务器，请到公众号编辑器粘贴。');
+                if (this.currentAppId) {
+                    new Notice('复制成功，图片已上传到微信服务器，请到公众号编辑器粘贴。');
+                } else {
+                    new Notice('复制成功，未配置公众号，图片未上传。');
+                }
             },
             onPost: async () => {
                 await this.postArticle();
@@ -223,12 +227,12 @@ export class PreviewController {
     }
 
     async uploadImages() {
-        this.showLoading('图片上传中...');
+        this.status.showUploading('图片上传中...');
         try {
             await this.render.uploadImages(this.currentAppId);
-            this.showMsg('图片上传成功，并且文章内容已复制，请到公众号编辑器粘贴。');
+            this.status.showSuccess('图片上传成功，并且文章内容已复制，请到公众号编辑器粘贴。');
         } catch (error) {
-            this.showMsg('图片上传失败: ' + error.message);
+            this.status.showError('图片上传失败: ' + error.message);
         }
     }
 
@@ -236,38 +240,40 @@ export class PreviewController {
         const localCover = this.toolbar.getCoverFile();
         
         if (this.toolbar.isUsingLocalCover() && !localCover) {
-            this.showMsg('请选择封面文件');
+            this.status.showWarning('请选择封面文件');
             return;
         }
 
         if (!this.currentAppId) {
-            this.showMsg('请先选择公众号');
+            this.status.showWarning('请先选择公众号');
             return;
         }
 
-        this.showLoading('发布中...');
+        this.status.showProcessing('发布中...');
         try {
             await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
-            this.showMsg('发布成功');
+            this.status.showSuccess('发布成功');
         } catch (error) {
 
-            this.showMsg('发布失败: ' + error.message);
+            this.status.showError('发布失败: ' + error.message);
         }
     }
 
     async copyWithImageUpload() {
         if (!this.currentAppId) {
-            throw new Error('请先选择公众号以便上传图片');
+            this.status.showWarning('未配置公众号，图片未上传，但内容已复制', 3000);
+            await this.copyWithoutImageUpload();
+            return;
         }
 
-        this.showLoading('处理图片...');
+        this.status.showProcessing('处理图片...');
 
         const token = await this.render.getToken(this.currentAppId);
         if (!token) {
             throw new Error('获取Token失败，请检查公众号配置');
         }
 
-        this.showLoading('检测本地图片...');
+        this.status.showUploading('检测本地图片...');
         const lm = LocalImageManager.getInstance();
         const imageKeys = Array.from((lm as any).images.keys());
         const localImages = imageKeys.filter(key => {
@@ -284,7 +290,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
             const wechatClient = getWechatClient();
 
-            this.showLoading(`上传图片中... (0/${localImages.length})`);
+            this.status.showUploading(`上传图片中... (0/${localImages.length})`);
 
             for (let i = 0; i < localImages.length; i++) {
                 const imageKey = localImages[i];
@@ -292,7 +298,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
 
                 if (!imageInfo || !imageInfo.filePath) continue;
 
-                this.showLoading(`上传图片中... (${i + 1}/${localImages.length})`);
+                this.status.showUploading(`上传图片中... (${i + 1}/${localImages.length})`);
 
                 try {
                     const file = this.app.vault.getFileByPath(imageInfo.filePath);
@@ -328,14 +334,14 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 }
             }
 
-            this.showLoading('替换图片链接...');
+            this.status.showProcessing('替换图片链接...');
 
             lm.replaceImages(this.content.getElements().articleDiv);
         } else {
 
         }
 
-        this.showLoading('复制到剪贴板...');
+        this.status.showCopying('复制到剪贴板...');
         
         try {
             if (document.hasFocus && !document.hasFocus()) {
@@ -344,13 +350,13 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
             
             await this.render.copyArticle();
-            this.status.hideMessage();
+            this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
 
         } catch (error) {
 
             try {
                 await this.fallbackCopyToClipboard();
-                this.status.hideMessage();
+                this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
 
             } catch (fallbackError) {
 
@@ -369,13 +375,13 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         }
         const wechatClient = getWechatClient();
 
-        this.showLoading('获取认证信息...');
+        this.status.showProcessing('获取认证信息...');
         const token = await this.render.getToken(appid);
         if (!token) {
             throw new Error('获取Token失败，请检查公众号配置');
         }
 
-        this.showLoading('检查草稿状态...');
+        this.status.showProcessing('检查草稿状态...');
         const draftStatus = await this.shouldUpdateDraft(token);
         const isUpdate = draftStatus.shouldUpdate;
         
@@ -385,7 +391,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
 
         }
 
-        this.showLoading('检测本地图片...');
+        this.status.showUploading('检测本地图片...');
         const lm = LocalImageManager.getInstance();
         const imageKeys = Array.from((lm as any).images.keys());
         const localImages = imageKeys.filter(key => {
@@ -394,7 +400,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         });
 
         if (localImages.length > 0) {
-            this.showLoading(`上传图片中... (0/${localImages.length})`);
+            this.status.showUploading(`上传图片中... (0/${localImages.length})`);
             
             for (let i = 0; i < localImages.length; i++) {
                 const imageKey = localImages[i];
@@ -402,7 +408,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 
                 if (!imageInfo || !imageInfo.filePath) continue;
 
-                this.showLoading(`上传图片中... (${i + 1}/${localImages.length})`);
+                this.status.showUploading(`上传图片中... (${i + 1}/${localImages.length})`);
                 
                 try {
                     const file = this.app.vault.getFileByPath(imageInfo.filePath);
@@ -438,14 +444,14 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 }
             }
             
-            this.showLoading('替换图片链接...');
+            this.status.showProcessing('替换图片链接...');
 
             lm.replaceImages(this.content.getElements().articleDiv);
         } else {
 
         }
 
-        this.showLoading('处理封面...');
+        this.status.showUploading('处理封面...');
         let mediaId = '';
         if (localCover) {
             const coverData = await localCover.arrayBuffer();
@@ -496,7 +502,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         let draftRes: any;
         
         if (isUpdate && draftStatus.media_id) {
-            this.showLoading('更新草稿...');
+            this.status.showProcessing('更新草稿...');
 
             const v3Article = {
                 title: article.title,
@@ -517,7 +523,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 token
             );
         } else {
-            this.showLoading('创建草稿...');
+            this.status.showProcessing('创建草稿...');
             
             const v3Article = {
                 title: article.title,
@@ -679,6 +685,32 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
         } finally {
             document.body.removeChild(textarea);
+        }
+    }
+
+    private async copyWithoutImageUpload() {
+        this.status.showCopying('复制到剪贴板...');
+        
+        try {
+            if (document.hasFocus && !document.hasFocus()) {
+                window.focus();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            await this.render.copyArticle();
+            this.status.showSuccess('复制成功（未上传图片）', 2000);
+
+        } catch (error) {
+
+            try {
+                await this.fallbackCopyToClipboard();
+                this.status.showSuccess('复制成功（未上传图片）', 2000);
+
+            } catch (fallbackError) {
+
+                this.status.hideMessage();
+                throw new Error('复制失败：请确保浏览器窗口处于活动状态，然后重试');
+            }
         }
     }
 
