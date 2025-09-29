@@ -1,7 +1,7 @@
 import { Token, Tokens, MarkedExtension } from "marked";
 import { Notice, TAbstractFile, TFile, Vault, MarkdownView, requestUrl, Platform } from "obsidian";
 import { Extension } from "./extension";
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from "../../../core/settings";
 import { IsImageLibReady, PrepareImageLib, WebpToJPG, UploadImageToWx } from "../../wechat/imagelib";
 
@@ -81,11 +81,9 @@ export class LocalImageManager {
                 new Notice(msg);
 
             } else {
-                // Claude Code Update - 添加成功上传的调试信息
 
             }
 
-            // Claude Code Update - 按照v2版本的做法：优先使用后端返回的URL，否则使用fallback
             value.media_id = res.media_id || null;
             value.url = res.url || (res.media_id ? `https://mmbiz.qlogo.cn/mmbiz_png/${res.media_id}/0?wx_fmt=png` : null);
             
@@ -94,8 +92,6 @@ export class LocalImageManager {
             } else if (res.url) {
 
             }
-            
-            // Claude Code Update - 添加更新后的状态调试信息
 
             result.push(res);
         }
@@ -266,7 +262,7 @@ export class LocalImageManager {
                     new Notice(msg);
 
                 }
-                // Claude Code Update - 修复类型兼容性问题，如果没有URL则使用media_id生成URL
+
                 const info = {
                     resUrl: img.src,
                     filePath: "",
@@ -289,7 +285,7 @@ export class LocalImageManager {
 
                     continue;
                 }
-                // Claude Code Update - 修复类型兼容性问题，如果没有URL则使用media_id生成URL
+
                 const info = {
                     resUrl: '#' + img.id,
                     filePath: "",
@@ -324,8 +320,6 @@ export class LocalImageManager {
 
                 continue;
             }
-            
-            // Claude Code Update - 添加替换调试信息
 
             img.setAttribute('src', value.url);
         }
@@ -620,8 +614,6 @@ export class LocalFile extends Extension{
         return await fetch(src).then(response => response.blob())
     }
 
-// Claude Code Remove - 移除 Excalidraw 功能
-
     parseLinkStyle(link: string) {
         let filename = '';
         let style = 'style="width:100%;height:100%"';
@@ -665,10 +657,6 @@ export class LocalFile extends Extension{
         }
         return { filename, style, postion };
     }
-
-// Claude Code Remove - 移除 Excalidraw 功能
-
-// Claude Code Remove - 移除 Excalidraw 功能
 
     parseSVGLink(link: string) {
         let classname = 'note-embed-svg-left';
@@ -714,8 +702,6 @@ export class LocalFile extends Extension{
                     token.html = `<img src="${src}" alt="${token.text}" ${width} ${height} />`;
                     return;
                 }
-
-                // Claude Code Remove - 移除 Excalidraw 功能
 
                 if (token.href.endsWith('.svg') || token.href.includes('.svg|')) {
                     const info = this.parseSVGLink(token.href);

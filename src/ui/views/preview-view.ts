@@ -1,7 +1,6 @@
-// Claude Code ADD - 预览视图容器，负责生命周期管理
 import { ItemView, WorkspaceLeaf, Plugin } from 'obsidian';
 import { PreviewController } from '../controllers/preview-controller';
-// Claude Code Update - 更新import路径
+
 import { uevent, waitForLayoutReady } from '../../shared/utils';
 
 export const VIEW_TYPE_NOTE_PREVIEW = 'note-preview';

@@ -1,6 +1,5 @@
-// Claude Code ADD - 预览控制器，负责核心业务逻辑
 import { App, EventRef, Plugin, TFile, TFolder, TAbstractFile, Notice } from 'obsidian';
-// Claude Code Update - 更新import路径
+
 import { debounce } from '../../shared/utils';
 import { NMPSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
@@ -145,7 +144,7 @@ export class PreviewController {
             },
             onRefresh: async () => {
                 await this.assetsManager.loadCustomCSS();
-                // Claude Code Remove - 移除loadExpertSettings调用
+
                 this.render.reloadStyle();
                 await this.renderMarkdown();
             },
@@ -277,7 +276,7 @@ export class PreviewController {
         });
 
         if (localImages.length > 0) {
-            // Claude Code Update - 更新import路径
+
 const { initApiClients, getWechatClient } = await import('../../services/api');
             
             if (!getWechatClient()) {
@@ -361,9 +360,8 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         }
     }
 
-    // Claude Code ADD - V2风格的图片上传和草稿创建
     private async uploadImagesAndCreateDraft(appid: string, localCover: File | null = null) {
-        // Claude Code Update - 更新import路径
+
 const { initApiClients, getWechatClient } = await import('../../services/api');
         
         if (!getWechatClient()) {
@@ -552,7 +550,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         const currentTitle = this.currentFile?.basename || this.render.title || '未命名文章';
 
         try {
-            // Claude Code Update - 更新import路径
+
 const { initApiClients, getWechatClient } = await import('../../services/api');
             
             if (!getWechatClient()) {

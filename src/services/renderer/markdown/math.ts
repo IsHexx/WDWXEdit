@@ -1,7 +1,7 @@
 import { MarkedExtension, Token, Tokens } from "marked";
 import { requestUrl } from "obsidian";
 import { Extension } from "./extension";
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from "../../../core/settings";
 
 const inlineRule = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;
@@ -14,7 +14,7 @@ export function cleanMathCache() {
 }
 
 export class MathRendererQueue {
-    // Claude Code Update - 禁用外部数学渲染服务，使用本地处理
+
     private host = 'disabled'; // 不再使用外部服务
     private static instance: MathRendererQueue;
     private mathIndex: number = 0;
@@ -40,7 +40,6 @@ export class MathRendererQueue {
                 path = '/math/tex';
             }
 
-            // Claude Code Update - 简化数学公式处理，避免外部API依赖
             let svg = '';
             try {
 

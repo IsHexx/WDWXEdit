@@ -1,5 +1,5 @@
 import { Marked } from "marked";
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from "../../../core/settings";
 import { App, Vault } from "obsidian";
 import AssetsManager from "../../../core/assets";

@@ -1,9 +1,3 @@
-/*
- * Claude Code ADD - 现代化样式编辑器组件
- * 只修改UI样式，保持原有代码逻辑不变
- */
-
-// Claude Code Update - 更新import路径
 import { NMPSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
 
@@ -11,7 +5,7 @@ export interface StyleEditorEvents {
     onThemeChanged: (theme: string) => void;
     onHighlightChanged: (highlight: string) => void;
     onStyleReset: () => void;
-    // Claude Code ADD - 样式编辑器事件
+
     onFontChanged?: (fontFamily: string) => void;
     onFontSizeChanged?: (fontSize: string) => void;
     onPrimaryColorChanged?: (color: string) => void;
@@ -35,8 +29,7 @@ export class StyleEditor {
     render(): HTMLElement {
         this.container = document.createElement('div');
         this.container.className = 'style-editor-container';
-        
-        // Claude Code Update - 创建可折叠的样式编辑器
+
         this.createCollapsibleLayout();
 
         this.addStyles();
@@ -44,7 +37,6 @@ export class StyleEditor {
         return this.container;
     }
 
-    // Claude Code Update - 参照v2创建样式编辑器布局
     private createCollapsibleLayout(): void {
 
         this.createTitleBar();
@@ -81,7 +73,6 @@ export class StyleEditor {
     }
     
     private createV2StyleOptionsLayout(): void {
-        // Claude Code Update - 完全按照v2的实现方式
 
         const firstRow = this.contentDiv.createDiv({ cls: 'style-editor-row' });
 
@@ -141,13 +132,12 @@ export class StyleEditor {
             const option = fontSelect.createEl('option');
             option.value = font.value;
             option.text = font.text;
-            // Claude Code ADD - 根据设置选中当前字体
+
             if (font.text === this.settings.fontFamily) {
                 option.selected = true;
             }
         });
-        
-        // Claude Code ADD - 字体变更事件
+
         fontSelect.onchange = () => {
             const selectedOption = fontSelect.options[fontSelect.selectedIndex];
             this.settings.fontFamily = selectedOption.text;
@@ -172,14 +162,13 @@ export class StyleEditor {
             const option = sizeSelect.createEl('option');
             option.value = size.value;
             option.text = size.text;
-            // Claude Code ADD - 根据设置选中当前字号
+
             if (size.text.includes(this.settings.fontSize) || 
                 (this.settings.fontSize === '推荐' && size.value === '16px')) {
                 option.selected = true;
             }
         });
-        
-        // Claude Code ADD - 字号变更事件
+
         sizeSelect.onchange = () => {
             const selectedText = sizeSelect.options[sizeSelect.selectedIndex].text;
             const fontSize = selectedText.includes('推荐') ? '推荐' : 
@@ -209,15 +198,14 @@ export class StyleEditor {
             const option = colorSelect.createEl('option');
             option.value = color.value;
             option.text = color.text;
-            // Claude Code ADD - 根据设置选中当前主题色
+
             if (color.value === this.settings.primaryColor) {
                 option.selected = true;
             } else if (!this.settings.primaryColor && color.value === '#3b82f6') {
                 option.selected = true;
             }
         });
-        
-        // Claude Code ADD - 主题色变更事件
+
         colorSelect.onchange = () => {
             const selectedValue = colorSelect.value;
             this.settings.primaryColor = selectedValue;
@@ -233,11 +221,9 @@ export class StyleEditor {
             cls: 'style-editor-css-textarea',
             attr: { placeholder: '', rows: '4' }
         });
-        
-        // Claude Code ADD - 根据设置显示当前自定义CSS
+
         cssTextarea.value = this.settings.customCSS || '';
-        
-        // Claude Code ADD - 自定义CSS变更事件（防抖处理）
+
         let cssTimeout: NodeJS.Timeout;
         cssTextarea.oninput = () => {
             clearTimeout(cssTimeout);
@@ -271,7 +257,7 @@ export class StyleEditor {
         const style = document.createElement('style');
         style.id = 'style-editor-css';
         style.textContent = `
-            /* Claude Code Update - 新toolbar样式，匹配图片设计 */
+            
             .style-editor-container {
                 background: #f8f8f8;
                 border-radius: 6px;
@@ -445,8 +431,7 @@ export class StyleEditor {
             .icon-button:active {
                 transform: scale(0.95);
             }
-            
-            /* Claude Code Update - 右上角按钮组样式 */
+
             .toolbar-buttons {
                 display: flex;
                 justify-content: flex-end;
@@ -476,8 +461,7 @@ export class StyleEditor {
             .toolbar-button:active {
                 transform: scale(0.98);
             }
-            
-            /* Claude Code Update - 新toolbar按钮样式 */
+
             .toolbar-buttons-inline {
                 display: flex;
                 align-items: center;
@@ -517,7 +501,7 @@ export class StyleEditor {
     }
 
     refresh(): void {
-        // Claude Code Update - 刷新UI状态，适配新的可折叠布局
+
         const contentDiv = this.container.querySelector('.style-editor-content');
         if (!contentDiv) return;
         
@@ -533,8 +517,7 @@ export class StyleEditor {
             highlightSelect.value = this.settings.defaultHighlight;
         }
     }
-    
-    // Claude Code Update - 添加切换折叠状态的公共方法
+
     public setCollapsed(collapsed: boolean): void {
         if (this.isCollapsed !== collapsed) {
             this.toggleCollapse();

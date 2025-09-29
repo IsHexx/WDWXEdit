@@ -3,10 +3,9 @@ import { MarkedExtension, Tokens } from "marked";
 import hljs from "highlight.js";
 import { MathRendererQueue } from "./math";
 import { Extension } from "./extension";
-// Claude Code Update - 更新import路径
+
 import { UploadImageToWx } from "../../wechat/imagelib";
 import AssetsManager from "../../../core/assets";
-// Claude Code Remove
 
 export class CardDataManager {
 	private cardData: Map<string, string>;
@@ -82,7 +81,7 @@ export class CodeRenderer extends Extension {
 
 				continue;
 			}
-			// Claude Code Update - 修复类型兼容性问题
+
 			const url = res.url;
 			if (url) {
 				img.setAttribute('src', url);
@@ -171,7 +170,6 @@ export class CodeRenderer extends Extension {
 			return html;
 		}
 
-		// Claude Code Remove - 移除expertSettings和wxWidget相关功能
 		return html;
 	}
 

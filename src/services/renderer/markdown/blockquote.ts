@@ -1,6 +1,6 @@
 import { Tokens, MarkedExtension } from "marked";
 import { Extension, MDRendererCallback } from "./extension";
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from "../../../core/settings";
 import { App, Vault } from "obsidian";
 import AssetsManager from "../../../core/assets";
@@ -20,7 +20,7 @@ export class Blockquote extends Extension {
       return;
     }
     if (this.callout) this.callout.marked = this.marked;
-    // Claude Code Remove - 移除box引用
+
     return;
   }
 
@@ -28,8 +28,6 @@ export class Blockquote extends Extension {
     if (this.callout.matched(token.text)) {
       return await this.callout.renderer(token);
     }
-
-    // Claude Code Remove - 移除box处理逻辑
 
     const body = await this.marked.parse(token.text);
     return `<blockquote>${body}</blockquote>`;

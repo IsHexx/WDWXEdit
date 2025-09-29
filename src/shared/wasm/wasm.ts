@@ -1,4 +1,3 @@
-// Claude Code Update - 更新import路径
 import AssetsManager from "../../core/assets";
 require('./wasm_exec.js');
 

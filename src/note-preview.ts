@@ -1,5 +1,3 @@
-// Claude Code Update - 兼容性入口文件，导出重构后的组件
-
 // 1. PreviewView - 视图容器，负责生命周期管理
 // 2. PreviewController - 控制器，负责核心业务逻辑  
 // 3. PreviewToolbar - 工具栏组件
