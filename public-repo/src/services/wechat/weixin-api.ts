@@ -1,11 +1,9 @@
 import { requestUrl, RequestUrlParam, getBlobArrayBuffer } from "obsidian";
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from '../../core/settings';
 
-// Claude Code Update - 全部使用本地后端服务，不再依赖外部API
 const LocalBackendHost = 'http://127.0.0.1:8000';
 
-// Claude Code Update - 获取认证头部
 function getAuthHeaders(): { [key: string]: string } {
     return {
         'X-API-Key': 'wdwxedit-api-key-2024', // 使用后端.env中配置的API Key
@@ -13,7 +11,6 @@ function getAuthHeaders(): { [key: string]: string } {
     };
 }
 
-// Claude Code Update - 通过后端代理获取微信Token
 export async function wxGetToken(authkey:string, appid:string, secret:string) {
     const url = `${LocalBackendHost}/api/v1/wechat/access-token`;
     
@@ -80,7 +77,6 @@ export async function wxGetToken(authkey:string, appid:string, secret:string) {
     }
 }
 
-// Claude Code Update - 通过后端代理加密保存公众号信息
 export async function wxEncrypt(authkey:string, wechat:any[]) {
     const url = `${LocalBackendHost}/api/v1/wechat/save-accounts`;
     
@@ -123,7 +119,6 @@ export async function wxEncrypt(authkey:string, wechat:any[]) {
     }
 }
 
-// Claude Code Update - 通过后端代理获取认证密钥信息
 export async function wxKeyInfo(authkey:string) {
     const url = `${LocalBackendHost}/api/v1/premium/key-info`;
     
@@ -168,7 +163,6 @@ export async function wxKeyInfo(authkey:string) {
     }
 }
 
-// Claude Code Update - 通过后端代理上传图片
 export async function wxUploadImage(data: Blob, filename: string, token: string, type?: string) {
     const url = `${LocalBackendHost}/api/v1/wechat/upload-image`;
     
@@ -237,7 +231,6 @@ export interface DraftArticle {
     highlight?: string;
 }
 
-// Claude Code Update - 通过后端代理创建草稿
 export async function wxAddDraft(token: string, data: DraftArticle) {
     const url = `${LocalBackendHost}/api/v1/wechat/create-draft`;
     
@@ -313,7 +306,6 @@ export interface DraftImages {
     image_info: DraftImageInfo;
 }
 
-// Claude Code Update - 通过后端代理创建图文草稿
 export async function wxAddDraftImages(token: string, data: DraftImages) {
     const url = `${LocalBackendHost}/api/v1/wechat/create-draft`;
     
@@ -372,7 +364,6 @@ export async function wxAddDraftImages(token: string, data: DraftImages) {
     }
 }
 
-// Claude Code Update - 通过后端代理获取素材列表
 export async function wxBatchGetMaterial(token: string, type: string, offset: number = 0, count: number = 10) {
     const url = `${LocalBackendHost}/api/v1/wechat/batch-get-material`;
     

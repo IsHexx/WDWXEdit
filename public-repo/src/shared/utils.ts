@@ -179,7 +179,6 @@ export function applyCSS(html: string, css: string) {
 	return root.outerHTML;
 }
 
-// Claude Code Update - 禁用外部统计上报，避免API依赖
 export function uevent(name: string) {
 
 	console.log(`Event: ${name} (platform: ${PlugPlatform}, version: ${PluginVersion})`);

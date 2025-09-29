@@ -1,4 +1,3 @@
-// Claude Code ADD - V2风格状态提示条
 export interface StatusMessage {
     type: 'info' | 'success' | 'warning' | 'error';
     message: string;

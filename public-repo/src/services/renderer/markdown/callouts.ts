@@ -1,8 +1,7 @@
 import { Tokens, MarkedExtension} from "marked";
 import { Extension } from "./extension";
-// Claude Code Update - 更新import路径
+
 import AssetsManager from "../../../core/assets";
-// Claude Code Remove
 
 const icon_note = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path></svg>`
 const icon_abstract = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-clipboard-list"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>`
@@ -195,8 +194,6 @@ export class CalloutRenderer extends Extension {
             token.text = token.text.slice(index+1)
             body = await this.marked.parse(token.text);
         } 
-
-        // Claude Code Remove - 移除expertSettings和wxWidget相关功能
 
         let info = GetCallout(callout.toLowerCase());
         if (info == null) {

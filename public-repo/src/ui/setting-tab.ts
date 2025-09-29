@@ -1,12 +1,12 @@
 import { App, TextAreaComponent, PluginSettingTab, Setting, Notice, sanitizeHTMLToDom } from 'obsidian';
-// Claude Code Update - 更新import路径
+
 import NoteToMpPlugin from '../core/main';
-// Claude Code Update - 使用新的API客户端
+
 import { wxGetToken, getWechatClient } from '../services/api';
 import { wxEncrypt } from '../services/wechat/weixin-api'; // 保留对加密函数的引用，因为新API中可能没有这个
 import { cleanMathCache } from '../services/renderer/markdown/math';
 import { NMPSettings } from '../core/settings';
-// Claude Code Update - 移除DocModal导入，不再使用弹窗文档
+
 // import { DocModal } from './doc-modal';
 
 export class NoteToMpSettingTab extends PluginSettingTab {
@@ -40,7 +40,7 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 	}
 
 	async testWXInfo() {
-		// Claude Code Update - 使用后端API，不再需要authKey检查
+
 		const authKey = this.settings.authKey;
 		// if (authKey.length == 0) {
 		//     new Notice('请先设置authKey');
@@ -52,10 +52,10 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 			return;
 		}
 		try {
-			// Claude Code Update - 移除不再使用的docUrl变量
+
 			for (let wx of wxInfo) {
 				try {
-					// Claude Code Update - 使用新API客户端，添加调试信息
+
 					console.log(`🔍 测试公众号配置:`, {
 						name: wx.name,
 						appid: wx.appid,
@@ -69,7 +69,7 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 						new Notice(`${wx.name} 测试失败：未获取到有效token`);
 					}
 				} catch (error) {
-					// Claude Code Update - 简化错误提示，与v2版本保持一致，只使用Notice，并显示当前IP
+
 					let message = `${wx.name} 测试失败：${error.message || error}`;
 					if (error.message && error.message.includes('40125')) {
 						message = `${wx.name} 测试失败：AppSecret无效 (错误码40125)。请检查：\n1. AppSecret是否正确（长度应为32位）\n2. 是否使用了测试号的AppSecret但配置了正式号的AppID\n3. AppSecret是否已过期或被重置\n4. 公众号类型是否支持此API`;
@@ -106,7 +106,6 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 		}
 	}
 
-	// Claude Code Update - 采用v2版本直接保存方式，不再加密
 	async saveWXInfo() {
 	    if (this.wxInfo.length == 0) {
 			new Notice('请输入内容');
@@ -130,7 +129,7 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 				new Notice('格式错误，请检查');
 				return false;
 			}
-			// Claude Code Update - 确保所有字段都被正确trim处理
+
 			const name = items[0].trim();
 			const appid = items[1].trim();
 			const secret = items[2].trim();
@@ -147,7 +146,7 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 		}
 
 		try {
-			// Claude Code Update - 直接保存微信信息，不再加密
+
 			this.settings.wxInfo = wechat;
 			await this.plugin.saveSettings();
 			this.wxInfo = this.parseWXInfo();
@@ -289,8 +288,6 @@ export class NoteToMpSettingTab extends PluginSettingTab {
 				await this.plugin.saveSettings();
 			});
 		})
-
-		// Claude Code Remove - 移除Excalidraw相关设置
 
 		new Setting(containerEl)
 			.setName('水印图片')

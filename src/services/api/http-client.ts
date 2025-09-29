@@ -78,13 +78,12 @@ export class HttpClient {
         headers: requestHeaders,
 
         body: data ? this.serializeWithoutUnicodeEscape(data) : undefined,
-        // Claude Code Add - CORS处理配置
+
         mode: 'cors',
         credentials: 'omit',
         cache: 'no-cache'
       };
 
-      // Claude Code Add - 仅显示Unicode转义相关的关键调试
       if (BACKEND_CONFIG.DEBUG) {
         const bodyContent = requestOptions.body as string;
         const hasUnicodeEscape = bodyContent ? /\\u[0-9a-fA-F]{4}/.test(bodyContent) : false;
@@ -100,8 +99,7 @@ export class HttpClient {
       }
 
       const response = await this.requestWithTimeout(url, requestOptions, timeout!);
-      
-      // Claude Code Add - 响应头调试信息
+
       if (BACKEND_CONFIG.DEBUG) {
         console.log(`📥 收到HTTP响应:`, {
           status: response.status,
@@ -135,8 +133,7 @@ export class HttpClient {
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      
-      // Claude Code Add - 增强的错误日志
+
       console.error(`❌ ${method} ${endpoint} 失败:`, {
         error: errorMsg,
         errorType: error.constructor.name,
@@ -370,9 +367,6 @@ export class HttpClient {
     });
   }
 
-  /**
-   * Claude Code Add - 自定义JSON序列化，避免Unicode转义
-   */
   private serializeWithoutUnicodeEscape(data: any): string {
     try {
 

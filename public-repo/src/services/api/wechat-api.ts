@@ -1,4 +1,3 @@
-// Claude Code Update
 /**
  * 微信API客户端模块
  * 提供微信公众号相关的所有API功能
@@ -129,7 +128,6 @@ export class WechatClient {
    */
   async authenticate(auth: WechatAuth): Promise<WechatTokenResponse> {
 
-    // Claude Code Update - 添加调试信息
     console.log('📋 API请求参数:', {
       app_id: auth.appId,
       app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
@@ -184,7 +182,6 @@ export class WechatClient {
    */
   async getMediaList(params: MediaListParams): Promise<MediaListResult> {
 
-    // Claude Code Update - 修复API路径，使用正确的后端路由
     const response = await this.httpClient.post<MediaListResult>('/api/v1/wechat/batch-get-material', {
       type: params.type,
       offset: params.offset,
@@ -197,8 +194,6 @@ export class WechatClient {
     }
 
     const result = response.data!;
-    
-    // Claude Code Update - 修复错误判断逻辑，微信API成功响应可能没有errcode字段
 
     if (result.errcode !== undefined && result.errcode !== 0) {
       throw new Error(`微信API错误: ${result.errmsg || '未知错误'}`);
@@ -302,8 +297,6 @@ export class WechatClient {
     }
 
     const result = response.data!;
-    
-    // Claude Code Update - 修复错误判断逻辑，微信API成功响应可能没有errcode字段
 
     if (result.errcode !== undefined && result.errcode !== 0) {
       throw new Error(`微信API错误: ${result.errmsg || '未知错误'}`);

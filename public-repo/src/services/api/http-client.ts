@@ -1,4 +1,3 @@
-// Claude Code Update
 /**
  * HTTP客户端模块
  * 提供统一的HTTP请求功能，支持文件上传和超时控制
@@ -44,11 +43,11 @@ export class HttpClient {
     };
 
     this.defaultHeaders = {
-      // Claude Code Update - 明确指定UTF-8编码，避免Unicode转义问题
+
       'Content-Type': 'application/json; charset=utf-8',
       'X-API-Key': this.config.apiKey,
       'User-Agent': 'WDWxEdit-v2-Client/1.0'
-      // Claude Code Remove - 移除不正确的预检请求头，这些应该由浏览器自动添加
+
     };
 
     if (BACKEND_CONFIG.DEBUG) {
@@ -77,7 +76,7 @@ export class HttpClient {
       const requestOptions: RequestInit = {
         method,
         headers: requestHeaders,
-        // Claude Code Update - 使用自定义序列化避免Unicode转义
+
         body: data ? this.serializeWithoutUnicodeEscape(data) : undefined,
         // Claude Code Add - CORS处理配置
         mode: 'cors',

@@ -1,6 +1,5 @@
 import { getBlobArrayBuffer } from "obsidian";
-// Claude Code Update - 使用新的API客户端
-// Claude Code Update - 更新import路径
+
 import { wxUploadImage } from "../api";
 import { NMPSettings } from "../../core/settings";
 import { IsWasmReady, LoadWasm } from "../../shared/wasm/wasm";
@@ -44,8 +43,7 @@ export async function UploadImageToWx(data: Blob, filename: string, token: strin
     const watermarkImg = AddWatermark(await data.arrayBuffer(), watermarkData);
     data = new Blob([watermarkImg], { type: data.type });
   }
-  
-  // Claude Code Update - 添加调试信息
+
   console.log('🔍 开始上传图片:', {
     filename,
     fileSize: data.size,
@@ -55,8 +53,6 @@ export async function UploadImageToWx(data: Blob, filename: string, token: strin
   });
   
   const result = await wxUploadImage(data, filename, token, type);
-  
-  // Claude Code Update - 添加调试信息
 
   return result;
 }

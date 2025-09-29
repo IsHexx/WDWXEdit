@@ -1,0 +1,554 @@
+/*
+ * Copyright (c) 2024-2025 IsHexx
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+ 
+/* =========================================================== */
+/* UI 样式                                                      */
+/* =========================================================== */
+.note-preview {
+  min-height: 100%;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.render-div {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.preview-toolbar {
+  position: relative;
+  min-height: 100px;
+  border-bottom: #e4e4e4 1px solid;
+  background-color: var(--background-primary);
+}
+
+/* =========================================================== */
+/* 工具栏单行横向布局样式 (从v2复制)                           */
+/* =========================================================== */
+.toolbar-horizontal-container {
+  background: #F8F8F8;
+  border: 1px solid #E0E0E0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap; /* 允许整体换行 */
+}
+
+/* 左侧区域 */
+.toolbar-left-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 1; /* 左侧区域可以收缩 */
+  min-width: 0; /* 允许收缩到更小尺寸 */
+  flex-wrap: wrap; /* 允许左侧区域换行 */
+}
+
+.wechat-label {
+  font-size: 14px;
+  color: #000000;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wechat-select {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.wechat-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 右侧区域 */
+.toolbar-right-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 1; /* 按钮区域也可以收缩 */
+  min-width: fit-content; /* 根据内容调整宽度 */
+  flex-wrap: wrap; /* 允许右侧区域换行 */
+}
+
+/* 操作按钮组 */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0; /* 按钮组不收缩 */
+  min-width: fit-content; /* 根据内容调整宽度 */
+  flex-wrap: wrap; /* 允许按钮换行 */
+}
+
+.toolbar-horizontal-container .action-button,
+.toolbar-horizontal-container button.action-button {
+  width: 28px !important;
+  height: 28px !important;
+  border: 1px solid #CCCCCC !important;
+  border-radius: 6px !important;
+  background: #F8F8F8 !important;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+  color: #666666 !important;
+  padding: 0 !important;
+}
+
+.toolbar-horizontal-container .action-button:hover,
+.toolbar-horizontal-container button.action-button:hover {
+  background: #F0F0F0 !important;
+  border-color: #BFBFBF !important;
+  color: #333333 !important;
+}
+
+.toolbar-horizontal-container .action-button svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+}
+
+/* 上传按钮样式与其他按钮保持一致 */
+.toolbar-horizontal-container .upload-btn,
+.toolbar-horizontal-container button.upload-btn {
+  background: #F8F8F8 !important;
+  border-color: #CCCCCC !important;
+  color: #666666 !important;
+}
+
+.toolbar-horizontal-container .upload-btn:hover,
+.toolbar-horizontal-container button.upload-btn:hover {
+  background: #F0F0F0 !important;
+  border-color: #BFBFBF !important;
+  color: #333333 !important;
+}
+
+/* 封面选择器 */
+.cover-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0; /* 封面选择器不收缩，保持完整显示 */
+  min-width: fit-content; /* 根据内容调整最小宽度 */
+}
+
+.cover-label {
+  font-size: 14px;
+  color: #000000;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cover-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-horizontal-container .cover-radio {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: #6b7280 !important;
+}
+
+.toolbar-horizontal-container .cover-radio:checked {
+  accent-color: #6b7280 !important;
+}
+
+.radio-label {
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.toolbar-horizontal-container .radio-label {
+  color: #374151 !important;
+}
+
+/* 文件上传容器 */
+.file-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.file-upload-btn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5da;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #24292e;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-upload-btn:hover {
+  background: #f6f8fa;
+  border-color: #959da5;
+}
+
+.file-input-hidden {
+  display: none !important;
+}
+
+/* 工具栏横向布局响应式设计 */
+/* 中等屏幕：允许按钮换行 */
+@media (max-width: 1024px) {
+  .toolbar-horizontal-container {
+    gap: 12px;
+  }
+  
+  .toolbar-left-section {
+    gap: 12px;
+  }
+  
+  .action-buttons {
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  
+  .toolbar-right-section {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* 中小屏幕：按钮更紧凑，允许换行 */
+@media (max-width: 900px) {
+  .toolbar-horizontal-container {
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .action-buttons {
+    gap: 2px;
+    max-width: 150px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  
+  .toolbar-left-section {
+    gap: 10px;
+    max-width: calc(100% - 170px);
+  }
+  
+  .cover-selector {
+    gap: 4px;
+  }
+  
+  .cover-radio-group {
+    gap: 6px;
+  }
+}
+
+/* 小屏幕：垂直布局 */
+@media (max-width: 768px) {
+  .toolbar-horizontal-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .toolbar-left-section {
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .toolbar-right-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .action-buttons {
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .cover-selector {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .cover-radio-group {
+    gap: 12px;
+  }
+
+  .toolbar-horizontal-container .action-button,
+  .toolbar-horizontal-container button.action-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .toolbar-horizontal-container .action-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* 公众号选择器在小屏幕上占用更少空间 */
+  .wechat-select {
+    min-width: 120px;
+    flex-shrink: 1;
+  }
+}
+
+.toolbar-line {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 10px;
+}
+
+.copy-button {
+  margin-right: 10px;
+}
+
+.refresh-button {
+  margin-right: 10px;
+}
+
+.upload-input {
+  margin-left: 10px;
+  visibility: hidden;
+  width: 0px;
+}
+
+.style-label {
+  margin-right: 10px;
+}
+
+.style-select {
+  margin-right: 10px;
+  width: 120px;
+}
+
+/* Claude Code Update - V2风格状态条样式 */
+.wdwx-status-bar {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  position: relative;
+  animation: statusBarSlideIn 0.2s ease-out;
+}
+
+@keyframes statusBarSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wdwx-status-bar.status-info {
+  background-color: #e3f2fd;
+  border-color: #2196f3;
+  color: #1565c0;
+}
+
+.wdwx-status-bar.status-success {
+  background-color: #e8f5e8;
+  border-color: #4caf50;
+  color: #2e7d32;
+}
+
+.wdwx-status-bar.status-warning {
+  background-color: #fff3e0;
+  border-color: #ff9800;
+  color: #f57c00;
+}
+
+.wdwx-status-bar.status-error {
+  background-color: #ffebee;
+  border-color: #f44336;
+  color: #c62828;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.status-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.status-close {
+  flex-shrink: 0;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  opacity: 0.7;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.status-close:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.status-progress {
+  margin-top: 6px;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.status-progress-fill {
+  height: 100%;
+  background-color: currentColor;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.note-mpcard-wrapper {
+  margin: 20px 20px;
+  background-color: rgb(250, 250, 250);
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+.note-mpcard-content {
+  display: flex;
+}
+.note-mpcard-headimg {
+  border: none !important;
+  border-radius: 27px !important;
+  box-shadow: none !important;
+  width: 54px !important;
+  height: 54px !important;
+  margin: 0 !important;
+}
+.note-mpcard-info { 
+  margin-left: 10px;
+}
+.note-mpcard-nickname {
+  font-size: 17px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.9);
+}
+
+.note-mpcard-signature {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.55);
+}
+.note-mpcard-foot {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #ececec;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.loading-wrapper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner {
+  width: 50px;                    /* 可调整大小 */
+  height: 50px;
+  border: 4px solid #fcd6ff;      /* 底色，浅灰 */
+  border-top: 4px solid #bb0cdf;  /* 主色，蓝色顶部产生旋转感 */
+  border-radius: 50%;             /* 圆形 */
+  animation: spin 1s linear infinite; /* 旋转动画 */
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

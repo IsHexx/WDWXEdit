@@ -1,11 +1,11 @@
 import { App, ItemView, Workspace, Notice, sanitizeHTMLToDom, apiVersion, TFile, MarkdownRenderer, FrontMatterCache } from 'obsidian';
-// Claude Code Update - 更新import路径
+
 import { applyCSS } from '../../shared/utils';
 import { UploadImageToWx } from '../wechat/imagelib';
 import { NMPSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
 import InlineCSS from '../../shared/inline-css';
-// Claude Code Update - 使用新的后端API
+
 import { WechatClient, initApiClients, getWechatClient } from '../api';
 
 import { DraftArticle, DraftImageMediaId, DraftImages } from '../wechat/weixin-api';
@@ -35,7 +35,7 @@ export class ArticleRender implements MDRendererCallback {
   markedParser: MarkedParser;
   cachedElements: Map<string, string> = new Map();
   debouncedRenderMarkdown: (...args: any[]) => void;
-  // Claude Code Update - 添加微信API客户端
+
   wechatClient: WechatClient;
 
   constructor(app: App, itemView: ItemView, styleEl: HTMLElement, articleDiv: HTMLDivElement) {
@@ -51,8 +51,7 @@ export class ArticleRender implements MDRendererCallback {
     this._currentHighlight = 'default';
     this.markedParser = new MarkedParser(app, this);
     this.debouncedRenderMarkdown = debounce(this.renderMarkdown.bind(this), 1000);
-    
-    // Claude Code Update - 初始化微信API客户端
+
     try {
       initApiClients();
       this.wechatClient = getWechatClient();
@@ -167,15 +166,14 @@ export class ArticleRender implements MDRendererCallback {
       this.setArticle(this.errorContent(e));
     }
   }
-  // Claude Code Update - 添加样式编辑器CSS支持
+
   getCSS() {
     try {
       const theme = this.assetsManager.getTheme(this.currentTheme);
       const highlight = this.assetsManager.getHighlight(this.currentHighlight);
       const customCSS = this.settings.customCSSNote.length > 0 || this.settings.useCustomCss ? this.assetsManager.customCSS : '';
       const baseCSS = this.settings.baseCSS ? `.wdwxedit {${this.settings.baseCSS}}` : '';
-      
-      // Claude Code ADD - 添加样式编辑器CSS（字体、字号、主题色）
+
       const styleEditorCSS = this.buildStyleEditorCSS();
       
       return `${InlineCSS}\n\n${highlight!.css}\n\n${theme!.css}\n\n${baseCSS}\n\n${customCSS}\n\n${this.settings.customCSS}\n\n${styleEditorCSS}`;
@@ -196,7 +194,6 @@ export class ArticleRender implements MDRendererCallback {
     this.setStyle(this.getCSS());
   }
 
-  // Claude Code ADD - 构建样式编辑器CSS（仅用于预览显示）
   private buildStyleEditorCSS(): string {
     const cssRules: string[] = [];
 
@@ -285,7 +282,6 @@ export class ArticleRender implements MDRendererCallback {
     return cssRules.join('\n');
   }
 
-  // Claude Code ADD - 字体映射函数
   private mapFontFamily(fontFamily: string): string {
     const fontMap: { [key: string]: string } = {
       '等线': '"DengXian", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif',
@@ -296,7 +292,6 @@ export class ArticleRender implements MDRendererCallback {
     return fontMap[fontFamily] || fontFamily;
   }
 
-  // Claude Code ADD - 字号映射函数  
   private mapFontSize(fontSize: string): string {
     const sizeMap: { [key: string]: string } = {
       '小': '14px',
@@ -307,7 +302,6 @@ export class ArticleRender implements MDRendererCallback {
     return sizeMap[fontSize] || fontSize;
   }
 
-  // Claude Code ADD - 样式编辑器更新方法
   updateFont(fontFamily: string) {
 
     this.setStyle(this.getCSS());
@@ -419,7 +413,6 @@ export class ArticleRender implements MDRendererCallback {
     throw new Error('上传封面失败: ' + res.errmsg);
   }
 
-  // Claude Code Update - 使用新的后端API获取默认封面
   async getDefaultCover(token: string) {
     try {
 
@@ -435,7 +428,6 @@ export class ArticleRender implements MDRendererCallback {
         offset: 0
       });
       if (response.item_count && response.item_count > 0 && response.item) {
-        // Claude Code Update - 添加调试信息查看素材库返回的URL格式
 
         return response.item[0].media_id;
       }
@@ -445,7 +437,6 @@ export class ArticleRender implements MDRendererCallback {
     return '';
   }
 
-  // Claude Code Update - 使用新的后端API获取token
   async getToken(appid: string) {
     const secret = this.getSecret(appid);
     try {
@@ -466,7 +457,7 @@ export class ArticleRender implements MDRendererCallback {
   }
 
   async uploadImages(appid: string) {
-    // Claude Code Update - 使用后端API，不再需要authKey检查
+
     // if (!this.settings.authKey) {
     //   throw new Error('请先设置注册码（AuthKey）');
     // }
@@ -514,14 +505,12 @@ export class ArticleRender implements MDRendererCallback {
     return '';
   }
 
-  // Claude Code Update - 简化版本，移除复杂的图片管理逻辑，图片上传已移至note-preview.ts
-
   async postArticle(appid:string, localCover: File | null = null) {
     throw new Error('此方法已废弃，请使用note-preview.ts中的新调用链');
   }
 
   async postImages(appid: string) {
-    // Claude Code Update - 使用后端API，不再需要authKey检查
+
     // if (!this.settings.authKey) {
     //   throw new Error('请先设置注册码（AuthKey）');
     // }
@@ -574,15 +563,14 @@ export class ArticleRender implements MDRendererCallback {
         image_list: imageList,
       }
     }
-    // Claude Code Update - 使用新的后端API创建图片草稿
+
     try {
 
       if (!this.wechatClient) {
         initApiClients();
         this.wechatClient = getWechatClient();
       }
-      
-      // Claude Code Update - 转换为新API需要的格式
+
       const newApiArticle = {
         title: imagesData.title,
         content: imagesData.content,

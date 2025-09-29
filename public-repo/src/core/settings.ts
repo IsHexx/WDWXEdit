@@ -1,4 +1,3 @@
-// Claude Code Update - 更新import路径
 import { wxKeyInfo } from '../services/wechat/weixin-api';
 
 export class NMPSettings {
@@ -11,7 +10,7 @@ export class NMPSettings {
     authKey: string;
     useCustomCss: boolean;
     customCSSNote: string;
-    // Claude Code Remove - 移除专家设置
+
     wxInfo: {name:string, appid:string, secret:string}[];
     math: string;
     expireat: Date | null = null;
@@ -19,10 +18,10 @@ export class NMPSettings {
     baseCSS: string;
     watermark: string;
     useFigcaption: boolean;
-    // Claude Code Remove - 移除 Excalidraw 功能
+
     isLoaded: boolean = false;
     enableEmptyLine: boolean = false;
-    // Claude Code ADD - 样式编辑器属性
+
     fontFamily: string = '等线';
     fontSize: string = '推荐';
     primaryColor: string = '#2d3748';
@@ -45,7 +44,7 @@ export class NMPSettings {
         this.embedStyle = 'content';
         this.lineNumber = true;
         this.useCustomCss = false;
-        // Claude Code Update - 提供临时authKey，使用后端API时不再需要真实值
+
         this.authKey = 'temp-backend-api-key';
         this.wxInfo = [];
         this.math = 'latex';
@@ -53,9 +52,9 @@ export class NMPSettings {
         this.watermark = '';
         this.useFigcaption = false;
         this.customCSSNote = '';
-        // Claude Code Remove - 移除 Excalidraw 和专家设置
+
         this.enableEmptyLine = false;
-        // Claude Code ADD - 初始化样式编辑器属性
+
         this.fontFamily = '等线';
         this.fontSize = '推荐';
         this.primaryColor = '#2d3748';
@@ -86,7 +85,7 @@ export class NMPSettings {
             watermark,
             useFigcaption,
             customCSSNote,
-            // Claude Code Remove - 移除 Excalidraw 和专家设置参数
+
             ignoreEmptyLine,
         } = data;
 
@@ -133,7 +132,7 @@ export class NMPSettings {
         if (customCSSNote) {
             settings.customCSSNote = customCSSNote;
         }
-        // Claude Code Remove - 移除 Excalidraw 和专家设置加载逻辑
+
         if (ignoreEmptyLine !== undefined) {
             settings.enableEmptyLine = ignoreEmptyLine;
         }
@@ -158,7 +157,7 @@ export class NMPSettings {
             'watermark': settings.watermark,
             'useFigcaption': settings.useFigcaption,
             'customCSSNote': settings.customCSSNote,
-            // Claude Code Remove - 移除 Excalidraw 和专家设置返回值
+
             'ignoreEmptyLine': settings.enableEmptyLine,
         }
     }
@@ -176,7 +175,7 @@ export class NMPSettings {
     }
 
     isAuthKeyVaild() {
-        // Claude Code Update - 临时绕过authKey检查，使用后端API
+
         return true;
 
         // if (this.authKey.length == 0) return false;

@@ -1,4 +1,3 @@
-// Claude Code Update - 更新import路径
 import { NMPSettings } from "../../../core/settings";
 import { Marked, MarkedExtension } from "marked";
 import { App, Vault } from "obsidian";

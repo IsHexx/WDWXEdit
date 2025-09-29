@@ -145,7 +145,6 @@ var init_http_client = __esm({
             method,
             headers: requestHeaders,
             body: data ? this.serializeWithoutUnicodeEscape(data) : void 0,
-            // Claude Code Add - CORS处理配置
             mode: "cors",
             credentials: "omit",
             cache: "no-cache"
@@ -369,9 +368,6 @@ var init_http_client = __esm({
           reader.readAsDataURL(blob);
         });
       }
-      /**
-       * Claude Code Add - 自定义JSON序列化，避免Unicode转义
-       */
       serializeWithoutUnicodeEscape(data) {
         try {
           let json = JSON.stringify(data, null, 0);

@@ -1,6 +1,5 @@
-// Claude Code ADD - 工具栏组件，负责界面交互操作
 import { Platform } from 'obsidian';
-// Claude Code Update - 更新import路径
+
 import { NMPSettings } from '../../core/settings';
 import { StyleEditor } from './style-editor';
 import { uevent } from '../../shared/utils';

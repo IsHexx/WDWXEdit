@@ -1,4 +1,3 @@
-// Claude Code Update
 /**
  * API模块统一入口
  * 提供所有API相关的类、类型和函数的统一导出
