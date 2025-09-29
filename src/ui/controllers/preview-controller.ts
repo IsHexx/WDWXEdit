@@ -270,7 +270,9 @@ export class PreviewController {
 
         const token = await this.render.getToken(this.currentAppId);
         if (!token) {
-            throw new Error('获取Token失败，请检查公众号配置');
+            this.status.showWarning('获取Token失败，图片未上传，但内容已复制', 3000);
+            await this.copyWithoutImageUpload();
+            return;
         }
 
         this.status.showUploading('检测本地图片...');
@@ -378,6 +380,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         this.status.showProcessing('获取认证信息...');
         const token = await this.render.getToken(appid);
         if (!token) {
+            this.status.showError('获取Token失败，请检查公众号配置', 5000);
             throw new Error('获取Token失败，请检查公众号配置');
         }
 

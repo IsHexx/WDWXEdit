@@ -73699,7 +73699,9 @@ var PreviewController = class {
     this.status.showProcessing("\u5904\u7406\u56FE\u7247...");
     const token = await this.render.getToken(this.currentAppId);
     if (!token) {
-      throw new Error("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
+      this.status.showWarning("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\uFF0C\u4F46\u5185\u5BB9\u5DF2\u590D\u5236", 3e3);
+      await this.copyWithoutImageUpload();
+      return;
     }
     this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
     const lm = LocalImageManager.getInstance();
@@ -73778,6 +73780,7 @@ var PreviewController = class {
     this.status.showProcessing("\u83B7\u53D6\u8BA4\u8BC1\u4FE1\u606F...");
     const token = await this.render.getToken(appid);
     if (!token) {
+      this.status.showError("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E", 5e3);
       throw new Error("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
     }
     this.status.showProcessing("\u68C0\u67E5\u8349\u7A3F\u72B6\u6001...");
