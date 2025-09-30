@@ -66788,7 +66788,7 @@ var AssetsManager = class {
   }
   getThemeURL() {
     const version = this.manifest.version;
-    return `https://github.com/sunbooshi/wdwxedit/releases/download/${version}/assets.zip`;
+    return `https://github.com/IsHexx/WDWXEdit/releases/download/v${version}/assets.zip`;
   }
   async getStyle() {
     const file = this.app.vault.configDir + "/plugins/" + this.manifest.id + "/styles.css";
