@@ -73147,6 +73147,26 @@ var PreviewToolbar = class {
   getHighlightSelect() {
     return this.highlightSelect;
   }
+  refresh() {
+    const existingToolbar = this.parent.querySelector(".preview-toolbar");
+    let insertPosition = null;
+    if (existingToolbar) {
+      insertPosition = existingToolbar.nextElementSibling;
+      existingToolbar.remove();
+    }
+    this.toolbar = this.parent.createDiv({ cls: "preview-toolbar" });
+    if (this.settings.wxInfo.length > 1 || import_obsidian7.Platform.isDesktop) {
+      this.buildMainToolbar();
+    } else if (this.settings.wxInfo.length > 0) {
+      this.handlers.onAppIdChanged(this.settings.wxInfo[0].appid);
+    }
+    if (this.settings.showStyleUI) {
+      this.buildStyleEditor();
+    }
+    if (this.parent.firstChild && this.parent.firstChild !== this.toolbar) {
+      this.parent.insertBefore(this.toolbar, this.parent.firstChild);
+    }
+  }
 };
 
 // src/ui/components/preview-content.ts
@@ -73588,6 +73608,7 @@ var PreviewController = class {
         this.cleanArticleData();
       },
       onRefresh: async () => {
+        this.rebuildToolbar();
         await this.assetsManager.loadCustomCSS();
         this.render.reloadStyle();
         await this.renderMarkdown();
@@ -73625,6 +73646,23 @@ var PreviewController = class {
     var _a;
     (_a = this.listeners) == null ? void 0 : _a.forEach((listener) => this.app.workspace.offref(listener));
     LocalFile.fileCache.clear();
+  }
+  async onRefresh() {
+    try {
+      this.status.showInfo("\u6B63\u5728\u5237\u65B0...");
+      this.rebuildToolbar();
+      await this.assetsManager.loadAssets();
+      await this.assetsManager.loadCustomCSS();
+      await this.renderMarkdown(null);
+      this.status.showSuccess("\u5237\u65B0\u5B8C\u6210");
+    } catch (error) {
+      this.status.showError(`\u5237\u65B0\u5931\u8D25: ${error.message}`);
+    }
+  }
+  rebuildToolbar() {
+    if (this.toolbar && typeof this.toolbar.refresh === "function") {
+      this.toolbar.refresh();
+    }
   }
   async update() {
     if (this.isBatchRuning) {
@@ -73669,7 +73707,12 @@ var PreviewController = class {
       await this.render.uploadImages(this.currentAppId);
       this.status.showSuccess("\u56FE\u7247\u4E0A\u4F20\u6210\u529F\uFF0C\u5E76\u4E14\u6587\u7AE0\u5185\u5BB9\u5DF2\u590D\u5236\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
     } catch (error) {
-      this.status.showError("\u56FE\u7247\u4E0A\u4F20\u5931\u8D25: " + error.message);
+      this.status.showWarning("\u56FE\u7247\u4E0A\u4F20\u5931\u8D25\uFF0C\u4F46\u5185\u5BB9\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F", 5e3);
+      try {
+        await this.copyWithoutImageUpload();
+      } catch (copyError) {
+        this.status.showError("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      }
     }
   }
   async postArticle() {
@@ -73687,7 +73730,12 @@ var PreviewController = class {
       await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
       this.status.showSuccess("\u53D1\u5E03\u6210\u529F");
     } catch (error) {
-      this.status.showError("\u53D1\u5E03\u5931\u8D25: " + error.message);
+      this.status.showWarning("\u53D1\u5E03\u5931\u8D25\uFF0C\u4F46\u5185\u5BB9\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F", 5e3);
+      try {
+        await this.copyWithoutImageUpload();
+      } catch (copyError) {
+        this.status.showError("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      }
     }
   }
   async copyWithImageUpload() {
@@ -73780,7 +73828,8 @@ var PreviewController = class {
     this.status.showProcessing("\u83B7\u53D6\u8BA4\u8BC1\u4FE1\u606F...");
     const token = await this.render.getToken(appid);
     if (!token) {
-      this.status.showError("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E", 5e3);
+      this.status.showWarning("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\uFF0C\u4F46\u5185\u5BB9\u5DF2\u590D\u5236\u5230\u526A\u8D34\u677F", 5e3);
+      await this.copyWithoutImageUpload();
       throw new Error("\u83B7\u53D6Token\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
     }
     this.status.showProcessing("\u68C0\u67E5\u8349\u7A3F\u72B6\u6001...");
@@ -74127,6 +74176,12 @@ var PreviewView = class extends import_obsidian9.ItemView {
   getController() {
     return this.controller;
   }
+  async forceRefresh() {
+    try {
+      await this.controller.onRefresh();
+    } catch (error) {
+    }
+  }
 };
 
 // src/ui/setting-tab.ts
@@ -74455,14 +74510,17 @@ var NoteToMpSettingTab = class extends import_obsidian10.PluginSettingTab {
 // src/core/main.ts
 init_api();
 var NoteToMpPlugin = class extends import_obsidian11.Plugin {
+  // Claude Code ADD - 初始化状态标志
   constructor(app, manifest) {
     super(app, manifest);
+    this.isInitialized = false;
     AssetsManager.setup(app, manifest);
     this.assetsManager = AssetsManager.getInstance();
   }
   async loadResource() {
     await this.loadSettings();
     await this.assetsManager.loadAssets();
+    this.isInitialized = true;
   }
   async onload() {
     setVersion(this.manifest.version);
@@ -74473,55 +74531,58 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
       } catch (error) {
       }
     }, 1e3);
-    this.app.workspace.onLayoutReady(() => {
-      this.loadResource();
-    });
-    this.registerView(
-      VIEW_TYPE_NOTE_PREVIEW,
-      (leaf) => new PreviewView(leaf, this)
-    );
-    const ribbonIconEl = this.addRibbonIcon("clipboard-paste", "\u590D\u5236\u5230\u516C\u4F17\u53F7", (evt) => {
-      this.activateView();
-    });
-    ribbonIconEl.addClass("wdwxedit-plugin-ribbon-class");
-    this.addCommand({
-      id: "wdwxedit-preview",
-      name: "\u590D\u5236\u5230\u516C\u4F17\u53F7",
-      callback: () => {
-        this.activateView();
-      }
-    });
-    this.addSettingTab(new NoteToMpSettingTab(this.app, this));
-    this.addCommand({
-      id: "wdwxedit-pub",
-      name: "\u53D1\u5E03\u516C\u4F17\u53F7\u6587\u7AE0",
-      callback: async () => {
-        var _a, _b;
-        await this.activateView();
-        (_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.postArticle();
-      }
-    });
-    this.registerEvent(
-      this.app.workspace.on("file-menu", (menu, file) => {
-        menu.addItem((item) => {
-          item.setTitle("\u53D1\u5E03\u5230\u516C\u4F17\u53F7").setIcon("lucide-send").onClick(async () => {
-            var _a, _b, _c, _d, _e, _f;
-            if (file instanceof import_obsidian11.TFile) {
-              if (file.extension.toLowerCase() !== "md") {
-                new import_obsidian11.Notice("\u53EA\u80FD\u53D1\u5E03 Markdown \u6587\u4EF6");
-                return;
-              }
-              await this.activateView();
-              await ((_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.renderMarkdown(file));
-              await ((_d = (_c = this.getNotePreview()) == null ? void 0 : _c.getController()) == null ? void 0 : _d.postArticle());
-            } else if (file instanceof import_obsidian11.TFolder) {
-              await this.activateView();
-              await ((_f = (_e = this.getNotePreview()) == null ? void 0 : _e.getController()) == null ? void 0 : _f.batchPost(file));
-            }
-          });
+    this.app.workspace.onLayoutReady(async () => {
+      try {
+        await this.loadResource();
+        this.registerView(
+          VIEW_TYPE_NOTE_PREVIEW,
+          (leaf) => new PreviewView(leaf, this)
+        );
+        const ribbonIconEl = this.addRibbonIcon("clipboard-paste", "\u590D\u5236\u5230\u516C\u4F17\u53F7", (evt) => {
+          this.activateView();
         });
-      })
-    );
+        ribbonIconEl.addClass("wdwxedit-plugin-ribbon-class");
+        this.addCommand({
+          id: "wdwxedit-preview",
+          name: "\u590D\u5236\u5230\u516C\u4F17\u53F7",
+          callback: () => {
+            this.activateView();
+          }
+        });
+        this.addCommand({
+          id: "wdwxedit-pub",
+          name: "\u53D1\u5E03\u516C\u4F17\u53F7\u6587\u7AE0",
+          callback: async () => {
+            var _a, _b;
+            await this.activateView();
+            (_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.postArticle();
+          }
+        });
+        this.addSettingTab(new NoteToMpSettingTab(this.app, this));
+        this.registerEvent(
+          this.app.workspace.on("file-menu", (menu, file) => {
+            menu.addItem((item) => {
+              item.setTitle("\u53D1\u5E03\u5230\u516C\u4F17\u53F7").setIcon("lucide-send").onClick(async () => {
+                var _a, _b, _c, _d, _e, _f;
+                if (file instanceof import_obsidian11.TFile) {
+                  if (file.extension.toLowerCase() !== "md") {
+                    new import_obsidian11.Notice("\u53EA\u80FD\u53D1\u5E03 Markdown \u6587\u4EF6");
+                    return;
+                  }
+                  await this.activateView();
+                  await ((_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.renderMarkdown(file));
+                  await ((_d = (_c = this.getNotePreview()) == null ? void 0 : _c.getController()) == null ? void 0 : _d.postArticle());
+                } else if (file instanceof import_obsidian11.TFolder) {
+                  await this.activateView();
+                  await ((_f = (_e = this.getNotePreview()) == null ? void 0 : _e.getController()) == null ? void 0 : _f.batchPost(file));
+                }
+              });
+            });
+          })
+        );
+      } catch (error) {
+      }
+    });
   }
   onunload() {
   }
@@ -74530,8 +74591,17 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
   }
   async saveSettings() {
     await this.saveData(NMPSettings.allSettings());
+    if (this.isInitialized) {
+      this.refreshAllPreviews();
+    }
   }
   async activateView() {
+    if (!this.app.workspace.layoutReady) {
+      this.app.workspace.onLayoutReady(() => {
+        setTimeout(() => this.activateView(), 100);
+      });
+      return;
+    }
     const { workspace } = this.app;
     let leaf = null;
     const leaves = workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
@@ -74539,7 +74609,11 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
       leaf = leaves[0];
     } else {
       leaf = workspace.getRightLeaf(false);
-      await (leaf == null ? void 0 : leaf.setViewState({ type: VIEW_TYPE_NOTE_PREVIEW, active: false }));
+      if (leaf) {
+        await (leaf == null ? void 0 : leaf.setViewState({ type: VIEW_TYPE_NOTE_PREVIEW, active: false }));
+      } else {
+        return;
+      }
     }
     if (leaf)
       workspace.revealLeaf(leaf);
@@ -74551,6 +74625,15 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
       return leaf.view;
     }
     return null;
+  }
+  refreshAllPreviews() {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+    leaves.forEach((leaf) => {
+      const view = leaf.view;
+      if (view && typeof view.forceRefresh === "function") {
+        view.forceRefresh();
+      }
+    });
   }
 };
 /*!

@@ -299,4 +299,33 @@ export class PreviewToolbar {
     getHighlightSelect(): HTMLSelectElement | undefined {
         return this.highlightSelect;
     }
+
+    refresh(): void {
+
+        const existingToolbar = this.parent.querySelector('.preview-toolbar');
+        let insertPosition: Element | null = null;
+        
+        if (existingToolbar) {
+
+            insertPosition = existingToolbar.nextElementSibling;
+            existingToolbar.remove();
+        }
+
+        this.toolbar = this.parent.createDiv({ cls: 'preview-toolbar' });
+
+        if (this.settings.wxInfo.length > 1 || Platform.isDesktop) {
+            this.buildMainToolbar();
+        } else if (this.settings.wxInfo.length > 0) {
+
+            this.handlers.onAppIdChanged(this.settings.wxInfo[0].appid);
+        }
+
+        if (this.settings.showStyleUI) {
+            this.buildStyleEditor();
+        }
+
+        if (this.parent.firstChild && this.parent.firstChild !== this.toolbar) {
+            this.parent.insertBefore(this.toolbar, this.parent.firstChild);
+        }
+    }
 }

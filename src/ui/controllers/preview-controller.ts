@@ -141,8 +141,12 @@ export class PreviewController {
             onAppIdChanged: (appId: string) => {
                 this.currentAppId = appId;
                 this.cleanArticleData();
+
+                // this.rebuildToolbar();
             },
             onRefresh: async () => {
+
+                this.rebuildToolbar();
                 await this.assetsManager.loadCustomCSS();
 
                 this.render.reloadStyle();
@@ -181,6 +185,28 @@ export class PreviewController {
     cleanup() {
         this.listeners?.forEach(listener => this.app.workspace.offref(listener));
         LocalFile.fileCache.clear();
+    }
+
+    async onRefresh(): Promise<void> {
+        try {
+            this.status.showInfo('正在刷新...');
+
+            this.rebuildToolbar();
+
+            await this.assetsManager.loadAssets();
+            await this.assetsManager.loadCustomCSS();
+            await this.renderMarkdown(null);
+            
+            this.status.showSuccess('刷新完成');
+        } catch (error) {
+            this.status.showError(`刷新失败: ${error.message}`);
+        }
+    }
+
+    private rebuildToolbar(): void {
+        if (this.toolbar && typeof this.toolbar.refresh === 'function') {
+            this.toolbar.refresh();
+        }
     }
 
     private async update() {
@@ -232,7 +258,15 @@ export class PreviewController {
             await this.render.uploadImages(this.currentAppId);
             this.status.showSuccess('图片上传成功，并且文章内容已复制，请到公众号编辑器粘贴。');
         } catch (error) {
-            this.status.showError('图片上传失败: ' + error.message);
+
+            this.status.showWarning('图片上传失败，但内容已复制到剪贴板', 5000);
+
+            try {
+                await this.copyWithoutImageUpload();
+            } catch (copyError) {
+
+                this.status.showError('复制失败，请重试');
+            }
         }
     }
 
@@ -255,11 +289,19 @@ export class PreviewController {
             this.status.showSuccess('发布成功');
         } catch (error) {
 
-            this.status.showError('发布失败: ' + error.message);
+            this.status.showWarning('发布失败，但内容已复制到剪贴板', 5000);
+
+            try {
+                await this.copyWithoutImageUpload();
+            } catch (copyError) {
+
+                this.status.showError('复制失败，请重试');
+            }
         }
     }
 
     async copyWithImageUpload() {
+
         if (!this.currentAppId) {
             this.status.showWarning('未配置公众号，图片未上传，但内容已复制', 3000);
             await this.copyWithoutImageUpload();
@@ -380,7 +422,8 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         this.status.showProcessing('获取认证信息...');
         const token = await this.render.getToken(appid);
         if (!token) {
-            this.status.showError('获取Token失败，请检查公众号配置', 5000);
+            this.status.showWarning('获取Token失败，图片未上传，但内容已复制到剪贴板', 5000);
+            await this.copyWithoutImageUpload();
             throw new Error('获取Token失败，请检查公众号配置');
         }
 
