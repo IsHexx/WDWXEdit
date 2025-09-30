@@ -1,7 +1,7 @@
 /* =========================================================== */
 /* 笔记样式 https://github.com/xbmlz/hexo-theme-maple            */
 /* =========================================================== */
-body {
+.wdwxedit {
     user-select: text;
     -webkit-user-select: text;
     color: #555;
@@ -26,7 +26,7 @@ body {
    Heading 
   ==================================
   */
-h1 {
+.wdwxedit h1 {
     color: #222;
     font-weight: 800;
     font-size: 2.25em;
@@ -35,7 +35,7 @@ h1 {
     line-height: 1.1111111;
 }
 
-h2 {
+.wdwxedit h2 {
     color: inherit;
     font-weight: 700;
     font-size: 1.5em;
@@ -44,7 +44,7 @@ h2 {
     line-height: 1.3333333;
 }
 
-h3 {
+.wdwxedit h3 {
     color: inherit;
     font-weight: 600;
     font-size: 1.25em;
@@ -53,7 +53,7 @@ h3 {
     line-height: 1.6;
 }
 
-h4 {
+.wdwxedit h4 {
     color: inherit;
     font-weight: 600;
     margin-top: 1.5em;
@@ -66,7 +66,7 @@ h4 {
   Horizontal Rules
   ==================================
   */
-hr {
+.wdwxedit hr {
     border-color: rgba(125, 125, 125, 0.3);
     margin-top: 3em;
     margin-bottom: 3em;
@@ -77,7 +77,7 @@ hr {
   Paragraphs
   ==================================
   */
-p {
+.wdwxedit p {
     margin: 1em 0;
 }
 
@@ -86,16 +86,16 @@ p {
   Emphasis
   ==================================
   */
-strong {
+.wdwxedit strong {
     color: #222;
     font-weight: 600;
 }
 
-em {
+.wdwxedit em {
     color: inherit;
 }
 
-s {
+.wdwxedit s {
     color: inherit;
 }
 
@@ -104,7 +104,7 @@ s {
   Blockquotes
   ==================================
   */
-blockquote {
+.wdwxedit blockquote {
     font-size: 1rem;
     display: block;
     margin: 1em 0;
@@ -114,11 +114,11 @@ blockquote {
     border-left: 0.25rem solid rgba(125, 125, 125, 0.302);
 }
 
-blockquote p {
+.wdwxedit blockquote p {
     margin: 0;
 }
 
-blockquote footer strong {
+.wdwxedit blockquote footer strong {
     margin-right: 0.5em;
 }
 
@@ -127,26 +127,26 @@ blockquote footer strong {
   List
   ==================================
   */
-ul {
+.wdwxedit ul {
     margin: 0;
     /* padding: 0; */
     margin-top: 1.25em;
     margin-bottom: 1.25em;
 }
 
-ul>li {
+.wdwxedit ul>li {
     position: relative;
     /* padding-left: 1.75rem; */
     line-height: 1.8em;
 }
 
 
-ul>li::marker {
+.wdwxedit ul>li::marker {
     color: #555;
     /* font-size: 1.5em; */
 }
 
-ol {
+.wdwxedit ol {
     margin: 0;
     padding: 0;
     margin-top: 1.25em;
@@ -154,7 +154,7 @@ ol {
     list-style-type: decimal;
 }
 
-ol>li {
+.wdwxedit ol>li {
     position: relative;
     padding-left: 0.8em;
     margin-left: 2em;
@@ -166,7 +166,7 @@ ol>li {
   Link
   ==================================
   */
-a {
+.wdwxedit a {
     color: #000;
     text-decoration: none;
     font-weight: 500;
@@ -175,7 +175,7 @@ a {
     transition: border 0.3s ease-in-out;
 }
 
-a:hover {
+.wdwxedit a:hover {
     border-bottom: 1px solid #555;
 }
 
@@ -184,7 +184,7 @@ a:hover {
   Table
   ==================================
   */
-table {
+.wdwxedit table {
     width: 100%;
     table-layout: auto;
     text-align: left;
@@ -197,38 +197,38 @@ table {
     text-indent: 0;
 }
 
-table thead {
+.wdwxedit table thead {
     color: #000;
     font-weight: 600;
     border-bottom-width: 1px;
     border-bottom-color: #d1d5db;
 }
 
-table thead th {
+.wdwxedit table thead th {
     vertical-align: bottom;
     padding-right: 0.5714286em;
     padding-bottom: 0.5714286em;
     padding-left: 0.5714286em;
 }
 
-table thead th:first-child {
+.wdwxedit table thead th:first-child {
     padding-left: 0;
 }
 
-table thead th:last-child {
+.wdwxedit table thead th:last-child {
     padding-right: 0;
 }
 
-table tbody tr {
+.wdwxedit table tbody tr {
     border-bottom-width: 1px;
     border-bottom-color: #e5e7eb;
 }
 
-table tbody tr:last-child {
+.wdwxedit table tbody tr:last-child {
     border-bottom-width: 0;
 }
 
-table tbody td {
+.wdwxedit table tbody td {
     vertical-align: top;
     padding-top: 0.5714286em;
     padding-right: 0.5714286em;
@@ -236,11 +236,11 @@ table tbody td {
     padding-left: 0.5714286em;
 }
 
-table tbody td:first-child {
+.wdwxedit table tbody td:first-child {
     padding-left: 0;
 }
 
-table tbody td:last-child {
+.wdwxedit table tbody td:last-child {
     padding-right: 0;
 }
 
@@ -249,7 +249,7 @@ table tbody td:last-child {
   Images
   ==================================
   */
-img {
+.wdwxedit img {
     margin: 2em auto;
 }
 
@@ -299,7 +299,7 @@ img {
     background: transparent !important;
 }
 
-code {
+.wdwxedit code {
     font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
     color: #333;
     background: rgb(250, 250, 250);

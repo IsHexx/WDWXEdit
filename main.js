@@ -66827,13 +66827,33 @@ var AssetsManager = class {
     for (const entry of entries) {
       if (entry.directory) {
         const dirPath = this.assetsPath + entry.filename;
-        await this.app.vault.adapter.mkdir(dirPath);
-      } else {
+        if (!await this.app.vault.adapter.exists(dirPath)) {
+          await this.app.vault.adapter.mkdir(dirPath);
+        }
+      }
+    }
+    const themesDir = this.assetsPath + "themes/";
+    const highlightsDir = this.assetsPath + "highlights/";
+    if (!await this.app.vault.adapter.exists(themesDir)) {
+      await this.app.vault.adapter.mkdir(themesDir);
+    }
+    if (!await this.app.vault.adapter.exists(highlightsDir)) {
+      await this.app.vault.adapter.mkdir(highlightsDir);
+    }
+    for (const entry of entries) {
+      if (!entry.directory) {
         const filePath = this.assetsPath + entry.filename;
         const blobWriter = new Uint8ArrayWriter();
         if (entry.getData) {
-          const data2 = await entry.getData(blobWriter);
-          await this.app.vault.adapter.writeBinary(filePath, data2.buffer);
+          try {
+            const parentDir = filePath.substring(0, filePath.lastIndexOf("/"));
+            if (parentDir && !await this.app.vault.adapter.exists(parentDir)) {
+              await this.app.vault.adapter.mkdir(parentDir);
+            }
+            const data2 = await entry.getData(blobWriter);
+            await this.app.vault.adapter.writeBinary(filePath, data2.buffer);
+          } catch (error) {
+          }
         }
       }
     }

@@ -14,26 +14,26 @@
 /* header */
 /* spacing */
 /* table */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6 {
   color: #1f2329;
   line-height: 1.4;
   font-weight: 600;
   margin-top: 1em;
   margin-bottom: 0.37em;
 }
-blockquote {
+.wdwxedit blockquote {
   display: block;
   margin-left: 0;
   padding-left: 14px;
   border-left: 2px solid #3370ff;
   color: rgba(31, 35, 41, 0.7);
 }
-a {
+.wdwxedit a {
   overflow-wrap: break-word;
   word-wrap: break-word;
   white-space: pre-wrap;
@@ -42,7 +42,7 @@ a {
   color: #3370ff;
   text-decoration: none;
 }
-hr {
+.wdwxedit hr {
   margin: 13px 0 12px;
   border: 0px;
   height: 1px;
@@ -50,41 +50,41 @@ hr {
   background-image: linear-gradient(90deg, rgb(187, 191, 196), rgb(187, 191, 196));
   background-repeat: no-repeat;
 }
-ul > li:not([class*=task-list-item]) {
+.wdwxedit ul > li:not([class*=task-list-item]) {
   word-wrap: break-all;
   padding-left: 12px;
   color: #3370ff;
 }
-ul > li:not([class*=task-list-item]) > section {
+.wdwxedit ul > li:not([class*=task-list-item]) > section {
   color: #1f2329;
 }
-ul > li:not([class*=task-list-item])::marker {
+.wdwxedit ul > li:not([class*=task-list-item])::marker {
   color: #3370ff;
 }
-ol > li:not([class*=task-list-item]) {
+.wdwxedit ol > li:not([class*=task-list-item]) {
   word-wrap: break-all;
   padding-left: 12px;
 }
-ol > li:not([class*=task-list-item]) > section {
+.wdwxedit ol > li:not([class*=task-list-item]) > section {
   color: #1f2329;
 }
-ol > li:not([class*=task-list-item])::marker {
+.wdwxedit ol > li:not([class*=task-list-item])::marker {
   color: #3370ff;
 }
-li + li,
-ul ul,
-ol ul,
-ul ol,
-ol ol,
-li ul,
-li ol {
+.wdwxedit li + li,
+.wdwxedit ul ul,
+.wdwxedit ol ul,
+.wdwxedit ul ol,
+.wdwxedit ol ol,
+.wdwxedit li ul,
+.wdwxedit li ol {
   margin-top: 4px;
 }
 .footnotes hr {
   margin-top: 4em;
   margin-bottom: 0.5em;
 }
-code {
+.wdwxedit code {
   border-radius: 4px;
   margin-left: 2px;
   margin-right: 2px;

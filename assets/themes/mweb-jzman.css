@@ -1,4 +1,4 @@
-body {
+.wdwxedit {
   padding: 0 1em;
   word-break: break-word;
   line-height: 1.8;
@@ -12,32 +12,32 @@ body {
   background-size: 20px 20px;
   background-position: center center;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6 {
   line-height: 1.5;
   margin-top: 35px;
   margin-bottom: 10px;
   padding-bottom: 5px;
   font-weight: 600;
 }
-h1 {
+.wdwxedit h1 {
   font-size: 30px;
   margin-bottom: 5px;
 }
-h2 {
+.wdwxedit h2 {
   padding-bottom: 12px;
   font-size: 24px;
   border-bottom: 1px solid #ececec;
 }
-h3 {
+.wdwxedit h3 {
   font-size: 18px;
   padding-bottom: 0;
 }
-h4 {
+.wdwxedit h4 {
   font-size: 1.2em;
   border-bottom: 2px solid rgb(239, 112, 96);
   word-spacing: 0px !important;
@@ -53,21 +53,21 @@ h4 {
   border-top-left-radius: 3px;
   margin-right: 3px;
 }
-h5 {
+.wdwxedit h5 {
   font-size: 15px;
 }
-h6 {
+.wdwxedit h6 {
   margin-top: 5px;
 }
-p {
+.wdwxedit p {
   line-height: inherit;
   margin-top: 22px;
   margin-bottom: 22px;
 }
-img {
+.wdwxedit img {
   max-width: 100%;
 }
-hr {
+.wdwxedit hr {
   border-top: 1px solid #ddd;
   border-bottom: none;
   border-left: none;
@@ -75,12 +75,12 @@ hr {
   margin-top: 32px;
   margin-bottom: 32px;
 }
-a {
+.wdwxedit a {
   text-decoration: none;
   color: #0269c8;
   border-bottom: 1px solid #d1e9ff;
 }
-table {
+.wdwxedit table {
   display: inline-block !important;
   font-size: 12px;
   width: auto;
@@ -88,55 +88,55 @@ table {
   overflow: auto;
   border: solid 1px #f6f6f6;
 }
-thead {
+.wdwxedit thead {
   background: #f6f6f6;
   color: #000;
   text-align: left;
 }
-tr:nth-child(2n) {
+.wdwxedit tr:nth-child(2n) {
   background-color: #fcfcfc;
 }
-th,
-td {
+.wdwxedit th,
+.wdwxedit td {
   padding: 12px 7px;
   line-height: 24px;
 }
-td {
+.wdwxedit td {
   min-width: 120px;
 }
-blockquote {
+.wdwxedit blockquote {
   color: #666;
   padding: 1px 23px;
   margin: 22px 0;
   border-left: 4px solid #cbcbcb;
   background-color: #f8f8f8;
 }
-blockquote > p {
+.wdwxedit blockquote > p {
   margin: 10px 0;
 }
-ol,
-ul {
+.wdwxedit ol,
+.wdwxedit ul {
   padding-left: 28px;
 }
-ol li,
-ul li {
+.wdwxedit ol li,
+.wdwxedit ul li {
   margin-bottom: 0;
   list-style: inherit;
 }
-ol ul,
-ol ol,
-ul ul,
-ul ol {
+.wdwxedit ol ul,
+.wdwxedit ol ol,
+.wdwxedit ul ul,
+.wdwxedit ul ol {
   margin-top: 3px;
 }
-ol li {
+.wdwxedit ol li {
   padding-left: 6px;
 }
 .footnotes hr {
   margin-top: 4em;
   margin-bottom: 0.5em;
 }
-code {
+.wdwxedit code {
   font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
   word-break: break-word;
   border-radius: 2px;

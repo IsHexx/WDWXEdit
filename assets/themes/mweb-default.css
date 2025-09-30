@@ -20,7 +20,7 @@
  * MWeb 包裹 markdown 的容器是 .wdwxedit
  * Typora 中是 #write
  */
-body {
+.wdwxedit {
   line-height: 1.6em;
   -webkit-text-size-adjust: 100%;
   margin: 0 0;
@@ -36,11 +36,11 @@ body {
   /* table */
   /* svg */
 }
-p, details, dl, ol, ul, pre, xmp, plaintext, listing, blockquote, table, figure, hr {
+.wdwxedit p, details, dl, ol, ul, pre, xmp, plaintext, listing, blockquote, table, figure, hr {
   margin-top: 0.75em;
   margin-bottom: 0.75em;
 }
-h1 {
+.wdwxedit h1 {
   font-size: 2em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -48,7 +48,7 @@ h1 {
   margin-left: 0;
   margin-right: 0;
 }
-h2 {
+.wdwxedit h2 {
   font-size: 1.5em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -56,7 +56,7 @@ h2 {
   margin-left: 0;
   margin-right: 0;
 }
-h3 {
+.wdwxedit h3 {
   font-size: 1.17em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -64,7 +64,7 @@ h3 {
   margin-left: 0;
   margin-right: 0;
 }
-h4 {
+.wdwxedit h4 {
   font-size: 1em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -72,7 +72,7 @@ h4 {
   margin-left: 0;
   margin-right: 0;
 }
-h5 {
+.wdwxedit h5 {
   font-size: 0.83em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -80,7 +80,7 @@ h5 {
   margin-left: 0;
   margin-right: 0;
 }
-h6 {
+.wdwxedit h6 {
   font-size: 0.67em;
   font-weight: bold;
   margin-top: 1.5em;
@@ -88,81 +88,81 @@ h6 {
   margin-left: 0;
   margin-right: 0;
 }
-p {
+.wdwxedit p {
   margin-left: 0;
   margin-right: 0;
 }
-pre, xmp, plaintext, listing {
+.wdwxedit pre, xmp, plaintext, listing {
   font-family: monospace, Menlo-Regular, Menlo, Monaco, Consolas, "Courier New";
 }
-blockquote > :first-child {
+.wdwxedit blockquote > :first-child {
   margin-top: 0;
 }
-blockquote > :last-child {
+.wdwxedit blockquote > :last-child {
   margin-bottom: 0;
 }
-hr {
+.wdwxedit hr {
   border-style: inset;
   border-width: 1px;
 }
-img {
+.wdwxedit img {
   max-width: 100%;
   height: auto;
 }
-li {
+.wdwxedit li {
   word-wrap: break-all;
 }
-li + li {
+.wdwxedit li + li {
   margin-top: 0.25em;
 }
-ul ul, ol ul, ul ol, ol ol {
+.wdwxedit ul ul, ol ul, ul ol, ol ol {
   margin-top: 0;
   margin-bottom: 0;
 }
 .task-list-item {
   list-style-type: none;
 }
-a {
+.wdwxedit a {
   color: -webkit-link;
   text-decoration: underline;
 }
-a img {
+.wdwxedit a img {
   border: none;
 }
-b, strong {
+.wdwxedit b, strong {
   font-weight: bold;
 }
-i, cite, em, var, address, dfn {
+.wdwxedit i, cite, em, var, address, dfn {
   font-style: italic;
 }
-code, kbd, tt, samp {
+.wdwxedit code, kbd, tt, samp {
   font-family: monospace, Menlo-Regular, Menlo, Monaco, Consolas, "Courier New";
 }
-mark {
+.wdwxedit mark {
   padding: 0.2em 0;
   background-color: yellow;
 }
-del, s {
+.wdwxedit del, s {
   color: inherit;
 }
-table {
+.wdwxedit table {
   color: black;
   border-collapse: collapse;
   background-color: white;
   border-spacing: 2px;
   font-size: 1em;
 }
-th, td {
+.wdwxedit th, td {
   border-color: gray;
   border-width: 1px;
   border-style: solid;
 }
-th {
+.wdwxedit th {
   padding: 4px 8px;
   font-size: 1em;
   font-weight: bold;
 }
-td {
+.wdwxedit td {
   padding: 4px 8px;
   font-size: 1em;
   font-weight: normal;

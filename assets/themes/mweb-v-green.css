@@ -1,4 +1,4 @@
-body {
+.wdwxedit {
   word-break: break-word;
   line-height: 1.75;
   font-weight: 400;
@@ -6,79 +6,79 @@ body {
   overflow-x: hidden;
   color: #333;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6 {
   line-height: 1.5;
   margin-top: 35px;
   margin-bottom: 10px;
   padding-bottom: 5px;
 }
-h1:first-child,
-h2:first-child,
-h3:first-child,
-h4:first-child,
-h5:first-child,
-h6:first-child {
+.wdwxedit h1:first-child,
+.wdwxedit h2:first-child,
+.wdwxedit h3:first-child,
+.wdwxedit h4:first-child,
+.wdwxedit h5:first-child,
+.wdwxedit h6:first-child {
   margin-top: 0;
   margin-bottom: 1rem;
 }
-h1::before,
-h2::before,
-h3::before,
-h4::before,
-h5::before,
-h6::before {
+.wdwxedit h1::before,
+.wdwxedit h2::before,
+.wdwxedit h3::before,
+.wdwxedit h4::before,
+.wdwxedit h5::before,
+.wdwxedit h6::before {
   content: "#";
   display: inline-block;
   color: #3eaf7c;
   padding-right: 0.23em;
 }
-h1 {
+.wdwxedit h1 {
   position: relative;
   font-size: 2.5rem;
   margin-bottom: 5px;
 }
-h1::before {
+.wdwxedit h1::before {
   font-size: 2.5rem;
 }
-h2 {
+.wdwxedit h2 {
   padding-bottom: 0.5rem;
   font-size: 2.2rem;
   border-bottom: 1px solid #ececec;
 }
-h3 {
+.wdwxedit h3 {
   font-size: 1.5rem;
   padding-bottom: 0;
 }
-h4 {
+.wdwxedit h4 {
   font-size: 1.25rem;
 }
-h5 {
+.wdwxedit h5 {
   font-size: 1rem;
 }
-h6 {
+.wdwxedit h6 {
   margin-top: 5px;
 }
-p {
+.wdwxedit p {
   line-height: inherit;
   margin-top: 22px;
   margin-bottom: 22px;
 }
-strong {
+.wdwxedit strong {
   color: #3eaf7c;
 }
-img {
+.wdwxedit img {
   max-width: 100%;
   border-radius: 2px;
   display: block;
   margin: auto;
   border: 3px solid rgba(62, 175, 124, 0.2);
 }
-hr {
+.wdwxedit hr {
   border-top: 1px solid #3eaf7c;
   border-bottom: none;
   border-left: none;
@@ -86,12 +86,12 @@ hr {
   margin-top: 32px;
   margin-bottom: 32px;
 }
-a {
+.wdwxedit a {
   font-weight: 500;
   text-decoration: none;
   color: #3eaf7c;
 }
-table {
+.wdwxedit table {
   display: inline-block !important;
   font-size: 12px;
   width: auto;
@@ -99,23 +99,23 @@ table {
   overflow: auto;
   border: solid 1px #3eaf7c;
 }
-thead {
+.wdwxedit thead {
   background: #3eaf7c;
   color: #fff;
   text-align: left;
 }
-tr:nth-child(2n) {
+.wdwxedit tr:nth-child(2n) {
   background-color: rgba(62, 175, 124, 0.2);
 }
-th,
-td {
+.wdwxedit th,
+.wdwxedit td {
   padding: 12px 7px;
   line-height: 24px;
 }
-td {
+.wdwxedit td {
   min-width: 120px;
 }
-blockquote {
+.wdwxedit blockquote {
   color: #666;
   padding: 1px 23px;
   margin: 22px 0;
@@ -123,7 +123,7 @@ blockquote {
   border-color: #42b983;
   background-color: #f8f8f8;
 }
-blockquote > p {
+.wdwxedit blockquote > p {
   margin: 10px 0;
 }
 details {
@@ -143,45 +143,45 @@ details summary {
 details summary::-webkit-details-marker {
   color: #3eaf7c;
 }
-ol,
-ul {
+.wdwxedit ol,
+.wdwxedit ul {
   padding-left: 28px;
 }
-ol li,
-ul li {
+.wdwxedit ol li,
+.wdwxedit ul li {
   margin-bottom: 0;
   list-style: inherit;
 }
-ol li .task-list-item,
-ul li .task-list-item {
+.wdwxedit ol li .task-list-item,
+.wdwxedit ul li .task-list-item {
   list-style: none;
 }
-ol li .task-list-item ul,
-ul li .task-list-item ul,
-ol li .task-list-item ol,
-ul li .task-list-item ol {
+.wdwxedit ol li .task-list-item ul,
+.wdwxedit ul li .task-list-item ul,
+.wdwxedit ol li .task-list-item ol,
+.wdwxedit ul li .task-list-item ol {
   margin-top: 0;
 }
-ol ul,
-ul ul,
-ol ol,
-ul ol {
+.wdwxedit ol ul,
+.wdwxedit ul ul,
+.wdwxedit ol ol,
+.wdwxedit ul ol {
   margin-top: 3px;
 }
-ol li {
+.wdwxedit ol li {
   padding-left: 6px;
 }
-ol li::marker {
+.wdwxedit ol li::marker {
   color: #3eaf7c;
 }
-ul li::marker {
+.wdwxedit ul li::marker {
   color: #3eaf7c;
 }
 .footnotes hr {
   margin-top: 4em;
   margin-bottom: 0.5em;
 }
-code {
+.wdwxedit code {
   font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
   word-break: break-word;
   padding: 0.2rem 0.5rem;

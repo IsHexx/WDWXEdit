@@ -1,4 +1,4 @@
-body {
+.wdwxedit {
   padding: 0 1em;
   color: #595959;
   font-size: 16px;
@@ -11,7 +11,7 @@ body {
   /* 主题自定义 end */
   /* 布局，一般不需要改动 */
 }
-blockquote {
+.wdwxedit blockquote {
   margin-left: 0;
   background-color: #ebf4ff;
   border-color: #7f9cf5;
@@ -19,34 +19,34 @@ blockquote {
   padding-bottom: 0.5rem;
   color: #667eea;
 }
-strong {
+.wdwxedit strong {
   color: #5a67d8;
 }
-a {
+.wdwxedit a {
   border-color: #667eea;
 }
-blockquote,
+.wdwxedit blockquote,
 details,
-dl,
-ol,
-p,
-pre,
-table,
-ul {
+.wdwxedit dl,
+.wdwxedit ol,
+.wdwxedit p,
+.wdwxedit pre,
+.wdwxedit table,
+.wdwxedit ul {
   margin-bottom: 1rem;
 }
-ol {
+.wdwxedit ol {
   list-style: decimal;
 }
-ul {
+.wdwxedit ul {
   list-style: disc;
 }
-ol,
-ul {
+.wdwxedit ol,
+.wdwxedit ul {
   padding-left: 2em;
 }
-h1,
-h2 {
+.wdwxedit h1,
+.wdwxedit h2 {
   border-color: #5a67d8;
   border-style: solid;
   border-top-width: 0px;
@@ -56,50 +56,50 @@ h2 {
   padding-bottom: 0.25rem;
   padding-left: 0.75rem;
 }
-h1,
-h2 {
+.wdwxedit h1,
+.wdwxedit h2 {
   border-bottom: 1px solid #eaecef !important;
   border-left-width: 6px;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6 {
   margin-bottom: 16px;
   line-height: 1.25;
 }
-blockquote {
+.wdwxedit blockquote {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   padding-left: 1rem;
   padding-right: 1rem;
   border-left: 0.25em solid;
 }
-blockquote > :last-child {
+.wdwxedit blockquote > :last-child {
   margin-bottom: 0;
 }
-blockquote > :first-child {
+.wdwxedit blockquote > :first-child {
   margin-top: 0;
 }
-strong {
+.wdwxedit strong {
   font-weight: bold;
 }
-strong::before {
+.wdwxedit strong::before {
   content: "「";
 }
-strong::after {
+.wdwxedit strong::after {
   content: "」";
 }
-a {
+.wdwxedit a {
   text-decoration: none;
   border-bottom: 1px solid;
 }
 .footnote-ref {
   border-width: 0px;
 }
-picture img {
+.wdwxedit picture img {
   border-radius: 6px;
   display: block;
   margin: 10px auto;
@@ -107,7 +107,7 @@ picture img {
   object-fit: contain;
   box-shadow: 2px 4px 7px #999;
 }
-img {
+.wdwxedit img {
   max-width: 100%;
   display: block;
   margin: 10px auto;
@@ -115,7 +115,7 @@ img {
   border-radius: 6px;
   box-shadow: 2px 4px 7px #999;
 }
-picture {
+.wdwxedit picture {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -131,18 +131,18 @@ picture {
   margin-top: 4em;
   margin-bottom: 0.5em;
 }
-code,
-a {
+.wdwxedit code,
+.wdwxedit a {
   color: #5a67d8;
 }
-a {
+.wdwxedit a {
   border-color: #667eea;
 }
-code {
+.wdwxedit code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   background-color: #ebf4ff;
 }
-pre > code {
+.wdwxedit pre > code {
   background-color: transparent;
 }
 

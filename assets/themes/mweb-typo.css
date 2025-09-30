@@ -1,5 +1,5 @@
 /* MWeb：增大字体，便于阅读 */
-body {
+.wdwxedit {
   font-size: 16px;
   min-width: 200px;
   max-width: 760px;
@@ -41,70 +41,70 @@ body {
   /* Responsive images */
   /* 代码片断 */
 }
-dl,
+.wdwxedit dl,
 dt,
 dd,
-ul,
-ol,
-li,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-pre,
-code,
+.wdwxedit ul,
+.wdwxedit ol,
+.wdwxedit li,
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6,
+.wdwxedit pre,
+.wdwxedit code,
 form,
 fieldset,
 legend,
-input,
+.wdwxedit input,
 textarea,
-p,
-blockquote,
-th,
-td,
-hr,
-button,
-article,
-aside,
+.wdwxedit p,
+.wdwxedit blockquote,
+.wdwxedit th,
+.wdwxedit td,
+.wdwxedit hr,
+.wdwxedit button,
+.wdwxedit article,
+.wdwxedit aside,
 details,
-figcaption,
+.wdwxedit figcaption,
 figure,
 footer,
 header,
 menu,
 nav,
-section {
+.wdwxedit section {
   margin: 0;
   padding: 0;
 }
-article,
-aside,
+.wdwxedit article,
+.wdwxedit aside,
 details,
-figcaption,
+.wdwxedit figcaption,
 figure,
 footer,
 header,
 menu,
 nav,
-section {
+.wdwxedit section {
   display: block;
 }
-audio,
+.wdwxedit audio,
 canvas,
 video {
   display: inline-block;
 }
-table {
+.wdwxedit table {
   border-collapse: collapse;
   border-spacing: 0;
 }
 fieldset,
-img {
+.wdwxedit img {
   border: 0;
 }
-blockquote {
+.wdwxedit blockquote {
   position: relative;
   color: #999;
   font-weight: 400;
@@ -112,39 +112,39 @@ blockquote {
   padding-left: 1em;
   margin: 1em 3em 1em 2em;
 }
-acronym,
-abbr {
+.wdwxedit acronym,
+.wdwxedit abbr {
   border-bottom: 1px dotted;
   font-variant: normal;
   text-decoration: none;
 }
-abbr {
+.wdwxedit abbr {
   cursor: help;
 }
-del {
+.wdwxedit del {
   text-decoration: line-through;
 }
-address,
-caption,
+.wdwxedit address,
+.wdwxedit caption,
 cite,
-code,
+.wdwxedit code,
 dfn,
-em,
-th,
+.wdwxedit em,
+.wdwxedit th,
 var {
   font-style: normal;
   font-weight: 400;
 }
-ul,
-ol {
+.wdwxedit ul,
+.wdwxedit ol {
   list-style: none;
 }
-caption,
-th {
+.wdwxedit caption,
+.wdwxedit th {
   text-align: left;
 }
-sub,
-sup {
+.wdwxedit sub,
+.wdwxedit sup {
   font-size: 75%;
   line-height: 0;
   position: relative;
@@ -154,54 +154,54 @@ sup {
   vertical-align: baseline;
   /* for ie9 and other modern browsers */
 }
-sup {
+.wdwxedit sup {
   top: -0.5em;
 }
-sub {
+.wdwxedit sub {
   bottom: -0.25em;
 }
-a {
+.wdwxedit a {
   color: #1abc9c;
 }
-a:hover {
+.wdwxedit a:hover {
   text-decoration: underline;
 }
-a {
+.wdwxedit a {
   border-bottom: 1px solid #1abc9c;
 }
-a:hover {
+.wdwxedit a:hover {
   border-bottom-color: #555;
   color: #555;
   text-decoration: none;
 }
-ins,
-a {
+.wdwxedit ins,
+.wdwxedit a {
   text-decoration: none;
 }
-u,
+.wdwxedit u,
 .typo-u {
   text-decoration: underline;
 }
-mark {
+.wdwxedit mark {
   background: #fffdd1;
   border-bottom: 1px solid #ffedce;
   padding: 2px;
   /* margin: 0 5px; */
 }
-hr {
+.wdwxedit hr {
   border: none;
   border-bottom: 1px solid #cfcfcf;
   margin-bottom: 0.8em;
   height: 10px;
 }
-small,
+.wdwxedit small,
 .typo-small,
-figcaption {
+.wdwxedit figcaption {
   font-size: 0.9em;
   color: #888;
 }
-strong,
-b {
+.wdwxedit strong,
+.wdwxedit b {
   font-weight: bold;
   color: #000;
 }
@@ -223,14 +223,14 @@ b {
 .serif {
   font-family: Palatino, Optima, Georgia, serif;
 }
-p,
-pre,
-ul,
-ol,
-dl,
+.wdwxedit p,
+.wdwxedit pre,
+.wdwxedit ul,
+.wdwxedit ol,
+.wdwxedit dl,
 form,
-hr,
-table,
+.wdwxedit hr,
+.wdwxedit table,
 .typo-p,
 .typo-pre,
 .typo-ul,
@@ -239,26 +239,26 @@ table,
 .typo-form,
 .typo-hr,
 .typo-table,
-blockquote {
+.wdwxedit blockquote {
   margin-bottom: 1.2em;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6 {
   font-family: PingFang SC, Verdana, Helvetica Neue, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
   font-weight: lighter;
   color: #000;
   line-height: 1.35;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
+.wdwxedit h1,
+.wdwxedit h2,
+.wdwxedit h3,
+.wdwxedit h4,
+.wdwxedit h5,
+.wdwxedit h6,
 .typo-h1,
 .typo-h2,
 .typo-h3,
@@ -269,40 +269,40 @@ h6,
   margin-bottom: 0.6em;
   line-height: 1.35;
 }
-h1,
+.wdwxedit h1,
 .typo-h1 {
   font-size: 2em;
 }
-h2,
+.wdwxedit h2,
 .typo-h2 {
   font-size: 1.8em;
 }
-h3,
+.wdwxedit h3,
 .typo-h3 {
   font-size: 1.6em;
 }
-h4,
+.wdwxedit h4,
 .typo-h4 {
   font-size: 1.4em;
 }
-h5,
-h6,
+.wdwxedit h5,
+.wdwxedit h6,
 .typo-h5,
 .typo-h6 {
   font-size: 1.2em;
 }
-ul,
+.wdwxedit ul,
 .typo-ul {
   margin-left: 1.3em;
   list-style: disc;
 }
-ol,
+.wdwxedit ol,
 .typo-ol {
   list-style: decimal;
   margin-left: 1.9em;
 }
-li ul,
-li ol,
+.wdwxedit li ul,
+.wdwxedit li ol,
 .typo-ul ul,
 .typo-ul ol,
 .typo-ol ul,
@@ -310,48 +310,48 @@ li ol,
   margin-bottom: 0.8em;
   margin-left: 2em;
 }
-li ul,
+.wdwxedit li ul,
 .typo-ul ul,
 .typo-ol ul {
   list-style: circle;
 }
-table th,
-table td,
+.wdwxedit table th,
+.wdwxedit table td,
 .typo-table th,
 .typo-table td,
-table caption {
+.wdwxedit table caption {
   border: 1px solid #ddd;
   padding: 0.5em 1em;
   color: #666;
 }
-table th,
+.wdwxedit table th,
 .typo-table th {
   background: #fbfbfb;
 }
-table thead th,
+.wdwxedit table thead th,
 .typo-table thead th {
   background: #f1f1f1;
 }
-table caption {
+.wdwxedit table caption {
   border-bottom: none;
 }
 .typo-em,
-em,
+.wdwxedit em,
 legend,
-caption {
+.wdwxedit caption {
   color: #000;
   font-weight: inherit;
 }
-img {
+.wdwxedit img {
   max-width: 100%;
 }
 .footnotes hr {
   margin-top: 4em;
   margin-bottom: 0.5em;
 }
-pre,
-code,
-pre tt {
+.wdwxedit pre,
+.wdwxedit code,
+.wdwxedit pre tt {
   font-family: Courier, "Courier New", monospace;
 }
 
