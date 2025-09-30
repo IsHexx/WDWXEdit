@@ -1,7 +1,7 @@
 import { App, EventRef, Plugin, TFile, TFolder, TAbstractFile, Notice } from 'obsidian';
 
 import { debounce } from '../../shared/utils';
-import { NMPSettings } from '../../core/settings';
+import { WxSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
 import { MarkedParser } from '../../services/renderer/markdown/parser';
 import { LocalImageManager, LocalFile } from '../../services/renderer/markdown/local-file';
@@ -20,7 +20,7 @@ export class PreviewController {
     private app: App;
     private view: any; // PreviewView
     private plugin: Plugin;
-    private settings: NMPSettings;
+    private settings: WxSettings;
     private assetsManager: AssetsManager;
     private listeners: EventRef[] = [];
 
@@ -44,7 +44,7 @@ export class PreviewController {
         this.app = app;
         this.view = view;
         this.plugin = plugin;
-        this.settings = NMPSettings.getInstance();
+        this.settings = WxSettings.getInstance();
         this.assetsManager = AssetsManager.getInstance();
         this.currentTheme = this.settings.defaultStyle;
         this.currentHighlight = this.settings.defaultHighlight;
@@ -105,7 +105,7 @@ export class PreviewController {
     async initialize() {
         if (!this.settings.isLoaded) {
             const data = await this.plugin.loadData();
-            NMPSettings.loadSettings(data);
+            WxSettings.loadSettings(data);
         }
         if (!this.assetsManager.isLoaded) {
             await this.assetsManager.loadAssets();
@@ -141,14 +141,14 @@ export class PreviewController {
             onAppIdChanged: (appId: string) => {
                 this.currentAppId = appId;
                 this.cleanArticleData();
-
+        
                 // this.rebuildToolbar();
             },
             onRefresh: async () => {
 
                 this.rebuildToolbar();
                 await this.assetsManager.loadCustomCSS();
-
+        
                 this.render.reloadStyle();
                 await this.renderMarkdown();
             },
@@ -410,6 +410,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         }
     }
 
+    // V2风格的图片上传和草稿创建
     private async uploadImagesAndCreateDraft(appid: string, localCover: File | null = null) {
 
 const { initApiClients, getWechatClient } = await import('../../services/api');
@@ -815,7 +816,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         return this.assetsManager;
     }
 
-    getSettings(): NMPSettings {
+    getSettings(): WxSettings {
         return this.settings;
     }
 }

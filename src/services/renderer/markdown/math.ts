@@ -2,7 +2,7 @@ import { MarkedExtension, Token, Tokens } from "marked";
 import { requestUrl } from "obsidian";
 import { Extension } from "./extension";
 
-import { NMPSettings } from "../../../core/settings";
+import { WxSettings } from "../../../core/settings";
 
 const inlineRule = /^(\${1,2})(?!\$)((?:\\.|[^\\\n])*?(?:\\.|[^\\\n\$]))\1/;
 const blockRule = /^(\${1,2})\n((?:\\[^]|[^\\])+?)\n\1(?:\n|$)/;
@@ -69,7 +69,7 @@ export class MathRendererQueue {
     }
 
     async render(token: Tokens.Generic, inline: boolean, type: string) {
-        if (!NMPSettings.getInstance().isAuthKeyVaild()) {
+        if (!WxSettings.getInstance().isAuthKeyVaild()) {
             return '<span>注册码无效或已过期</span>';
         }
 

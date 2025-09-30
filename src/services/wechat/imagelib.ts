@@ -1,7 +1,7 @@
 import { getBlobArrayBuffer } from "obsidian";
 
 import { wxUploadImage } from "../api";
-import { NMPSettings } from "../../core/settings";
+import { WxSettings } from "../../core/settings";
 import { IsWasmReady, LoadWasm } from "../../shared/wasm/wasm";
 import  AssetsManager from "../../core/assets";
 
@@ -34,7 +34,7 @@ export async function UploadImageToWx(data: Blob, filename: string, token: strin
     await PrepareImageLib(); 
   }
   
-  const watermark = NMPSettings.getInstance().watermark;
+  const watermark = WxSettings.getInstance().watermark;
   if (watermark != null && watermark != '') {
     const watermarkData = await AssetsManager.getInstance().readFileBinary(watermark);
     if (watermarkData == null) {

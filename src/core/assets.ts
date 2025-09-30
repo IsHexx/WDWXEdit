@@ -2,7 +2,7 @@ import { App, PluginManifest, Notice, requestUrl, FileSystemAdapter, TAbstractFi
 import * as zip from "@zip.js/zip.js";
 import DefaultTheme from "../shared/default-theme";
 import DefaultHighlight from "../shared/default-highlight";
-import { NMPSettings } from "./settings";
+import { WxSettings } from "./settings";
 
 export interface Theme {
     name: string
@@ -108,7 +108,7 @@ export default class AssetsManager {
 
     async loadCustomCSS() {
         try {
-            const customCSSNote = NMPSettings.getInstance().customCSSNote;
+            const customCSSNote = WxSettings.getInstance().customCSSNote;
             if (customCSSNote != '') {
                 const file = this.searchFile(customCSSNote);
                 if (file) {

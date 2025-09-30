@@ -145,6 +145,7 @@ var init_http_client = __esm({
             method,
             headers: requestHeaders,
             body: data ? this.serializeWithoutUnicodeEscape(data) : void 0,
+            // CORS处理配置
             mode: "cors",
             credentials: "omit",
             cache: "no-cache"
@@ -368,6 +369,9 @@ var init_http_client = __esm({
           reader.readAsDataURL(blob);
         });
       }
+      /**
+       * 自定义JSON序列化，避免Unicode转义
+       */
       serializeWithoutUnicodeEscape(data) {
         try {
           let json = JSON.stringify(data, null, 0);
@@ -56707,7 +56711,7 @@ var require_postcss = __commonJS({
 // src/core/main.ts
 var main_exports = {};
 __export(main_exports, {
-  default: () => NoteToMpPlugin
+  default: () => WxEditPlugin
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian11 = require("obsidian");
@@ -56771,7 +56775,7 @@ async function wxKeyInfo(authkey) {
 }
 
 // src/core/settings.ts
-var NMPSettings = class {
+var WxSettings = class {
   constructor() {
     this.expireat = null;
     this.isVip = false;
@@ -56802,10 +56806,10 @@ var NMPSettings = class {
     this.customCSS = "";
   }
   static getInstance() {
-    if (!NMPSettings.instance) {
-      NMPSettings.instance = new NMPSettings();
+    if (!WxSettings.instance) {
+      WxSettings.instance = new WxSettings();
     }
-    return NMPSettings.instance;
+    return WxSettings.instance;
   }
   resetStyelAndHighlight() {
     this.defaultStyle = "obsidian-light";
@@ -56832,7 +56836,7 @@ var NMPSettings = class {
       customCSSNote,
       ignoreEmptyLine
     } = data;
-    const settings = NMPSettings.getInstance();
+    const settings = WxSettings.getInstance();
     if (defaultStyle) {
       settings.defaultStyle = defaultStyle;
     }
@@ -56882,7 +56886,7 @@ var NMPSettings = class {
     settings.isLoaded = true;
   }
   static allSettings() {
-    const settings = NMPSettings.getInstance();
+    const settings = WxSettings.getInstance();
     return {
       "defaultStyle": settings.defaultStyle,
       "defaultHighlight": settings.defaultHighlight,
@@ -66692,7 +66696,7 @@ var AssetsManager = class {
   }
   async loadCustomCSS() {
     try {
-      const customCSSNote = NMPSettings.getInstance().customCSSNote;
+      const customCSSNote = WxSettings.getInstance().customCSSNote;
       if (customCSSNote != "") {
         const file = this.searchFile(customCSSNote);
         if (file) {
@@ -67019,7 +67023,7 @@ async function UploadImageToWx(data, filename, token, type) {
   if (!IsImageLibReady()) {
     await PrepareImageLib();
   }
-  const watermark = NMPSettings.getInstance().watermark;
+  const watermark = WxSettings.getInstance().watermark;
   if (watermark != null && watermark != "") {
     const watermarkData = await AssetsManager.getInstance().readFileBinary(watermark);
     if (watermarkData == null) {
@@ -67720,7 +67724,7 @@ var MathRendererQueue = class {
     return `math-id-${this.mathIndex}`;
   }
   async render(token, inline2, type) {
-    if (!NMPSettings.getInstance().isAuthKeyVaild()) {
+    if (!WxSettings.getInstance().isAuthKeyVaild()) {
       return "<span>\u6CE8\u518C\u7801\u65E0\u6548\u6216\u5DF2\u8FC7\u671F</span>";
     }
     const id = this.generateId();
@@ -71089,7 +71093,7 @@ var customRenderer = {
       }
     }
     let out = "";
-    if (NMPSettings.getInstance().useFigcaption) {
+    if (WxSettings.getInstance().useFigcaption) {
       out = `<figure style="display: flex; flex-direction: column; align-items: center;"><img src="${href}" alt="${text}"`;
       if (title) {
         out += ` title="${title}"`;
@@ -71114,7 +71118,7 @@ var MarkedParser = class {
     this.extensions = [];
     this.app = app;
     this.vault = app.vault;
-    const settings = NMPSettings.getInstance();
+    const settings = WxSettings.getInstance();
     const assetsManager = AssetsManager.getInstance();
     this.extensions.push(new LocalFile(app, settings, assetsManager, callback));
     this.extensions.push(new Blockquote(app, settings, assetsManager, callback));
@@ -71926,7 +71930,7 @@ var ArticleRender = class {
     this.itemView = itemView;
     this.styleEl = styleEl;
     this.articleDiv = articleDiv;
-    this.settings = NMPSettings.getInstance();
+    this.settings = WxSettings.getInstance();
     this.assetsManager = AssetsManager.getInstance();
     this.articleHTML = "";
     this.title = "";
@@ -73524,7 +73528,7 @@ var PreviewController = class {
     this.app = app;
     this.view = view;
     this.plugin = plugin;
-    this.settings = NMPSettings.getInstance();
+    this.settings = WxSettings.getInstance();
     this.assetsManager = AssetsManager.getInstance();
     this.currentTheme = this.settings.defaultStyle;
     this.currentHighlight = this.settings.defaultHighlight;
@@ -73577,7 +73581,7 @@ var PreviewController = class {
   async initialize() {
     if (!this.settings.isLoaded) {
       const data = await this.plugin.loadData();
-      NMPSettings.loadSettings(data);
+      WxSettings.loadSettings(data);
     }
     if (!this.assetsManager.isLoaded) {
       await this.assetsManager.loadAssets();
@@ -73818,6 +73822,7 @@ var PreviewController = class {
       }
     }
   }
+  // V2风格的图片上传和草稿创建
   async uploadImagesAndCreateDraft(appid, localCover = null) {
     var _a;
     const { initApiClients: initApiClients2, getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
@@ -74136,14 +74141,14 @@ var PreviewController = class {
 };
 
 // src/ui/views/preview-view.ts
-var VIEW_TYPE_NOTE_PREVIEW = "note-preview";
+var VIEW_TYPE_WX_PREVIEW = "wx-preview";
 var PreviewView = class extends import_obsidian9.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.controller = new PreviewController(this.app, this, plugin);
   }
   getViewType() {
-    return VIEW_TYPE_NOTE_PREVIEW;
+    return VIEW_TYPE_WX_PREVIEW;
   }
   getIcon() {
     return "clipboard-paste";
@@ -74187,11 +74192,11 @@ var PreviewView = class extends import_obsidian9.ItemView {
 // src/ui/setting-tab.ts
 var import_obsidian10 = require("obsidian");
 init_api();
-var NoteToMpSettingTab = class extends import_obsidian10.PluginSettingTab {
+var WxSettingTab = class extends import_obsidian10.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
-    this.settings = NMPSettings.getInstance();
+    this.settings = WxSettings.getInstance();
     this.wxInfo = this.parseWXInfo();
   }
   displayWXInfo(txt) {
@@ -74509,8 +74514,8 @@ var NoteToMpSettingTab = class extends import_obsidian10.PluginSettingTab {
 
 // src/core/main.ts
 init_api();
-var NoteToMpPlugin = class extends import_obsidian11.Plugin {
-  // Claude Code ADD - 初始化状态标志
+var WxEditPlugin = class extends import_obsidian11.Plugin {
+  // 初始化状态标志
   constructor(app, manifest) {
     super(app, manifest);
     this.isInitialized = false;
@@ -74535,30 +74540,30 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
       try {
         await this.loadResource();
         this.registerView(
-          VIEW_TYPE_NOTE_PREVIEW,
+          VIEW_TYPE_WX_PREVIEW,
           (leaf) => new PreviewView(leaf, this)
         );
         const ribbonIconEl = this.addRibbonIcon("clipboard-paste", "\u590D\u5236\u5230\u516C\u4F17\u53F7", (evt) => {
           this.activateView();
         });
-        ribbonIconEl.addClass("wdwxedit-plugin-ribbon-class");
+        ribbonIconEl.addClass("wxedit-plugin-ribbon-class");
         this.addCommand({
-          id: "wdwxedit-preview",
+          id: "wxedit-preview",
           name: "\u590D\u5236\u5230\u516C\u4F17\u53F7",
           callback: () => {
             this.activateView();
           }
         });
         this.addCommand({
-          id: "wdwxedit-pub",
+          id: "wxedit-pub",
           name: "\u53D1\u5E03\u516C\u4F17\u53F7\u6587\u7AE0",
           callback: async () => {
             var _a, _b;
             await this.activateView();
-            (_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.postArticle();
+            (_b = (_a = this.getWxPreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.postArticle();
           }
         });
-        this.addSettingTab(new NoteToMpSettingTab(this.app, this));
+        this.addSettingTab(new WxSettingTab(this.app, this));
         this.registerEvent(
           this.app.workspace.on("file-menu", (menu, file) => {
             menu.addItem((item) => {
@@ -74570,11 +74575,11 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
                     return;
                   }
                   await this.activateView();
-                  await ((_b = (_a = this.getNotePreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.renderMarkdown(file));
-                  await ((_d = (_c = this.getNotePreview()) == null ? void 0 : _c.getController()) == null ? void 0 : _d.postArticle());
+                  await ((_b = (_a = this.getWxPreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.renderMarkdown(file));
+                  await ((_d = (_c = this.getWxPreview()) == null ? void 0 : _c.getController()) == null ? void 0 : _d.postArticle());
                 } else if (file instanceof import_obsidian11.TFolder) {
                   await this.activateView();
-                  await ((_f = (_e = this.getNotePreview()) == null ? void 0 : _e.getController()) == null ? void 0 : _f.batchPost(file));
+                  await ((_f = (_e = this.getWxPreview()) == null ? void 0 : _e.getController()) == null ? void 0 : _f.batchPost(file));
                 }
               });
             });
@@ -74587,10 +74592,10 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
   onunload() {
   }
   async loadSettings() {
-    NMPSettings.loadSettings(await this.loadData());
+    WxSettings.loadSettings(await this.loadData());
   }
   async saveSettings() {
-    await this.saveData(NMPSettings.allSettings());
+    await this.saveData(WxSettings.allSettings());
     if (this.isInitialized) {
       this.refreshAllPreviews();
     }
@@ -74604,13 +74609,13 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
     }
     const { workspace } = this.app;
     let leaf = null;
-    const leaves = workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+    const leaves = workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
     if (leaves.length > 0) {
       leaf = leaves[0];
     } else {
       leaf = workspace.getRightLeaf(false);
       if (leaf) {
-        await (leaf == null ? void 0 : leaf.setViewState({ type: VIEW_TYPE_NOTE_PREVIEW, active: false }));
+        await (leaf == null ? void 0 : leaf.setViewState({ type: VIEW_TYPE_WX_PREVIEW, active: false }));
       } else {
         return;
       }
@@ -74618,8 +74623,8 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
     if (leaf)
       workspace.revealLeaf(leaf);
   }
-  getNotePreview() {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+  getWxPreview() {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
     if (leaves.length > 0) {
       const leaf = leaves[0];
       return leaf.view;
@@ -74627,7 +74632,7 @@ var NoteToMpPlugin = class extends import_obsidian11.Plugin {
     return null;
   }
   refreshAllPreviews() {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
     leaves.forEach((leaf) => {
       const view = leaf.view;
       if (view && typeof view.forceRefresh === "function") {

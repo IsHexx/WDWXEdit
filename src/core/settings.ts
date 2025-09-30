@@ -1,6 +1,6 @@
 import { wxKeyInfo } from '../services/wechat/weixin-api';
 
-export class NMPSettings {
+export class WxSettings {
     defaultStyle: string;
     defaultHighlight: string;
     showStyleUI: boolean;
@@ -10,7 +10,6 @@ export class NMPSettings {
     authKey: string;
     useCustomCss: boolean;
     customCSSNote: string;
-
     wxInfo: {name:string, appid:string, secret:string}[];
     math: string;
     expireat: Date | null = null;
@@ -18,22 +17,20 @@ export class NMPSettings {
     baseCSS: string;
     watermark: string;
     useFigcaption: boolean;
-
     isLoaded: boolean = false;
     enableEmptyLine: boolean = false;
-
     fontFamily: string = '等线';
     fontSize: string = '推荐';
     primaryColor: string = '#2d3748';
     customCSS: string = '';
 
-    private static instance: NMPSettings;
+    private static instance: WxSettings;
 
-    public static getInstance(): NMPSettings {
-        if (!NMPSettings.instance) {
-            NMPSettings.instance = new NMPSettings();
+    public static getInstance(): WxSettings {
+        if (!WxSettings.instance) {
+            WxSettings.instance = new WxSettings();
         }
-        return NMPSettings.instance;
+        return WxSettings.instance;
     }
 
     private constructor() {
@@ -52,7 +49,6 @@ export class NMPSettings {
         this.watermark = '';
         this.useFigcaption = false;
         this.customCSSNote = '';
-
         this.enableEmptyLine = false;
 
         this.fontFamily = '等线';
@@ -85,11 +81,10 @@ export class NMPSettings {
             watermark,
             useFigcaption,
             customCSSNote,
-
             ignoreEmptyLine,
         } = data;
 
-        const settings = NMPSettings.getInstance();
+        const settings = WxSettings.getInstance();
         if (defaultStyle) {
             settings.defaultStyle = defaultStyle;
         }
@@ -132,7 +127,6 @@ export class NMPSettings {
         if (customCSSNote) {
             settings.customCSSNote = customCSSNote;
         }
-
         if (ignoreEmptyLine !== undefined) {
             settings.enableEmptyLine = ignoreEmptyLine;
         }
@@ -141,7 +135,7 @@ export class NMPSettings {
     }
 
     public static allSettings() {
-        const settings = NMPSettings.getInstance();
+        const settings = WxSettings.getInstance();
         return {
             'defaultStyle': settings.defaultStyle,
             'defaultHighlight': settings.defaultHighlight,
@@ -157,7 +151,6 @@ export class NMPSettings {
             'watermark': settings.watermark,
             'useFigcaption': settings.useFigcaption,
             'customCSSNote': settings.customCSSNote,
-
             'ignoreEmptyLine': settings.enableEmptyLine,
         }
     }

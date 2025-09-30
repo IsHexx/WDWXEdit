@@ -2,7 +2,7 @@ import { Token, Tokens, MarkedExtension } from "marked";
 import { Notice, TAbstractFile, TFile, Vault, MarkdownView, requestUrl, Platform } from "obsidian";
 import { Extension } from "./extension";
 
-import { NMPSettings } from "../../../core/settings";
+import { WxSettings } from "../../../core/settings";
 import { IsImageLibReady, PrepareImageLib, WebpToJPG, UploadImageToWx } from "../../wechat/imagelib";
 
 declare module 'obsidian' {

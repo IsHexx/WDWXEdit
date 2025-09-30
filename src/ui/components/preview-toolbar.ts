@@ -1,6 +1,6 @@
 import { Platform } from 'obsidian';
 
-import { NMPSettings } from '../../core/settings';
+import { WxSettings } from '../../core/settings';
 import { StyleEditor } from './style-editor';
 import { uevent } from '../../shared/utils';
 
@@ -17,7 +17,7 @@ interface ToolbarHandlers {
  */
 export class PreviewToolbar {
     private parent: HTMLDivElement;
-    private settings: NMPSettings;
+    private settings: WxSettings;
     private styleEditor: StyleEditor;
     private handlers: ToolbarHandlers;
     
@@ -31,7 +31,7 @@ export class PreviewToolbar {
 
     constructor(
         parent: HTMLDivElement, 
-        settings: NMPSettings, 
+        settings: WxSettings, 
         styleEditor: StyleEditor,
         handlers: ToolbarHandlers
     ) {

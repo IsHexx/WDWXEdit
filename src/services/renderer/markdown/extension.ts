@@ -1,10 +1,10 @@
-import { NMPSettings } from "../../../core/settings";
+import { WxSettings } from "../../../core/settings";
 import { Marked, MarkedExtension } from "marked";
 import { App, Vault } from "obsidian";
 import AssetsManager from "../../../core/assets";
 
 export interface MDRendererCallback {
-   settings: NMPSettings;
+   settings: WxSettings;
    updateElementByID(id:string, html:string):void; // 改为异步渲染后已废弃
    cacheElement(category: string, id: string, data: string): void;
 }
@@ -13,11 +13,11 @@ export abstract class Extension {
     app: App;
     vault: Vault;
     assetsManager: AssetsManager
-    settings: NMPSettings;
+    settings: WxSettings;
     callback: MDRendererCallback;
     marked: Marked;
 
-    constructor(app: App, settings: NMPSettings, assetsManager: AssetsManager, callback: MDRendererCallback) {
+    constructor(app: App, settings: WxSettings, assetsManager: AssetsManager, callback: MDRendererCallback) {
         this.app = app;
         this.vault = app.vault;
         this.settings = settings;

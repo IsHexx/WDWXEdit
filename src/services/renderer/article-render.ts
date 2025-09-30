@@ -2,7 +2,7 @@ import { App, ItemView, Workspace, Notice, sanitizeHTMLToDom, apiVersion, TFile,
 
 import { applyCSS } from '../../shared/utils';
 import { UploadImageToWx } from '../wechat/imagelib';
-import { NMPSettings } from '../../core/settings';
+import { WxSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
 import InlineCSS from '../../shared/inline-css';
 
@@ -25,7 +25,7 @@ export class ArticleRender implements MDRendererCallback {
   workspace: Workspace;
   styleEl: HTMLElement;
   articleDiv: HTMLDivElement;
-  settings: NMPSettings;
+  settings: WxSettings;
   assetsManager: AssetsManager;
   articleHTML: string;
   title: string;
@@ -43,7 +43,7 @@ export class ArticleRender implements MDRendererCallback {
     this.itemView = itemView;
     this.styleEl = styleEl;
     this.articleDiv = articleDiv;
-    this.settings = NMPSettings.getInstance();
+    this.settings = WxSettings.getInstance();
     this.assetsManager = AssetsManager.getInstance();
     this.articleHTML = '';
     this.title = '';

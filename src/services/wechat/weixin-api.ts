@@ -1,6 +1,6 @@
 import { requestUrl, RequestUrlParam, getBlobArrayBuffer } from "obsidian";
 
-import { NMPSettings } from '../../core/settings';
+import { WxSettings } from '../../core/settings';
 
 const LocalBackendHost = 'http://127.0.0.1:8000';
 

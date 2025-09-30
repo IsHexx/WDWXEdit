@@ -3,7 +3,7 @@ import { PreviewController } from '../controllers/preview-controller';
 
 import { uevent, waitForLayoutReady } from '../../shared/utils';
 
-export const VIEW_TYPE_NOTE_PREVIEW = 'note-preview';
+export const VIEW_TYPE_WX_PREVIEW = 'wx-preview';
 
 /**
  * 预览视图容器 - 负责Obsidian视图的生命周期管理
@@ -18,7 +18,7 @@ export class PreviewView extends ItemView {
     }
 
     getViewType() {
-        return VIEW_TYPE_NOTE_PREVIEW;
+        return VIEW_TYPE_WX_PREVIEW;
     }
 
     getIcon() {

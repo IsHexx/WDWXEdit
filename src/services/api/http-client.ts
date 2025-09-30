@@ -47,7 +47,6 @@ export class HttpClient {
       'Content-Type': 'application/json; charset=utf-8',
       'X-API-Key': this.config.apiKey,
       'User-Agent': 'WDWxEdit-v2-Client/1.0'
-
     };
 
     if (BACKEND_CONFIG.DEBUG) {
@@ -78,7 +77,7 @@ export class HttpClient {
         headers: requestHeaders,
 
         body: data ? this.serializeWithoutUnicodeEscape(data) : undefined,
-
+        // CORS处理配置
         mode: 'cors',
         credentials: 'omit',
         cache: 'no-cache'
@@ -367,6 +366,9 @@ export class HttpClient {
     });
   }
 
+  /**
+   * 自定义JSON序列化，避免Unicode转义
+   */
   private serializeWithoutUnicodeEscape(data: any): string {
     try {
 

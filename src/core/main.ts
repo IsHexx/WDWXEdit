@@ -1,15 +1,15 @@
 import { Plugin, WorkspaceLeaf, App, PluginManifest, Menu, Notice, TAbstractFile, TFile, TFolder } from 'obsidian';
-import { NotePreview, VIEW_TYPE_NOTE_PREVIEW } from '../note-preview';
-import { NMPSettings } from './settings';
-import { NoteToMpSettingTab } from '../ui/setting-tab';
+import { WxPreview, VIEW_TYPE_WX_PREVIEW } from '../wx-preview';
+import { WxSettings } from './settings';
+import { WxSettingTab } from '../ui/setting-tab';
 import AssetsManager from './assets';
 import { setVersion, uevent } from '../shared/utils';
 import { initApiClients, WechatApiUtils } from '../services/api';
 
-export default class NoteToMpPlugin extends Plugin {
-	settings: NMPSettings;
+export default class WxEditPlugin extends Plugin {
+	settings: WxSettings;
 	assetsManager: AssetsManager;
-	private isInitialized: boolean = false; // Claude Code ADD - 初始化状态标志
+	private isInitialized: boolean = false; // 初始化状态标志
 	constructor(app: App, manifest: PluginManifest) {
 	    super(app, manifest);
 			AssetsManager.setup(app, manifest);
@@ -27,7 +27,8 @@ export default class NoteToMpPlugin extends Plugin {
 
 		setVersion(this.manifest.version);
 		uevent('load');
-
+		
+		//Update - 延迟初始化API客户端，避免阻塞启动
 		setTimeout(async () => {
 			try {
 				initApiClients();
@@ -35,7 +36,8 @@ export default class NoteToMpPlugin extends Plugin {
 
 			}
 		}, 1000);
-
+		
+		// Update - 将所有需要workspace ready的操作移到onLayoutReady回调中
 		this.app.workspace.onLayoutReady(async ()=>{
 			try {
 				// 1. 先加载基础资源
@@ -43,19 +45,19 @@ export default class NoteToMpPlugin extends Plugin {
 
 				// 2. 注册视图（workspace ready后才能安全操作）
 				this.registerView(
-					VIEW_TYPE_NOTE_PREVIEW,
-					(leaf) => new NotePreview(leaf, this)
+					VIEW_TYPE_WX_PREVIEW,
+					(leaf) => new WxPreview(leaf, this)
 				);
 
 				// 3. 添加功能区图标（回调中会访问workspace）
 				const ribbonIconEl = this.addRibbonIcon('clipboard-paste', '复制到公众号', (evt: MouseEvent) => {
 					this.activateView();
 				});
-				ribbonIconEl.addClass('wdwxedit-plugin-ribbon-class');
+				ribbonIconEl.addClass('wxedit-plugin-ribbon-class');
 
 				// 4. 添加命令（回调中会访问workspace）
 				this.addCommand({
-					id: 'wdwxedit-preview',
+					id: 'wxedit-preview',
 					name: '复制到公众号',
 					callback: () => {
 						this.activateView();
@@ -63,16 +65,16 @@ export default class NoteToMpPlugin extends Plugin {
 				});
 
 				this.addCommand({
-					id: 'wdwxedit-pub',
+					id: 'wxedit-pub',
 					name: '发布公众号文章',
 					callback: async () => {
 						await this.activateView();
-						this.getNotePreview()?.getController()?.postArticle();
+						this.getWxPreview()?.getController()?.postArticle();
 					}
 				});
 
 				// 5. 添加设置选项卡
-				this.addSettingTab(new NoteToMpSettingTab(this.app, this));
+				this.addSettingTab(new WxSettingTab(this.app, this));
 
 				// 6. 监听右键菜单（workspace ready后才能安全监听）
 				this.registerEvent(
@@ -88,11 +90,11 @@ export default class NoteToMpPlugin extends Plugin {
 											return;
 										}
 										await this.activateView();
-										await this.getNotePreview()?.getController()?.renderMarkdown(file);
-										await this.getNotePreview()?.getController()?.postArticle();
+										await this.getWxPreview()?.getController()?.renderMarkdown(file);
+										await this.getWxPreview()?.getController()?.postArticle();
 									} else if (file instanceof TFolder) {
 										await this.activateView();
-										await this.getNotePreview()?.getController()?.batchPost(file);
+										await this.getWxPreview()?.getController()?.batchPost(file);
 									}
 								});
 						});
@@ -110,11 +112,11 @@ export default class NoteToMpPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		NMPSettings.loadSettings(await this.loadData());
+		WxSettings.loadSettings(await this.loadData());
 	}
 
 	async saveSettings() {
-		await this.saveData(NMPSettings.allSettings());
+		await this.saveData(WxSettings.allSettings());
 
 		if (this.isInitialized) {
 			this.refreshAllPreviews();
@@ -134,14 +136,14 @@ export default class NoteToMpPlugin extends Plugin {
 		const { workspace } = this.app;
 	
 		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
 	
 		if (leaves.length > 0) {
 			leaf = leaves[0];
 		} else {
 		  	leaf = workspace.getRightLeaf(false);
 		  	if (leaf) {
-			  	await leaf?.setViewState({ type: VIEW_TYPE_NOTE_PREVIEW, active: false });
+			  	await leaf?.setViewState({ type: VIEW_TYPE_WX_PREVIEW, active: false });
 			} else {
 
 				return;
@@ -151,19 +153,19 @@ export default class NoteToMpPlugin extends Plugin {
 		if (leaf) workspace.revealLeaf(leaf);
 	}
 
-	getNotePreview(): NotePreview | null {
-		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+	getWxPreview(): WxPreview | null {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
 		if (leaves.length > 0) {
 			const leaf = leaves[0];
-			return leaf.view as NotePreview;
+			return leaf.view as WxPreview;
 		}
 		return null;
 	}
 
 	private refreshAllPreviews(): void {
-		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_NOTE_PREVIEW);
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
 		leaves.forEach(leaf => {
-			const view = leaf.view as NotePreview;
+			const view = leaf.view as WxPreview;
 			if (view && typeof view.forceRefresh === 'function') {
 				view.forceRefresh();
 			}

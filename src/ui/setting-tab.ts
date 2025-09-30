@@ -1,24 +1,24 @@
 import { App, TextAreaComponent, PluginSettingTab, Setting, Notice, sanitizeHTMLToDom } from 'obsidian';
 
-import NoteToMpPlugin from '../core/main';
+import WxEditPlugin from '../core/main';
 
 import { wxGetToken, getWechatClient } from '../services/api';
 import { wxEncrypt } from '../services/wechat/weixin-api'; // 保留对加密函数的引用，因为新API中可能没有这个
 import { cleanMathCache } from '../services/renderer/markdown/math';
-import { NMPSettings } from '../core/settings';
+import { WxSettings } from '../core/settings';
 
 // import { DocModal } from './doc-modal';
 
-export class NoteToMpSettingTab extends PluginSettingTab {
-	plugin: NoteToMpPlugin;
+export class WxSettingTab extends PluginSettingTab {
+	plugin: WxEditPlugin;
 	wxInfo: string;
 	wxTextArea: TextAreaComponent|null;
-	settings: NMPSettings;
+	settings: WxSettings;
 
-	constructor(app: App, plugin: NoteToMpPlugin) {
+	constructor(app: App, plugin: WxEditPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
-		this.settings = NMPSettings.getInstance();
+		this.settings = WxSettings.getInstance();
 		this.wxInfo = this.parseWXInfo();
 	}
 

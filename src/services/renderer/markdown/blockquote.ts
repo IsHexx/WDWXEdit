@@ -1,7 +1,7 @@
 import { Tokens, MarkedExtension } from "marked";
 import { Extension, MDRendererCallback } from "./extension";
 
-import { NMPSettings } from "../../../core/settings";
+import { WxSettings } from "../../../core/settings";
 import { App, Vault } from "obsidian";
 import AssetsManager from "../../../core/assets";
 import { CalloutRenderer } from "./callouts";
@@ -9,7 +9,7 @@ import { CalloutRenderer } from "./callouts";
 export class Blockquote extends Extension {
   callout: CalloutRenderer;
 
-  constructor(app: App, settings: NMPSettings, assetsManager: AssetsManager, callback: MDRendererCallback) {
+  constructor(app: App, settings: WxSettings, assetsManager: AssetsManager, callback: MDRendererCallback) {
     super(app, settings, assetsManager, callback);
     this.callout = new CalloutRenderer(app, settings, assetsManager, callback);
   }
@@ -20,7 +20,6 @@ export class Blockquote extends Extension {
       return;
     }
     if (this.callout) this.callout.marked = this.marked;
-
     return;
   }
 

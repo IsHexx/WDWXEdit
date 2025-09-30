@@ -1,6 +1,6 @@
 import { Marked } from "marked";
 
-import { NMPSettings } from "../../../core/settings";
+import { WxSettings } from "../../../core/settings";
 import { App, Vault } from "obsidian";
 import AssetsManager from "../../../core/assets";
 import { Extension, MDRendererCallback } from "./extension";
@@ -57,7 +57,7 @@ const customRenderer = {
 			}
 		}
 		let out = '';
-		if (NMPSettings.getInstance().useFigcaption) {
+		if (WxSettings.getInstance().useFigcaption) {
 			out = `<figure style="display: flex; flex-direction: column; align-items: center;"><img src="${href}" alt="${text}"`;
 			if (title) {
 				out += ` title="${title}"`;
@@ -90,7 +90,7 @@ export class MarkedParser {
 		this.app = app;
 		this.vault = app.vault;
 
-		const settings = NMPSettings.getInstance();
+		const settings = WxSettings.getInstance();
 		const assetsManager = AssetsManager.getInstance();
 
 		this.extensions.push(new LocalFile(app, settings, assetsManager, callback));

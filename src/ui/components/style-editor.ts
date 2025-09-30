@@ -1,4 +1,9 @@
-import { NMPSettings } from '../../core/settings';
+/*
+ * 现代化样式编辑器组件
+ * 只修改UI样式，保持原有代码逻辑不变
+ */
+
+import { WxSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
 
 export interface StyleEditorEvents {
@@ -13,14 +18,14 @@ export interface StyleEditorEvents {
 }
 
 export class StyleEditor {
-    private settings: NMPSettings;
+    private settings: WxSettings;
     private assetsManager: AssetsManager;
     private events: StyleEditorEvents;
     private container!: HTMLDivElement;
     private contentDiv!: HTMLDivElement;
     private isCollapsed: boolean = false;
 
-    constructor(settings: NMPSettings, assetsManager: AssetsManager, events: StyleEditorEvents) {
+    constructor(settings: WxSettings, assetsManager: AssetsManager, events: StyleEditorEvents) {
         this.settings = settings;
         this.assetsManager = assetsManager;
         this.events = events;

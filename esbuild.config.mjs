@@ -15,7 +15,7 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	// Claude Code Update - 更新入口文件路径
+	// 更新入口文件路径
 	entryPoints: ["src/core/main.ts"],
 	bundle: true,
 	external: [
