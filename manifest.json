@@ -2,7 +2,7 @@
   "id": "wdwx-edit",
   "name": "WDWXEdit",
   "version": "1.0.0",
-  "minAppVersion": "1.4.5",
+  "minAppVersion": "1.0.0",
   "description": "Publish notes to WeChat Official Account with perfect formatting, code highlighting, math formulas, and local image upload support.",
   "author": "YiNian",
   "authorUrl": "https://github.com/IsHexx",
