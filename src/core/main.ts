@@ -27,7 +27,7 @@ export default class WxEditPlugin extends Plugin {
 
 		setVersion(this.manifest.version);
 		uevent('load');
-		
+
 		//Update - 延迟初始化API客户端，避免阻塞启动
 		setTimeout(async () => {
 			try {
@@ -36,10 +36,11 @@ export default class WxEditPlugin extends Plugin {
 
 			}
 		}, 1000);
-		
+
 		// Update - 将所有需要workspace ready的操作移到onLayoutReady回调中
 		this.app.workspace.onLayoutReady(async ()=>{
 			try {
+
 				// 1. 先加载基础资源
 				await this.loadResource();
 

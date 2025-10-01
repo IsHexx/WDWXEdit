@@ -1,7 +1,7 @@
 {
   "id": "wdwx-edit",
   "name": "WDWXEdit",
-  "version": "1.3.1",
+  "version": "1.0.0",
   "minAppVersion": "1.4.5",
   "description": "一个强大的Obsidian插件，支持将Markdown笔记一键发布到微信公众号",
   "author": "YiNian",

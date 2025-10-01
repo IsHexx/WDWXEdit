@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Backend/Server files (not for public release)
-
+server/
 *.pyc
 __pycache__/
 venv/

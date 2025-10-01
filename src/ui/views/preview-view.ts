@@ -22,7 +22,7 @@ export class PreviewView extends ItemView {
     }
 
     getIcon() {
-        return 'clipboard-paste';
+        return 'fish-symbol';
     }
 
     getDisplayText() {

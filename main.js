@@ -74402,7 +74402,7 @@ var PreviewView = class extends import_obsidian8.ItemView {
     return VIEW_TYPE_WX_PREVIEW;
   }
   getIcon() {
-    return "clipboard-paste";
+    return "fish-symbol";
   }
   getDisplayText() {
     return "\u7B14\u8BB0\u9884\u89C8";
