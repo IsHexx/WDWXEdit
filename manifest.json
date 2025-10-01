@@ -6,6 +6,6 @@
   "description": "一个强大的Obsidian插件，支持将Markdown笔记一键发布到微信公众号",
   "author": "YiNian",
   "authorUrl": "https://github.com/IsHexx",
-  "isDesktopOnly": false,
-  "fundingUrl": "https://github.com/IsHexx/wdwxedit-v3"
+  "fundingUrl": "https://github.com/IsHexx/WeWxEdit",
+  "isDesktopOnly": false
 }

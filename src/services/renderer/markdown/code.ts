@@ -166,10 +166,6 @@ export class CodeRenderer extends Extension {
 				+ '</pre></section>';
 		}
 
-		if (!this.settings.isAuthKeyVaild()) {
-			return html;
-		}
-
 		return html;
 	}
 
@@ -228,16 +224,15 @@ export class CodeRenderer extends Extension {
 			async: true,
 			walkTokens: async (token: Tokens.Generic) => {
 				if (token.type !== 'code') return;
-				if (this.settings.isAuthKeyVaild()) {
-					const type = CodeRenderer.getMathType(token.lang ?? '');
-					if (type) {
-						token.html = await MathRendererQueue.getInstance().render(token, false, type);
-						return;
-					}
-					if (token.lang && token.lang.trim().toLocaleLowerCase() == 'mermaid') {
-						token.html = this.renderMermaid(token as Tokens.Code);
-						return;
-					}
+
+				const type = CodeRenderer.getMathType(token.lang ?? '');
+				if (type) {
+					token.html = await MathRendererQueue.getInstance().render(token, false, type);
+					return;
+				}
+				if (token.lang && token.lang.trim().toLocaleLowerCase() == 'mermaid') {
+					token.html = this.renderMermaid(token as Tokens.Code);
+					return;
 				}
 				if (token.lang && token.lang.trim().toLocaleLowerCase() == 'mpcard') {
 					token.html = this.renderCard(token as Tokens.Code);

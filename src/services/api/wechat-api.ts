@@ -109,6 +109,38 @@ export interface PublishStatusResult {
   fail_idx?: number[];
 }
 
+export interface RegisterAccountRequest {
+  app_id: string;
+  app_secret: string;
+  name: string;
+  auth_key: string;
+}
+
+export interface VerifyAuthKeyResponse {
+  is_valid: boolean;
+  is_vip: boolean;
+  expired_at?: string;
+  max_accounts: number;
+  registered_accounts: number;
+  can_register: boolean;
+  message: string;
+}
+
+export interface PermissionInfo {
+  app_id: string;
+  name?: string;
+  is_vip: boolean;
+  is_registered?: boolean;
+  expired_at?: string;
+  can_use_api: boolean;
+  message?: string;
+  features?: {
+    upload_image: boolean;
+    create_draft: boolean;
+    advanced_features: boolean;
+  };
+}
+
 /**
  * 微信客户端类
  * 封装所有微信公众号API操作
@@ -371,6 +403,57 @@ export class WechatClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * 验证AuthKey是否有效
+   */
+  async verifyAuthKey(authKey: string): Promise<VerifyAuthKeyResponse> {
+
+    const response = await this.httpClient.post<VerifyAuthKeyResponse>('/api/v1/wechat/verify-auth-key', {
+      auth_key: authKey
+    });
+
+    if (!response.success || !response.data) {
+      throw new Error(`验证AuthKey失败: ${response.error || '未知错误'}`);
+    }
+
+    return response.data;
+  }
+
+  /**
+   * 注册或更新公众号账户
+   */
+  async registerAccount(request: RegisterAccountRequest): Promise<ApiResponse<any>> {
+
+    const response = await this.httpClient.post('/api/v1/wechat/register-account', {
+      app_id: request.app_id,
+      app_secret: request.app_secret,
+      name: request.name,
+      auth_key: request.auth_key
+    });
+
+    if (!response.success) {
+      throw new Error(`注册公众号失败: ${response.error}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * 检查公众号权限
+   */
+  async checkPermission(appId: string): Promise<PermissionInfo> {
+
+    const response = await this.httpClient.get<PermissionInfo>('/api/v1/wechat/check-permission', {
+      app_id: appId
+    });
+
+    if (!response.success || !response.data) {
+      throw new Error(`检查权限失败: ${response.error}`);
+    }
+
+    return response.data;
   }
 }
 

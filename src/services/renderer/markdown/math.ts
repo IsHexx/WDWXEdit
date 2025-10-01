@@ -69,9 +69,6 @@ export class MathRendererQueue {
     }
 
     async render(token: Tokens.Generic, inline: boolean, type: string) {
-        if (!WxSettings.getInstance().isAuthKeyVaild()) {
-            return '<span>注册码无效或已过期</span>';
-        }
 
         const id = this.generateId();
         let svg = '渲染中';

@@ -1,5 +1,3 @@
-import { wxKeyInfo } from '../services/wechat/weixin-api';
-
 export class WxSettings {
     defaultStyle: string;
     defaultHighlight: string;
@@ -7,22 +5,38 @@ export class WxSettings {
     linkStyle: string;
     embedStyle: string;
     lineNumber: boolean;
-    authKey: string;
+
     useCustomCss: boolean;
     customCSSNote: string;
     wxInfo: {name:string, appid:string, secret:string}[];
     math: string;
-    expireat: Date | null = null;
-    isVip: boolean = false;
+
     baseCSS: string;
     watermark: string;
     useFigcaption: boolean;
     isLoaded: boolean = false;
     enableEmptyLine: boolean = false;
-    fontFamily: string = '等线';
-    fontSize: string = '推荐';
+
+    fontFamily: string = 'sans-serif';
+    fontSize: string = '16px';
     primaryColor: string = '#2d3748';
     customCSS: string = '';
+
+    imageQuality: number = 0.9;
+    imageMaxWidth: number = 1200;
+    autoCompressImage: boolean = true;
+
+    paragraphSpacing: string = '正常';
+    firstLineIndent: boolean = false;
+    headingAlign: string = 'left';
+
+    defaultExportFormat: string = 'copy';
+    autoSaveDraft: boolean = false;
+
+    defaultWxAccount: string = '';
+
+    previewWidth: number = 800;
+    previewDelay: number = 500;
 
     private static instance: WxSettings;
 
@@ -42,7 +56,6 @@ export class WxSettings {
         this.lineNumber = true;
         this.useCustomCss = false;
 
-        this.authKey = 'temp-backend-api-key';
         this.wxInfo = [];
         this.math = 'latex';
         this.baseCSS = '';
@@ -51,10 +64,22 @@ export class WxSettings {
         this.customCSSNote = '';
         this.enableEmptyLine = false;
 
-        this.fontFamily = '等线';
-        this.fontSize = '推荐';
+        this.fontFamily = 'sans-serif';
+        this.fontSize = '16px';
         this.primaryColor = '#2d3748';
         this.customCSS = '';
+
+        this.imageQuality = 0.9;
+        this.imageMaxWidth = 1200;
+        this.autoCompressImage = true;
+        this.paragraphSpacing = '正常';
+        this.firstLineIndent = false;
+        this.headingAlign = 'left';
+        this.defaultExportFormat = 'copy';
+        this.autoSaveDraft = false;
+        this.defaultWxAccount = '';
+        this.previewWidth = 800;
+        this.previewDelay = 500;
     }
 
     resetStyelAndHighlight() {
@@ -66,6 +91,7 @@ export class WxSettings {
         if (!data) {
             return
         }
+
         const {
             defaultStyle,
             linkStyle,
@@ -73,7 +99,6 @@ export class WxSettings {
             showStyleUI,
             lineNumber,
             defaultHighlight,
-            authKey,
             wxInfo,
             math,
             useCustomCss,
@@ -82,6 +107,21 @@ export class WxSettings {
             useFigcaption,
             customCSSNote,
             ignoreEmptyLine,
+            fontFamily,
+            fontSize,
+            primaryColor,
+            customCSS,
+            imageQuality,
+            imageMaxWidth,
+            autoCompressImage,
+            paragraphSpacing,
+            firstLineIndent,
+            headingAlign,
+            defaultExportFormat,
+            autoSaveDraft,
+            defaultWxAccount,
+            previewWidth,
+            previewDelay,
         } = data;
 
         const settings = WxSettings.getInstance();
@@ -103,9 +143,7 @@ export class WxSettings {
         if (lineNumber !== undefined) {
             settings.lineNumber = lineNumber;
         }
-        if (authKey) {
-            settings.authKey = authKey;
-        }
+
         if (wxInfo) {
             settings.wxInfo = wxInfo;
         }
@@ -130,7 +168,53 @@ export class WxSettings {
         if (ignoreEmptyLine !== undefined) {
             settings.enableEmptyLine = ignoreEmptyLine;
         }
-        settings.getExpiredDate();
+
+        if (fontFamily) {
+            settings.fontFamily = fontFamily;
+        }
+        if (fontSize) {
+            settings.fontSize = fontSize;
+        }
+        if (primaryColor) {
+            settings.primaryColor = primaryColor;
+        }
+        if (customCSS) {
+            settings.customCSS = customCSS;
+        }
+        if (imageQuality !== undefined) {
+            settings.imageQuality = imageQuality;
+        }
+        if (imageMaxWidth !== undefined) {
+            settings.imageMaxWidth = imageMaxWidth;
+        }
+        if (autoCompressImage !== undefined) {
+            settings.autoCompressImage = autoCompressImage;
+        }
+        if (paragraphSpacing) {
+            settings.paragraphSpacing = paragraphSpacing;
+        }
+        if (firstLineIndent !== undefined) {
+            settings.firstLineIndent = firstLineIndent;
+        }
+        if (headingAlign) {
+            settings.headingAlign = headingAlign;
+        }
+        if (defaultExportFormat) {
+            settings.defaultExportFormat = defaultExportFormat;
+        }
+        if (autoSaveDraft !== undefined) {
+            settings.autoSaveDraft = autoSaveDraft;
+        }
+        if (defaultWxAccount) {
+            settings.defaultWxAccount = defaultWxAccount;
+        }
+        if (previewWidth !== undefined) {
+            settings.previewWidth = previewWidth;
+        }
+        if (previewDelay !== undefined) {
+            settings.previewDelay = previewDelay;
+        }
+
         settings.isLoaded = true;
     }
 
@@ -143,7 +227,6 @@ export class WxSettings {
             'linkStyle': settings.linkStyle,
             'embedStyle': settings.embedStyle,
             'lineNumber': settings.lineNumber,
-            'authKey': settings.authKey,
             'wxInfo': settings.wxInfo,
             'math': settings.math,
             'useCustomCss': settings.useCustomCss,
@@ -152,28 +235,22 @@ export class WxSettings {
             'useFigcaption': settings.useFigcaption,
             'customCSSNote': settings.customCSSNote,
             'ignoreEmptyLine': settings.enableEmptyLine,
+            'fontFamily': settings.fontFamily,
+            'fontSize': settings.fontSize,
+            'primaryColor': settings.primaryColor,
+            'customCSS': settings.customCSS,
+            'imageQuality': settings.imageQuality,
+            'imageMaxWidth': settings.imageMaxWidth,
+            'autoCompressImage': settings.autoCompressImage,
+            'paragraphSpacing': settings.paragraphSpacing,
+            'firstLineIndent': settings.firstLineIndent,
+            'headingAlign': settings.headingAlign,
+            'defaultExportFormat': settings.defaultExportFormat,
+            'autoSaveDraft': settings.autoSaveDraft,
+            'defaultWxAccount': settings.defaultWxAccount,
+            'previewWidth': settings.previewWidth,
+            'previewDelay': settings.previewDelay,
         }
     }
 
-    getExpiredDate() {
-        if (this.authKey.length == 0) return;
-        wxKeyInfo(this.authKey).then((res) => {
-            if (res.status == 200) {
-                if (res.json.vip) {
-                    this.isVip = true;
-                }
-                this.expireat = new Date(res.json.expireat);
-            }
-        })
-    }
-
-    isAuthKeyVaild() {
-
-        return true;
-
-        // if (this.authKey.length == 0) return false;
-        // if (this.isVip) return true;
-        // if (this.expireat == null) return false;
-        // return this.expireat > new Date();
-    }
 }

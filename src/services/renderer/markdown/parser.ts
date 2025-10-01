@@ -107,9 +107,8 @@ export class MarkedParser {
 		if (settings.enableEmptyLine) {
 			this.extensions.push(new EmptyLineRenderer(app, settings, assetsManager, callback));
 		}
-		if (settings.isAuthKeyVaild()) {
-			this.extensions.push(new MathRenderer(app, settings, assetsManager, callback));
-		}
+
+		this.extensions.push(new MathRenderer(app, settings, assetsManager, callback));
 	}
 
 	async buildMarked() {

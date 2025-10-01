@@ -63,10 +63,30 @@ export class PreviewController {
                 this.render.updateHighLight(highlight);
             },
             onStyleReset: () => {
+
                 this.currentTheme = this.settings.defaultStyle;
                 this.currentHighlight = this.settings.defaultHighlight;
                 this.render.updateStyle(this.currentTheme);
                 this.render.updateHighLight(this.currentHighlight);
+
+                const defaultFont = 'sans-serif';
+                const defaultFontSize = '16px';
+                const defaultPrimaryColor = '#2d3748';
+                const defaultCustomCSS = '';
+
+                this.render.updateFont(defaultFont);
+                this.render.updateFontSize(defaultFontSize);
+                this.render.updatePrimaryColor(defaultPrimaryColor);
+                this.render.updateCustomCSS(defaultCustomCSS);
+
+                this.styleEditor?.updateSelections(
+                    this.currentTheme,
+                    this.currentHighlight,
+                    defaultFont,
+                    defaultFontSize,
+                    defaultPrimaryColor,
+                    defaultCustomCSS
+                );
             },
             onFontChanged: (fontFamily: string) => {
 
@@ -253,19 +273,28 @@ export class PreviewController {
     }
 
     async uploadImages() {
+
+        if (!this.currentAppId) {
+            this.status.showWarning('请先选择公众号', 3000);
+            return;
+        }
+
         this.status.showUploading('图片上传中...');
         try {
             await this.render.uploadImages(this.currentAppId);
-            this.status.showSuccess('图片上传成功，并且文章内容已复制，请到公众号编辑器粘贴。');
+            this.status.showSuccess('图片上传成功，图片链接已更新', 3000);
         } catch (error) {
 
-            this.status.showWarning('图片上传失败，但内容已复制到剪贴板', 5000);
+            const errorMessage = error instanceof Error ? error.message : String(error);
 
-            try {
-                await this.copyWithoutImageUpload();
-            } catch (copyError) {
-
-                this.status.showError('复制失败，请重试');
+            if (errorMessage.includes('请先选择公众号')) {
+                this.status.showWarning('请先选择公众号', 3000);
+            } else if (errorMessage.includes('token') || errorMessage.includes('Token') || errorMessage.includes('认证')) {
+                this.status.showError('Token获取失败，图片未上传。请检查公众号配置', 5000);
+            } else if (errorMessage.includes('上传') || errorMessage.includes('upload')) {
+                this.status.showError('图片上传过程出错：' + errorMessage, 5000);
+            } else {
+                this.status.showError('图片上传失败：' + errorMessage, 5000);
             }
         }
     }
@@ -286,10 +315,20 @@ export class PreviewController {
         this.status.showProcessing('发布中...');
         try {
             await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
-            this.status.showSuccess('发布成功');
+            this.status.showSuccess('发布成功', 3000);
         } catch (error) {
 
-            this.status.showWarning('发布失败，但内容已复制到剪贴板', 5000);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if (errorMessage.includes('token') || errorMessage.includes('Token') || errorMessage.includes('认证')) {
+                this.status.showError('Token获取失败，发布失败。请检查公众号配置', 5000);
+            } else if (errorMessage.includes('上传') || errorMessage.includes('upload')) {
+                this.status.showError('图片上传过程出错：' + errorMessage, 5000);
+            } else if (errorMessage.includes('草稿') || errorMessage.includes('draft')) {
+                this.status.showError('创建草稿失败：' + errorMessage, 5000);
+            } else {
+                this.status.showError('发布失败：' + errorMessage, 5000);
+            }
 
             try {
                 await this.copyWithoutImageUpload();
@@ -303,7 +342,7 @@ export class PreviewController {
     async copyWithImageUpload() {
 
         if (!this.currentAppId) {
-            this.status.showWarning('未配置公众号，图片未上传，但内容已复制', 3000);
+            this.status.showWarning('请先选择公众号', 3000);
             await this.copyWithoutImageUpload();
             return;
         }
@@ -312,7 +351,7 @@ export class PreviewController {
 
         const token = await this.render.getToken(this.currentAppId);
         if (!token) {
-            this.status.showWarning('获取Token失败，图片未上传，但内容已复制', 3000);
+            this.status.showError('Token获取失败，图片未上传。请检查公众号配置', 5000);
             await this.copyWithoutImageUpload();
             return;
         }
@@ -423,9 +462,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         this.status.showProcessing('获取认证信息...');
         const token = await this.render.getToken(appid);
         if (!token) {
-            this.status.showWarning('获取Token失败，图片未上传，但内容已复制到剪贴板', 5000);
-            await this.copyWithoutImageUpload();
-            throw new Error('获取Token失败，请检查公众号配置');
+            throw new Error('Token获取失败，请检查公众号配置');
         }
 
         this.status.showProcessing('检查草稿状态...');

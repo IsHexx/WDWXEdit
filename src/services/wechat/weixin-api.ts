@@ -119,50 +119,6 @@ export async function wxEncrypt(authkey:string, wechat:any[]) {
     }
 }
 
-export async function wxKeyInfo(authkey:string) {
-    const url = `${LocalBackendHost}/api/v1/premium/key-info`;
-    
-    try {
-        const res = await requestUrl({
-            url,
-            method: 'GET',
-            throw: false,
-            headers: {
-                ...getAuthHeaders(),
-                'X-Auth-Key': authkey
-            }
-        });
-        
-        const resData = res.json;
-        if (resData.success) {
-            return {
-                json: {
-                    vip: resData.data?.vip || false,
-                    expireat: resData.data?.expireat || new Date()
-                },
-                status: 200
-            };
-        } else {
-            return {
-                json: {
-                    vip: false,
-                    expireat: new Date()
-                },
-                status: 400
-            };
-        }
-    } catch (error) {
-
-        return {
-            json: {
-                vip: false,
-                expireat: new Date()
-            },
-            status: 500
-        };
-    }
-}
-
 export async function wxUploadImage(data: Blob, filename: string, token: string, type?: string) {
     const url = `${LocalBackendHost}/api/v1/wechat/upload-image`;
     

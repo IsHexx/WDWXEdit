@@ -154,13 +154,14 @@ export class StyleEditor {
         const sizeGroup = firstRow.createDiv({ cls: 'style-dropdown-group' });
         const sizeLabel = sizeGroup.createEl('label', { text: '字号:', cls: 'style-dropdown-label' });
         const sizeSelect = sizeGroup.createEl('select', { cls: 'style-dropdown' });
-        
+
         const sizeOptions = [
             { value: '14px', text: '14px' },
-            { value: '15px', text: '15px' },
             { value: '16px', text: '16px (推荐)' },
-            { value: '17px', text: '17px' },
-            { value: '18px', text: '18px' }
+            { value: '18px', text: '18px' },
+            { value: '20px', text: '20px' },
+            { value: '22px', text: '22px' },
+            { value: '24px', text: '24px' }
         ];
         
         sizeOptions.forEach(size => {
@@ -168,19 +169,16 @@ export class StyleEditor {
             option.value = size.value;
             option.text = size.text;
 
-            if (size.text.includes(this.settings.fontSize) || 
+            if (size.value === this.settings.fontSize ||
                 (this.settings.fontSize === '推荐' && size.value === '16px')) {
                 option.selected = true;
             }
         });
 
         sizeSelect.onchange = () => {
-            const selectedText = sizeSelect.options[sizeSelect.selectedIndex].text;
-            const fontSize = selectedText.includes('推荐') ? '推荐' : 
-                           selectedText.includes('14') ? '小' :
-                           selectedText.includes('18') ? '大' :
-                           selectedText.includes('20') ? '特大' : '推荐';
+            const fontSize = sizeSelect.value; // 直接使用value值（如 "16px", "22px"）
             this.settings.fontSize = fontSize;
+
             if (this.events.onFontSizeChanged) {
                 this.events.onFontSizeChanged(fontSize);
             }
@@ -189,7 +187,7 @@ export class StyleEditor {
         const colorGroup = firstRow.createDiv({ cls: 'style-dropdown-group' });
         const colorLabel = colorGroup.createEl('label', { text: '主题色:', cls: 'style-dropdown-label' });
         const colorSelect = colorGroup.createEl('select', { cls: 'style-dropdown' });
-        
+
         const colorOptions = [
             { value: '#2d3748', text: '石墨黑' },
             { value: '#3b82f6', text: '经典蓝' },
@@ -198,7 +196,8 @@ export class StyleEditor {
             { value: '#ef4444', text: '朱红' },
             { value: '#8b5cf6', text: '紫罗兰' }
         ];
-        
+
+        let isCustomColor = true;
         colorOptions.forEach(color => {
             const option = colorSelect.createEl('option');
             option.value = color.value;
@@ -206,16 +205,61 @@ export class StyleEditor {
 
             if (color.value === this.settings.primaryColor) {
                 option.selected = true;
-            } else if (!this.settings.primaryColor && color.value === '#3b82f6') {
-                option.selected = true;
+                isCustomColor = false;
             }
         });
 
+        const customOption = colorSelect.createEl('option');
+        customOption.value = 'custom';
+        customOption.text = '自定义';
+
+        if (isCustomColor && this.settings.primaryColor) {
+            customOption.selected = true;
+            customOption.text = `自定义 (${this.settings.primaryColor})`;
+        }
+
+        const colorInputWrapper = colorGroup.createDiv({ cls: 'color-input-wrapper' });
+        const colorInput = colorInputWrapper.createEl('input', {
+            type: 'color',
+            cls: 'custom-color-input'
+        });
+        colorInput.value = this.settings.primaryColor || '#2d3748';
+
+        if (isCustomColor && this.settings.primaryColor) {
+            colorInputWrapper.style.display = 'inline-block';
+        } else {
+            colorInputWrapper.style.display = 'none';
+        }
+
         colorSelect.onchange = () => {
             const selectedValue = colorSelect.value;
-            this.settings.primaryColor = selectedValue;
+
+            if (selectedValue === 'custom') {
+
+                colorInputWrapper.style.display = 'inline-block';
+
+                const customColor = colorInput.value;
+                this.settings.primaryColor = customColor;
+                customOption.text = `自定义 (${customColor})`;
+                if (this.events.onPrimaryColorChanged) {
+                    this.events.onPrimaryColorChanged(customColor);
+                }
+            } else {
+
+                colorInputWrapper.style.display = 'none';
+                this.settings.primaryColor = selectedValue;
+                if (this.events.onPrimaryColorChanged) {
+                    this.events.onPrimaryColorChanged(selectedValue);
+                }
+            }
+        };
+
+        colorInput.oninput = () => {
+            const customColor = colorInput.value;
+            this.settings.primaryColor = customColor;
+            customOption.text = `自定义 (${customColor})`;
             if (this.events.onPrimaryColorChanged) {
-                this.events.onPrimaryColorChanged(selectedValue);
+                this.events.onPrimaryColorChanged(customColor);
             }
         };
 
@@ -339,7 +383,7 @@ export class StyleEditor {
                 gap: 4px;
                 flex-shrink: 0;
             }
-            
+
             .style-dropdown-label {
                 font-weight: normal;
                 color: var(--text-normal);
@@ -347,7 +391,27 @@ export class StyleEditor {
                 white-space: nowrap;
                 min-width: fit-content;
             }
-            
+
+            .color-input-wrapper {
+                display: inline-block;
+                margin-left: 4px;
+            }
+
+            .custom-color-input {
+                width: 32px;
+                height: 28px;
+                border: 1px solid var(--background-modifier-border);
+                border-radius: 4px;
+                cursor: pointer;
+                padding: 2px;
+                background: transparent;
+                vertical-align: middle;
+            }
+
+            .custom-color-input:hover {
+                border-color: var(--interactive-accent);
+            }
+
             .style-dropdown {
                 padding: 2px 6px;
                 border: 1px solid #ffffff;
@@ -531,5 +595,91 @@ export class StyleEditor {
     
     public getCollapsed(): boolean {
         return this.isCollapsed;
+    }
+
+    public updateSelections(
+        theme: string,
+        highlight: string,
+        font?: string,
+        fontSize?: string,
+        primaryColor?: string,
+        customCSS?: string
+    ): void {
+        console.log('🔄 更新样式编辑器UI:', { theme, highlight, font, fontSize, primaryColor, customCSS: customCSS?.substring(0, 50) });
+
+        const contentDiv = this.container.querySelector('.style-editor-content');
+        if (!contentDiv) return;
+
+        const dropdownGroups = contentDiv.querySelectorAll('.style-dropdown-group');
+
+        const themeSelect = dropdownGroups[0]?.querySelector('select') as HTMLSelectElement;
+        if (themeSelect) {
+            themeSelect.value = theme;
+
+        }
+
+        const highlightSelect = dropdownGroups[1]?.querySelector('select') as HTMLSelectElement;
+        if (highlightSelect) {
+            highlightSelect.value = highlight;
+
+        }
+
+        if (font !== undefined) {
+            const fontSelect = dropdownGroups[2]?.querySelector('select') as HTMLSelectElement;
+            if (fontSelect) {
+                fontSelect.value = font;
+
+            }
+        }
+
+        if (fontSize !== undefined) {
+            const fontSizeSelect = dropdownGroups[3]?.querySelector('select') as HTMLSelectElement;
+            if (fontSizeSelect) {
+                fontSizeSelect.value = fontSize;
+
+            }
+        }
+
+        if (primaryColor !== undefined) {
+            const colorSelect = dropdownGroups[4]?.querySelector('select') as HTMLSelectElement;
+            const colorInput = contentDiv.querySelector('input.custom-color-input') as HTMLInputElement;
+            const colorInputWrapper = contentDiv.querySelector('.color-input-wrapper') as HTMLDivElement;
+
+            const presetColors = ['#2d3748', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+            const isPresetColor = presetColors.includes(primaryColor);
+
+            if (colorSelect) {
+                if (isPresetColor) {
+
+                    colorSelect.value = primaryColor;
+                    if (colorInputWrapper) {
+                        colorInputWrapper.style.display = 'none';
+                    }
+                } else {
+
+                    colorSelect.value = 'custom';
+                    const customOption = colorSelect.querySelector('option[value="custom"]') as HTMLOptionElement;
+                    if (customOption) {
+                        customOption.text = `自定义 (${primaryColor})`;
+                    }
+                    if (colorInputWrapper) {
+                        colorInputWrapper.style.display = 'inline-block';
+                    }
+                }
+            }
+
+            if (colorInput) {
+                colorInput.value = primaryColor;
+            }
+
+        }
+
+        if (customCSS !== undefined) {
+            const cssTextarea = contentDiv.querySelector('textarea.style-editor-css-textarea') as HTMLTextAreaElement;
+            if (cssTextarea) {
+                cssTextarea.value = customCSS;
+
+            }
+        }
     }
 }

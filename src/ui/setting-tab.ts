@@ -41,11 +41,6 @@ export class WxSettingTab extends PluginSettingTab {
 
 	async testWXInfo() {
 
-		const authKey = this.settings.authKey;
-		// if (authKey.length == 0) {
-		//     new Notice('请先设置authKey');
-		//     return;
-		// }
 	    const wxInfo = this.settings.wxInfo;
 		if (wxInfo.length == 0) {
 		    new Notice('请先设置公众号信息');
@@ -106,7 +101,7 @@ export class WxSettingTab extends PluginSettingTab {
 		}
 	}
 
-	async saveWXInfo() {
+	async saveWXInfo(authKey?: string) {
 	    if (this.wxInfo.length == 0) {
 			new Notice('请输入内容');
 			return false;
@@ -115,6 +110,11 @@ export class WxSettingTab extends PluginSettingTab {
 		if (this.settings.wxInfo.length > 0) {
 		    new Notice('已经保存过了，请先清除！');
 		    return false;
+		}
+
+		if (!authKey || authKey.trim().length === 0) {
+			new Notice('请先验证AuthKey');
+			return false;
 		}
 
 		const wechat = [];
@@ -146,6 +146,25 @@ export class WxSettingTab extends PluginSettingTab {
 		}
 
 		try {
+
+			const { getWechatClient } = await import('../services/api');
+			const wechatClient = getWechatClient();
+
+			for (let wx of wechat) {
+				try {
+					await wechatClient.registerAccount({
+						app_id: wx.appid,
+						app_secret: wx.secret,
+						name: wx.name,
+						auth_key: authKey.trim()
+					});
+
+				} catch (error) {
+
+					new Notice(`同步公众号 ${wx.name} 到后端失败: ${error.message || error}`);
+					return false;
+				}
+			}
 
 			this.settings.wxInfo = wechat;
 			await this.plugin.saveSettings();
@@ -179,9 +198,10 @@ export class WxSettingTab extends PluginSettingTab {
 		const helpEl = containerEl.createEl('div');
 		helpEl.style.cssText = 'display: flex;flex-direction: row;align-items: center;';
 		helpEl.createEl('h2', {text: '帮助文档'}).style.cssText = 'margin-right: 10px;';
-		helpEl.createEl('a', {text: 'https://github.com/IsHexx/wdwxedit-v3', attr: {href: 'https://github.com/IsHexx/wdwxedit-v3'}});
+		helpEl.createEl('a', {text: 'https://github.com/IsHexx/WDWXEdit', attr: {href: 'https://github.com/IsHexx/WDWXEdit'}});
 
-		containerEl.createEl('h2', {text: '插件设置'});
+		// ==================== 主题与样式设置 ====================
+		containerEl.createEl('h2', {text: '主题与样式'});
 
 		new Setting(containerEl)
 			.setName('默认样式')
@@ -212,6 +232,34 @@ export class WxSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName('获取更多主题')
+			.addButton(button => {
+			    button.setButtonText('下载');
+				button.onClick(async () => {
+					button.setButtonText('下载中...');
+					await this.plugin.assetsManager.downloadThemes();
+					button.setButtonText('下载完成');
+				});
+			})
+			.addButton(button => {
+				button.setIcon('folder-open');
+				button.onClick(async () => {
+					await this.plugin.assetsManager.openAssets();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('清空主题')
+			.addButton(button => {
+			    button.setButtonText('清空');
+				button.onClick(async () => {
+					await this.plugin.assetsManager.removeThemes();
+					this.settings.resetStyelAndHighlight();
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
 			.setName('在工具栏展示样式选择')
 			.setDesc('建议在移动端关闭，可以增大文章预览区域')
 			.addToggle(toggle => {
@@ -221,6 +269,52 @@ export class WxSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName('字体')
+			.setDesc('设置文章字体')
+			.addDropdown(dropdown => {
+				dropdown.addOption('等线', '等线');
+				dropdown.addOption('宋体', '宋体');
+				dropdown.addOption('黑体', '黑体');
+				dropdown.addOption('微软雅黑', '微软雅黑');
+				dropdown.addOption('楷体', '楷体');
+				dropdown.setValue(this.settings.fontFamily);
+				dropdown.onChange(async (value) => {
+					this.settings.fontFamily = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('字号')
+			.setDesc('设置文章字号')
+			.addDropdown(dropdown => {
+				dropdown.addOption('较小', '较小');
+				dropdown.addOption('推荐', '推荐');
+				dropdown.addOption('较大', '较大');
+				dropdown.setValue(this.settings.fontSize);
+				dropdown.onChange(async (value) => {
+					this.settings.fontSize = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('主题色')
+			.setDesc('设置文章主题色')
+			.addText(text => {
+				text.setPlaceholder('#2d3748')
+					.setValue(this.settings.primaryColor)
+					.onChange(async (value) => {
+						this.settings.primaryColor = value.trim();
+						await this.plugin.saveSettings();
+					})
+					.inputEl.setAttr('style', 'width: 120px;')
+			});
+
+		// ==================== 内容渲染设置 ====================
+		containerEl.createEl('h2', {text: '内容渲染'});
 
 		new Setting(containerEl)
 			.setName('链接展示样式')
@@ -267,7 +361,7 @@ export class WxSettingTab extends PluginSettingTab {
 				    this.settings.lineNumber = value;
 					await this.plugin.saveSettings();
 				});
-			})
+			});
 
 		new Setting(containerEl)
 			.setName('启用空行渲染')
@@ -277,20 +371,63 @@ export class WxSettingTab extends PluginSettingTab {
 				    this.settings.enableEmptyLine = value;
 					await this.plugin.saveSettings();
 				});
-			})
-		
-		new Setting(containerEl)
-		.setName('渲染图片标题')
-		.addToggle(toggle => {
-			toggle.setValue(this.settings.useFigcaption);
-			toggle.onChange(async (value) => {
-				this.settings.useFigcaption = value;
-				await this.plugin.saveSettings();
 			});
-		})
+
+		new Setting(containerEl)
+			.setName('渲染图片标题')
+			.addToggle(toggle => {
+				toggle.setValue(this.settings.useFigcaption);
+				toggle.onChange(async (value) => {
+					this.settings.useFigcaption = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// ==================== 排版设置 ====================
+		containerEl.createEl('h2', {text: '排版设置'});
+
+		new Setting(containerEl)
+			.setName('段落间距')
+			.addDropdown(dropdown => {
+				dropdown.addOption('紧凑', '紧凑');
+				dropdown.addOption('正常', '正常');
+				dropdown.addOption('宽松', '宽松');
+				dropdown.setValue(this.settings.paragraphSpacing);
+				dropdown.onChange(async (value) => {
+					this.settings.paragraphSpacing = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('首行缩进')
+			.setDesc('段落首行是否缩进两个字符')
+			.addToggle(toggle => {
+				toggle.setValue(this.settings.firstLineIndent);
+				toggle.onChange(async (value) => {
+					this.settings.firstLineIndent = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('标题对齐')
+			.addDropdown(dropdown => {
+				dropdown.addOption('left', '左对齐');
+				dropdown.addOption('center', '居中');
+				dropdown.setValue(this.settings.headingAlign);
+				dropdown.onChange(async (value) => {
+					this.settings.headingAlign = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// ==================== 图片处理设置 ====================
+		containerEl.createEl('h2', {text: '图片处理'});
 
 		new Setting(containerEl)
 			.setName('水印图片')
+			.setDesc('输入vault中的图片文件名')
 			.addText(text => {
 			    text.setPlaceholder('请输入图片名称')
 					.setValue(this.settings.watermark)
@@ -299,35 +436,54 @@ export class WxSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 					.inputEl.setAttr('style', 'width: 320px;')
-			})
+			});
 
 		new Setting(containerEl)
-			.setName('获取更多主题')
-			.addButton(button => {
-			    button.setButtonText('下载');
-				button.onClick(async () => {
-					button.setButtonText('下载中...');
-					await this.plugin.assetsManager.downloadThemes();
-					button.setButtonText('下载完成');
-				});
-			})
-			.addButton(button => {
-				button.setIcon('folder-open');
-				button.onClick(async () => {
-					await this.plugin.assetsManager.openAssets();
+			.setName('自动压缩图片')
+			.setDesc('上传前自动压缩图片以提高加载速度')
+			.addToggle(toggle => {
+				toggle.setValue(this.settings.autoCompressImage);
+				toggle.onChange(async (value) => {
+					this.settings.autoCompressImage = value;
+					await this.plugin.saveSettings();
 				});
 			});
 
 		new Setting(containerEl)
-			.setName('清空主题')
-			.addButton(button => {
-			    button.setButtonText('清空');
-				button.onClick(async () => {
-					await this.plugin.assetsManager.removeThemes();
-					this.settings.resetStyelAndHighlight();
-					await this.plugin.saveSettings();
-				});
-			})
+			.setName('图片压缩质量')
+			.setDesc('压缩质量（0.1-1.0），数值越高质量越好但文件越大')
+			.addText(text => {
+				text.setPlaceholder('0.9')
+					.setValue(String(this.settings.imageQuality))
+					.onChange(async (value) => {
+						const quality = parseFloat(value);
+						if (!isNaN(quality) && quality >= 0.1 && quality <= 1.0) {
+							this.settings.imageQuality = quality;
+							await this.plugin.saveSettings();
+						}
+					})
+					.inputEl.setAttr('style', 'width: 120px;')
+			});
+
+		new Setting(containerEl)
+			.setName('图片最大宽度')
+			.setDesc('图片最大宽度限制（像素）')
+			.addText(text => {
+				text.setPlaceholder('1200')
+					.setValue(String(this.settings.imageMaxWidth))
+					.onChange(async (value) => {
+						const width = parseInt(value);
+						if (!isNaN(width) && width > 0) {
+							this.settings.imageMaxWidth = width;
+							await this.plugin.saveSettings();
+						}
+					})
+					.inputEl.setAttr('style', 'width: 120px;')
+			});
+
+		// ==================== 自定义样式 ====================
+		containerEl.createEl('h2', {text: '自定义样式'});
+
 		new Setting(containerEl)
 			.setName('全局CSS属性')
 			.setDesc('只能填写CSS属性，不能写选择器')
@@ -340,8 +496,9 @@ export class WxSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 					})
 				    .inputEl.setAttr('style', 'width: 520px; height: 60px;');
-		})
-		const customCSSDoc = '使用指南：<a href="https://github.com/IsHexx/wdwxedit-v3">https://github.com/IsHexx/wdwxedit-v3</a>';
+		});
+
+		const customCSSDoc = '使用指南：<a href="https://github.com/IsHexx/WDWXEdit">https://github.com/IsHexx/WDWXEdit</a>';
 		new Setting(containerEl)
 			.setName('自定义CSS笔记')
 			.setDesc(sanitizeHTMLToDom(customCSSDoc))
@@ -356,27 +513,136 @@ export class WxSettingTab extends PluginSettingTab {
 				.inputEl.setAttr('style', 'width: 320px;')
 		});
 
-		let descHtml = '详情说明：<a href="https://github.com/IsHexx/wdwxedit-v3">https://github.com/IsHexx/wdwxedit-v3</a>';
-		if (this.settings.isVip) {
-			descHtml = '<span style="color:rgb(245, 70, 85);font-weight: bold;">👑永久会员</span><br/>' + descHtml;
-		}
-		else if (this.settings.expireat) {
-			const timestr = this.settings.expireat.toLocaleString();
-			descHtml = `有效期至：${timestr} <br/>${descHtml}`
-		}
+		// ==================== 导出设置 ====================
+		containerEl.createEl('h2', {text: '导出设置'});
+
 		new Setting(containerEl)
-			.setName('注册码（AuthKey）')
-			.setDesc(sanitizeHTMLToDom(descHtml))
-			.addText(text => {
-				text.setPlaceholder('请输入注册码')
-				.setValue(this.settings.authKey)
-				.onChange(async (value) => {
-						this.settings.authKey = value.trim();
-					this.settings.getExpiredDate();
+			.setName('默认导出格式')
+			.addDropdown(dropdown => {
+				dropdown.addOption('copy', '复制到剪贴板');
+				dropdown.addOption('draft', '保存为草稿');
+				dropdown.addOption('image', '导出为图片');
+				dropdown.setValue(this.settings.defaultExportFormat);
+				dropdown.onChange(async (value) => {
+					this.settings.defaultExportFormat = value;
 					await this.plugin.saveSettings();
-				})
-				.inputEl.setAttr('style', 'width: 320px;')
-			}).descEl.setAttr('style', '-webkit-user-select: text; user-select: text;')
+				});
+			});
+
+		new Setting(containerEl)
+			.setName('自动保存草稿')
+			.setDesc('复制内容时自动保存到公众号草稿箱')
+			.addToggle(toggle => {
+				toggle.setValue(this.settings.autoSaveDraft);
+				toggle.onChange(async (value) => {
+					this.settings.autoSaveDraft = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		// ==================== 预览设置 ====================
+		containerEl.createEl('h2', {text: '预览设置'});
+
+		new Setting(containerEl)
+			.setName('预览窗口宽度')
+			.setDesc('预览窗口的默认宽度（像素）')
+			.addText(text => {
+				text.setPlaceholder('800')
+					.setValue(String(this.settings.previewWidth))
+					.onChange(async (value) => {
+						const width = parseInt(value);
+						if (!isNaN(width) && width > 0) {
+							this.settings.previewWidth = width;
+							await this.plugin.saveSettings();
+						}
+					})
+					.inputEl.setAttr('style', 'width: 120px;')
+			});
+
+		new Setting(containerEl)
+			.setName('预览更新延迟')
+			.setDesc('预览自动刷新的延迟时间（毫秒）')
+			.addText(text => {
+				text.setPlaceholder('500')
+					.setValue(String(this.settings.previewDelay))
+					.onChange(async (value) => {
+						const delay = parseInt(value);
+						if (!isNaN(delay) && delay >= 0) {
+							this.settings.previewDelay = delay;
+							await this.plugin.saveSettings();
+						}
+					})
+					.inputEl.setAttr('style', 'width: 120px;')
+			});
+
+		// ==================== 公众号配置 ====================
+		containerEl.createEl('h2', {text: '公众号配置'});
+
+		new Setting(containerEl)
+			.setName('默认公众号')
+			.setDesc('选择默认使用的公众号账号')
+			.addDropdown(dropdown => {
+				dropdown.addOption('', '请选择');
+				if (this.settings.wxInfo && this.settings.wxInfo.length > 0) {
+					for (let wx of this.settings.wxInfo) {
+						dropdown.addOption(wx.appid, wx.name);
+					}
+				}
+				dropdown.setValue(this.settings.defaultWxAccount);
+				dropdown.onChange(async (value) => {
+					this.settings.defaultWxAccount = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		let authKeyValue = '';
+		let authKeyVerified = false;
+		new Setting(containerEl)
+			.setName('认证密钥 (AuthKey)')
+			.setDesc('请先输入由管理员提供的AuthKey，验证通过后才能保存公众号信息')
+			.addText(text => {
+				text.setPlaceholder('请输入AuthKey')
+					.setValue('')
+					.onChange(value => {
+						authKeyValue = value;
+						authKeyVerified = false;
+					});
+				text.inputEl.setAttr('style', 'width: 400px;');
+			})
+			.addButton(button => {
+				button.setButtonText('验证AuthKey');
+				button.onClick(async () => {
+					if (!authKeyValue || authKeyValue.trim().length === 0) {
+						new Notice('请输入AuthKey');
+						return;
+					}
+
+					button.setButtonText('验证中...');
+					try {
+						const { getWechatClient } = await import('../services/api');
+						const wechatClient = getWechatClient();
+						const result = await wechatClient.verifyAuthKey(authKeyValue.trim());
+
+						if (result.is_valid) {
+							authKeyVerified = true;
+							const vipText = result.is_vip ? ' (VIP账户)' : ' (普通账户)';
+							const accountText = result.can_register
+								? `可注册 ${result.max_accounts - result.registered_accounts} 个公众号`
+								: '已达到最大账户数量';
+							new Notice(`AuthKey验证成功${vipText}\n${accountText}`);
+							button.setButtonText('✓ 已验证');
+						} else {
+							authKeyVerified = false;
+							new Notice('AuthKey无效或已过期');
+							button.setButtonText('验证AuthKey');
+						}
+					} catch (error) {
+						authKeyVerified = false;
+						new Notice(`验证失败：${error.message || error}`);
+						button.setButtonText('验证AuthKey');
+					}
+				});
+			});
 
 		let isClear = this.settings.wxInfo.length > 0;
 		let isRealClear = false;
@@ -408,8 +674,14 @@ export class WxSettingTab extends PluginSettingTab {
 					button.setButtonText('保存公众号信息');
 				}
 				else {
+
+					if (!authKeyVerified) {
+						new Notice('请先验证AuthKey');
+						return;
+					}
+
 					button.setButtonText('保存中...');
-					if (await this.saveWXInfo()) {
+					if (await this.saveWXInfo(authKeyValue)) {
 						isClear = true;
 						isRealClear = false;
 						button.setButtonText('清空公众号信息');

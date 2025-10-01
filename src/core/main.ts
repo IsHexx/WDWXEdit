@@ -50,7 +50,7 @@ export default class WxEditPlugin extends Plugin {
 				);
 
 				// 3. 添加功能区图标（回调中会访问workspace）
-				const ribbonIconEl = this.addRibbonIcon('clipboard-paste', '复制到公众号', (evt: MouseEvent) => {
+				const ribbonIconEl = this.addRibbonIcon('fish-symbol', '复制到公众号', (evt: MouseEvent) => {
 					this.activateView();
 				});
 				ribbonIconEl.addClass('wxedit-plugin-ribbon-class');
@@ -82,7 +82,7 @@ export default class WxEditPlugin extends Plugin {
 						menu.addItem((item) => {
 							item
 								.setTitle('发布到公众号')
-								.setIcon('lucide-send')
+								.setIcon('fish-symbol')
 								.onClick(async () => {
 									if (file instanceof TFile) {
 										if (file.extension.toLowerCase() !== 'md') {

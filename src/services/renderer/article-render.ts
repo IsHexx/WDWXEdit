@@ -135,7 +135,7 @@ export class ArticleRender implements MDRendererCallback {
 
   errorContent(error: any) {
     return '<h1>渲染失败!</h1><br/>'
-      + '如需帮助请前往&nbsp;&nbsp;<a href="https://github.com/sunbooshi/wdwxedit/issues">https://github.com/sunbooshi/wdwxedit/issues</a>&nbsp;&nbsp;反馈<br/><br/>'
+      + '如需帮助请前往&nbsp;&nbsp;<a href="https://github.com/IsHexx/WDWXEdit/issues">https://github.com/IsHexx/WDWXEdit/issues</a>&nbsp;&nbsp;反馈<br/><br/>'
       + '如果方便，请提供引发错误的完整Markdown内容。<br/><br/>'
       + '<br/>Obsidian版本：' + apiVersion
       + '<br/>错误信息：<br/>'
@@ -293,11 +293,19 @@ export class ArticleRender implements MDRendererCallback {
   }
 
   private mapFontSize(fontSize: string): string {
+
     const sizeMap: { [key: string]: string } = {
       '小': '14px',
-      '推荐': '16px', 
+      '推荐': '16px',
       '大': '18px',
-      '特大': '20px'
+      '特大': '20px',
+
+      '14px': '14px',
+      '16px': '16px',
+      '18px': '18px',
+      '20px': '20px',
+      '22px': '22px',
+      '24px': '24px'
     };
     return sizeMap[fontSize] || fontSize;
   }
@@ -439,29 +447,56 @@ export class ArticleRender implements MDRendererCallback {
 
   async getToken(appid: string) {
     const secret = this.getSecret(appid);
+
+    if (!secret || secret.length === 0) {
+      throw new Error('公众号AppSecret未配置，请在设置中配置公众号信息');
+    }
+
     try {
 
       if (!this.wechatClient) {
         initApiClients();
         this.wechatClient = getWechatClient();
       }
-      
+
       const response = await this.wechatClient.authenticate({
         appId: appid,
         appSecret: secret
       });
       return response.access_token;
     } catch (error) {
-      throw new Error('获取token失败: ' + (error as Error).message);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+
+      if (errorMsg.includes('CORS') || errorMsg.includes('fetch') || errorMsg.includes('Failed to fetch')) {
+        throw new Error('无法连接到服务器，请检查网络连接或后端服务是否启动');
+      } else if (errorMsg.includes('40001') || errorMsg.includes('AppSecret')) {
+        throw new Error('AppSecret无效，请检查公众号配置');
+      } else if (errorMsg.includes('40013') || errorMsg.includes('AppID')) {
+        throw new Error('AppID无效，请检查公众号配置');
+      } else if (errorMsg.includes('40164') || errorMsg.includes('IP') || errorMsg.includes('whitelist')) {
+
+        let ipAddress = '未知';
+
+        const ipMatch = errorMsg.match(/(?:invalid\s+ip|IP|ip)[:\s]+(\d+\.\d+\.\d+\.\d+)/i);
+        if (ipMatch) {
+          ipAddress = ipMatch[1];
+        } else {
+
+          const pureIpMatch = errorMsg.match(/(\d+\.\d+\.\d+\.\d+)/);
+          if (pureIpMatch) {
+            ipAddress = pureIpMatch[1];
+          }
+        }
+        throw new Error(`IP地址 ${ipAddress} 不在白名单中，请在微信公众平台添加此IP到白名单`);
+      } else if (errorMsg.includes('timeout') || errorMsg.includes('超时')) {
+        throw new Error('请求超时，请检查网络连接');
+      } else {
+        throw new Error('Token获取失败: ' + errorMsg);
+      }
     }
   }
 
   async uploadImages(appid: string) {
-
-    // if (!this.settings.authKey) {
-    //   throw new Error('请先设置注册码（AuthKey）');
-    // }
-
     let metadata = this.getMetadata();
     if (metadata.appid) {
       appid = metadata.appid;
@@ -486,7 +521,6 @@ export class ArticleRender implements MDRendererCallback {
 
     lm.replaceImages(this.articleDiv);
 
-    await this.copyArticle();
   }
 
   async copyArticle() {
@@ -510,11 +544,6 @@ export class ArticleRender implements MDRendererCallback {
   }
 
   async postImages(appid: string) {
-
-    // if (!this.settings.authKey) {
-    //   throw new Error('请先设置注册码（AuthKey）');
-    // }
-
     let metadata = this.getMetadata();
     if (metadata.appid) {
       appid = metadata.appid;
