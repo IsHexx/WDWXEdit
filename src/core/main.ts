@@ -24,7 +24,6 @@ export default class WxEditPlugin extends Plugin {
 	}
 
 	async onload() {
-
 		setVersion(this.manifest.version);
 		uevent('load');
 
@@ -101,7 +100,6 @@ export default class WxEditPlugin extends Plugin {
 						});
 					})
 				);
-
 			} catch (error) {
 
 			}
@@ -146,7 +144,6 @@ export default class WxEditPlugin extends Plugin {
 		  	if (leaf) {
 			  	await leaf?.setViewState({ type: VIEW_TYPE_WX_PREVIEW, active: false });
 			} else {
-
 				return;
 			}
 		}

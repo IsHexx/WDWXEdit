@@ -14,6 +14,7 @@ export class DocModal extends Modal {
 
   onOpen() {
     let { contentEl, modalEl } = this;
+
     modalEl.style.width = '640px';
     modalEl.style.height = '720px';
     contentEl.style.display = 'flex';

@@ -642,9 +642,11 @@ export class LocalFile extends Extension{
                     postion = items[2];
                 }
             }
+
             if (size != '') {
                 const sizes = size.split('x');
                 if (sizes.length == 2) {
+                    // SVG尺寸需要动态计算，保留内联样式
                     style = `style="width:${sizes[0]}px;height:${sizes[1]}px;"`
                 }
                 else {

@@ -51,7 +51,14 @@ export class PreviewContent {
 
     setContent(html: string) {
         if (this.articleDiv) {
-            this.articleDiv.innerHTML = html;
+
+            import('obsidian').then(({ sanitizeHTMLToDom }) => {
+                const sanitized = sanitizeHTMLToDom(html);
+                this.articleDiv.empty();
+                if (sanitized.firstChild) {
+                    this.articleDiv.appendChild(sanitized.firstChild);
+                }
+            });
         }
     }
 
@@ -61,13 +68,13 @@ export class PreviewContent {
 
     updateStyle(css: string) {
         if (this.styleEl) {
-            this.styleEl.innerHTML = css;
+            this.styleEl.textContent = css;
         }
     }
 
     addStyle(css: string) {
         if (this.styleEl) {
-            this.styleEl.innerHTML += css;
+            this.styleEl.textContent += css;
         }
     }
 
@@ -131,12 +138,16 @@ export class PreviewContent {
 
     setVisible(visible: boolean) {
         if (this.renderDiv) {
-            this.renderDiv.style.display = visible ? 'block' : 'none';
+            if (visible) {
+                this.renderDiv.removeClass('hidden');
+            } else {
+                this.renderDiv.addClass('hidden');
+            }
         }
     }
 
     isVisible(): boolean {
-        return this.renderDiv?.style.display !== 'none';
+        return this.renderDiv ? !this.renderDiv.hasClass('hidden') : false;
     }
 
     getContentHeight(): number {

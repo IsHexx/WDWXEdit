@@ -325,8 +325,19 @@ export default class AssetsManager {
     }
 
     async openAssets() {
+
+	    if (!this.app.vault.adapter) {
+	        new Notice('当前平台不支持此功能');
+	        return;
+	    }
+
+	    const adapter = this.app.vault.adapter;
+	    if (!(adapter instanceof FileSystemAdapter)) {
+	        new Notice('当前平台不支持打开文件夹');
+	        return;
+	    }
+
 	    const path = require('path');
-        const adapter = this.app.vault.adapter as FileSystemAdapter;
 		const vaultRoot = adapter.getBasePath();
 		const assets = this.assetsPath;
         if (!await adapter.exists(assets)) {
@@ -371,9 +382,12 @@ export default class AssetsManager {
         const files = vault.getAllLoadedFiles();
         for (let f of files) {
             if (f instanceof TFolder) continue
-            file = f as TFile;
-            if (file.basename === nameOrPath || file.name === nameOrPath) {
-                return f;
+
+            if (f instanceof TFile) {
+                file = f;
+                if (file.basename === nameOrPath || file.name === nameOrPath) {
+                    return f;
+                }
             }
         }
 
@@ -381,8 +395,9 @@ export default class AssetsManager {
     }
 
     getResourcePath(path: string): {resUrl:string, filePath:string}|null {
-        const file = this.searchFile(path) as TFile;
-        if (file == null) {
+        const file = this.searchFile(path);
+
+        if (!file || !(file instanceof TFile)) {
             return null;
         }
         const resUrl = this.app.vault.getResourcePath(file);
@@ -422,8 +437,9 @@ export default class AssetsManager {
 
     async readFileBinary(path: string) {
         const vault= this.app.vault;
-        const file = this.searchFile(path) as TFile;
-        if (file == null) {
+        const file = this.searchFile(path);
+
+        if (!file || !(file instanceof TFile)) {
             return null;
         }
         return await vault.readBinary(file);

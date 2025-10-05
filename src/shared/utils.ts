@@ -24,8 +24,8 @@ export function setVersion(version: string) {
 }
 
 function getStyleSheet() {
-	for (var i = 0; i < document.styleSheets.length; i++) {
-		var sheet = document.styleSheets[i];
+	for (let i = 0; i < document.styleSheets.length; i++) {
+		const sheet = document.styleSheets[i];
 		if (sheet.title == 'wdwxedit-style') {
 		  return sheet;
 		}
@@ -55,6 +55,7 @@ function parseAndApplyStyles(element: HTMLElement, sheet:CSSStyleSheet) {
 			  	applyStyles(element, rule.style, computedStyle);
 			}
 		}
+
 	} catch (e) {
 
 	}
@@ -180,8 +181,6 @@ export function applyCSS(html: string, css: string) {
 }
 
 export function uevent(name: string) {
-
-	console.log(`Event: ${name} (platform: ${PlugPlatform}, version: ${PluginVersion})`);
 
 }
 

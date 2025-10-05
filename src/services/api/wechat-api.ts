@@ -4,6 +4,7 @@
  */
 
 import { HttpClient, ApiResponse } from './http-client';
+import { BACKEND_CONFIG } from './backend-config';
 
 // === 微信相关类型定义 ===
 export interface WechatAuth {
@@ -126,6 +127,12 @@ export interface VerifyAuthKeyResponse {
   message: string;
 }
 
+export interface PermissionFeatures {
+  upload_image: boolean;
+  create_draft: boolean;
+  advanced_features: boolean;
+}
+
 export interface PermissionInfo {
   app_id: string;
   name?: string;
@@ -134,11 +141,7 @@ export interface PermissionInfo {
   expired_at?: string;
   can_use_api: boolean;
   message?: string;
-  features?: {
-    upload_image: boolean;
-    create_draft: boolean;
-    advanced_features: boolean;
-  };
+  features?: PermissionFeatures;
 }
 
 /**
@@ -150,7 +153,9 @@ export class WechatClient {
 
   constructor(httpClient: HttpClient) {
     this.httpClient = httpClient;
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
   }
 
   // === 认证相关方法 ===
@@ -159,12 +164,17 @@ export class WechatClient {
    * 获取访问令牌
    */
   async authenticate(auth: WechatAuth): Promise<WechatTokenResponse> {
+    if (BACKEND_CONFIG.DEBUG) {
 
-    console.log('📋 API请求参数:', {
-      app_id: auth.appId,
-      app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
-      app_secret_length: auth.appSecret.length
-    });
+    }
+
+    if (BACKEND_CONFIG.DEBUG) {
+      console.log('📋 API请求参数:', {
+        app_id: auth.appId,
+        app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
+        app_secret_length: auth.appSecret.length
+      });
+    }
     
     const response = await this.httpClient.post<WechatTokenResponse>('/api/v1/wechat/access-token', {
       app_id: auth.appId,
@@ -175,6 +185,9 @@ export class WechatClient {
       throw new Error(`获取访问令牌失败: ${response.error}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return response.data!;
   }
 
@@ -184,7 +197,10 @@ export class WechatClient {
    * 上传媒体文件
    */
   async uploadMedia(upload: MediaUpload): Promise<MediaResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const requestData = {
       image_data: upload.mediaData,
       filename: upload.filename,
@@ -206,6 +222,9 @@ export class WechatClient {
       throw new Error(`微信API错误: ${result.errmsg}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -213,6 +232,9 @@ export class WechatClient {
    * 获取媒体列表
    */
   async getMediaList(params: MediaListParams): Promise<MediaListResult> {
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
 
     const response = await this.httpClient.post<MediaListResult>('/api/v1/wechat/batch-get-material', {
       type: params.type,
@@ -227,6 +249,10 @@ export class WechatClient {
 
     const result = response.data!;
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+
     if (result.errcode !== undefined && result.errcode !== 0) {
       throw new Error(`微信API错误: ${result.errmsg || '未知错误'}`);
     }
@@ -235,6 +261,15 @@ export class WechatClient {
       throw new Error('微信API响应格式异常：缺少total_count字段');
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -244,7 +279,10 @@ export class WechatClient {
    * 创建草稿
    */
   async createDraft(draft: DraftArticle[], accessToken: string): Promise<DraftResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.post<DraftResult>('/api/v1/wechat/create-draft', {
       articles: draft,
       access_token: accessToken
@@ -262,6 +300,9 @@ export class WechatClient {
       throw new Error(`微信API错误: ${result.errmsg}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -274,7 +315,10 @@ export class WechatClient {
     article: DraftArticle, 
     accessToken: string
   ): Promise<DraftResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.put<DraftResult>('/api/v1/wechat/update-draft', {
       media_id: draftId,
       index,
@@ -292,6 +336,9 @@ export class WechatClient {
       throw new Error(`微信API错误: ${result.errmsg}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -299,7 +346,10 @@ export class WechatClient {
    * 删除草稿
    */
   async deleteDraft(draftId: string, index: number, accessToken: string): Promise<ApiResponse> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.delete('/api/v1/wechat/delete-draft', {
       media_id: draftId,
       index,
@@ -310,6 +360,9 @@ export class WechatClient {
       throw new Error(`草稿删除失败: ${response.error}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return response;
   }
 
@@ -317,7 +370,10 @@ export class WechatClient {
    * 获取草稿列表
    */
   async getDraftList(accessToken: string, offset = 0, count = 20): Promise<DraftListResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.get<DraftListResult>('/api/v1/wechat/drafts', {
       access_token: accessToken,
       offset,
@@ -330,6 +386,10 @@ export class WechatClient {
 
     const result = response.data!;
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+
     if (result.errcode !== undefined && result.errcode !== 0) {
       throw new Error(`微信API错误: ${result.errmsg || '未知错误'}`);
     }
@@ -338,6 +398,15 @@ export class WechatClient {
       throw new Error('微信API响应格式异常：缺少total_count字段');
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -347,7 +416,10 @@ export class WechatClient {
    * 发布内容
    */
   async publishContent(draftId: string, accessToken: string): Promise<PublishResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.post<PublishResult>('/api/v1/wechat/publish-draft', {
       media_id: draftId,
       access_token: accessToken
@@ -372,7 +444,10 @@ export class WechatClient {
    * 获取发布状态
    */
   async getPublishStatus(publishId: string, accessToken: string): Promise<PublishStatusResult> {
+    if (BACKEND_CONFIG.DEBUG) {
 
+    }
+    
     const response = await this.httpClient.post<PublishStatusResult>('/api/v1/wechat/publish-status', {
       publish_id: publishId,
       access_token: accessToken
@@ -388,6 +463,9 @@ export class WechatClient {
       throw new Error(`微信API错误: ${result.errmsg}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return result;
   }
 
@@ -409,6 +487,9 @@ export class WechatClient {
    * 验证AuthKey是否有效
    */
   async verifyAuthKey(authKey: string): Promise<VerifyAuthKeyResponse> {
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
 
     const response = await this.httpClient.post<VerifyAuthKeyResponse>('/api/v1/wechat/verify-auth-key', {
       auth_key: authKey
@@ -418,6 +499,9 @@ export class WechatClient {
       throw new Error(`验证AuthKey失败: ${response.error || '未知错误'}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return response.data;
   }
 
@@ -425,6 +509,9 @@ export class WechatClient {
    * 注册或更新公众号账户
    */
   async registerAccount(request: RegisterAccountRequest): Promise<ApiResponse<any>> {
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
 
     const response = await this.httpClient.post('/api/v1/wechat/register-account', {
       app_id: request.app_id,
@@ -437,6 +524,9 @@ export class WechatClient {
       throw new Error(`注册公众号失败: ${response.error}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return response;
   }
 
@@ -444,6 +534,9 @@ export class WechatClient {
    * 检查公众号权限
    */
   async checkPermission(appId: string): Promise<PermissionInfo> {
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
 
     const response = await this.httpClient.get<PermissionInfo>('/api/v1/wechat/check-permission', {
       app_id: appId
@@ -453,6 +546,9 @@ export class WechatClient {
       throw new Error(`检查权限失败: ${response.error}`);
     }
 
+    if (BACKEND_CONFIG.DEBUG) {
+
+    }
     return response.data;
   }
 }

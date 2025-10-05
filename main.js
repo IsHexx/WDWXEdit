@@ -96,7 +96,7 @@ var init_backend_config = __esm({
       MAX_RETRIES: 3,
       USE_BACKEND_PROXY: true,
       HEALTH_CHECK_INTERVAL: 6e4,
-      DEBUG: true
+      DEBUG: false
     };
     validationResult = validateBackendConfig();
     if (validationResult.valid) {
@@ -180,6 +180,8 @@ var init_http_client = __esm({
               headers: Object.fromEntries(response.headers.entries()),
               url: response.url
             };
+            if (BACKEND_CONFIG.DEBUG) {
+            }
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
           const result = await response.json();
@@ -188,31 +190,45 @@ var init_http_client = __esm({
           return result;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          console.error(`\u274C ${method} ${endpoint} \u5931\u8D25:`, {
-            error: errorMsg,
-            errorType: error.constructor.name,
-            stack: error instanceof Error ? error.stack : void 0,
-            url: this.buildUrl(endpoint, params),
-            method,
-            timestamp: new Date().toISOString()
-          });
-          if (errorMsg.includes("CORS") || errorMsg.includes("fetch")) {
-            console.error(`\u{1F6AB} CORS\u9519\u8BEF\u8BE6\u7EC6\u4FE1\u606F:`, {
-              message: "\u53EF\u80FD\u7684CORS\u95EE\u9898\u539F\u56E0:",
-              reasons: [
-                "1. \u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\u6216\u65E0\u6CD5\u8BBF\u95EE",
-                "2. \u540E\u7AEFCORS\u914D\u7F6E\u4E0D\u6B63\u786E",
-                "3. \u9884\u68C0\u8BF7\u6C42(OPTIONS)\u5931\u8D25",
-                "4. Access-Control-Allow-Origin\u5934\u7F3A\u5931",
-                "5. \u8BF7\u6C42\u5934\u88AB\u62D2\u7EDD"
-              ],
-              suggestions: [
-                "\u68C0\u67E5\u540E\u7AEF\u670D\u52A1\u662F\u5426\u8FD0\u884C\u5728 localhost:8000",
-                "\u9A8C\u8BC1\u540E\u7AEFCORS\u914D\u7F6E\u662F\u5426\u5305\u542B app://obsidian.md",
-                "\u786E\u8BA4API\u5BC6\u94A5\u662F\u5426\u6B63\u786E",
-                "\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5"
-              ]
+          const lower = (errorMsg || "").toLowerCase();
+          if (BACKEND_CONFIG.DEBUG) {
+            console.error(`\u274C ${method} ${endpoint} \u5931\u8D25:`, {
+              error: errorMsg,
+              errorType: (error == null ? void 0 : error.name) || error.constructor.name,
+              stack: error instanceof Error ? error.stack : void 0,
+              url: this.buildUrl(endpoint, params),
+              method,
+              timestamp: new Date().toISOString()
             });
+          }
+          const isTimeout = lower.includes("aborted") || lower.includes("timeout");
+          const isBackendDown = lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("err_connection_refused") || lower.includes("connection refused");
+          if (isBackendDown) {
+            const friendly = "\u65E0\u6CD5\u8FDE\u63A5\u5230\u670D\u52A1\u5668\uFF0C\u8BF7\u786E\u8BA4\u540E\u7AEF\u670D\u52A1\u5DF2\u542F\u52A8\uFF08\u5982\uFF1Ahttp://localhost:8000\uFF09\u3002";
+            return { success: false, error: friendly };
+          }
+          if (isTimeout) {
+            return { success: false, error: "\u8BF7\u6C42\u8D85\u65F6\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u6216\u7A0D\u540E\u91CD\u8BD5\u3002" };
+          }
+          if (errorMsg.includes("CORS") && !lower.includes("failed to fetch")) {
+            if (BACKEND_CONFIG.DEBUG) {
+              console.error(`\u{1F6AB} CORS\u9519\u8BEF\u8BE6\u7EC6\u4FE1\u606F:`, {
+                message: "\u53EF\u80FD\u7684CORS\u95EE\u9898\u539F\u56E0:",
+                reasons: [
+                  "1. \u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\u6216\u65E0\u6CD5\u8BBF\u95EE",
+                  "2. \u540E\u7AEFCORS\u914D\u7F6E\u4E0D\u6B63\u786E",
+                  "3. \u9884\u68C0\u8BF7\u6C42(OPTIONS)\u5931\u8D25",
+                  "4. Access-Control-Allow-Origin\u5934\u7F3A\u5931",
+                  "5. \u8BF7\u6C42\u5934\u88AB\u62D2\u7EDD"
+                ],
+                suggestions: [
+                  "\u68C0\u67E5\u540E\u7AEF\u670D\u52A1\u662F\u5426\u8FD0\u884C\u5728 localhost:8000",
+                  "\u9A8C\u8BC1\u540E\u7AEFCORS\u914D\u7F6E\u662F\u5426\u5305\u542B app://obsidian.md",
+                  "\u786E\u8BA4API\u5BC6\u94A5\u662F\u5426\u6B63\u786E",
+                  "\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5"
+                ]
+              });
+            }
           }
           return {
             success: false,
@@ -394,26 +410,35 @@ var init_http_client = __esm({
 var WechatClient;
 var init_wechat_api = __esm({
   "src/services/api/wechat-api.ts"() {
+    init_backend_config();
     WechatClient = class {
       constructor(httpClient) {
         this.httpClient = httpClient;
+        if (BACKEND_CONFIG.DEBUG) {
+        }
       }
       // === 认证相关方法 ===
       /**
        * 获取访问令牌
        */
       async authenticate(auth) {
-        console.log("\u{1F4CB} API\u8BF7\u6C42\u53C2\u6570:", {
-          app_id: auth.appId,
-          app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
-          app_secret_length: auth.appSecret.length
-        });
+        if (BACKEND_CONFIG.DEBUG) {
+        }
+        if (BACKEND_CONFIG.DEBUG) {
+          console.log("\u{1F4CB} API\u8BF7\u6C42\u53C2\u6570:", {
+            app_id: auth.appId,
+            app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
+            app_secret_length: auth.appSecret.length
+          });
+        }
         const response = await this.httpClient.post("/api/v1/wechat/access-token", {
           app_id: auth.appId,
           app_secret: auth.appSecret
         });
         if (!response.success) {
           throw new Error(`\u83B7\u53D6\u8BBF\u95EE\u4EE4\u724C\u5931\u8D25: ${response.error}`);
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return response.data;
       }
@@ -422,6 +447,8 @@ var init_wechat_api = __esm({
        * 上传媒体文件
        */
       async uploadMedia(upload) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const requestData = {
           image_data: upload.mediaData,
           filename: upload.filename,
@@ -436,12 +463,16 @@ var init_wechat_api = __esm({
         if (result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
         }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         return result;
       }
       /**
        * 获取媒体列表
        */
       async getMediaList(params) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/batch-get-material", {
           type: params.type,
           offset: params.offset,
@@ -452,11 +483,19 @@ var init_wechat_api = __esm({
           throw new Error(`\u83B7\u53D6\u5A92\u4F53\u5217\u8868\u5931\u8D25: ${response.error}`);
         }
         const result = response.data;
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         if (result.errcode !== void 0 && result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg || "\u672A\u77E5\u9519\u8BEF"}`);
         }
         if (result.total_count === void 0) {
           throw new Error("\u5FAE\u4FE1API\u54CD\u5E94\u683C\u5F0F\u5F02\u5E38\uFF1A\u7F3A\u5C11total_count\u5B57\u6BB5");
+        }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return result;
       }
@@ -465,6 +504,8 @@ var init_wechat_api = __esm({
        * 创建草稿
        */
       async createDraft(draft, accessToken) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/create-draft", {
           articles: draft,
           access_token: accessToken
@@ -476,12 +517,16 @@ var init_wechat_api = __esm({
         if (result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
         }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         return result;
       }
       /**
        * 更新草稿
        */
       async updateDraft(draftId, index, article, accessToken) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.put("/api/v1/wechat/update-draft", {
           media_id: draftId,
           index,
@@ -495,12 +540,16 @@ var init_wechat_api = __esm({
         if (result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
         }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         return result;
       }
       /**
        * 删除草稿
        */
       async deleteDraft(draftId, index, accessToken) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.delete("/api/v1/wechat/delete-draft", {
           media_id: draftId,
           index,
@@ -509,12 +558,16 @@ var init_wechat_api = __esm({
         if (!response.success) {
           throw new Error(`\u8349\u7A3F\u5220\u9664\u5931\u8D25: ${response.error}`);
         }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         return response;
       }
       /**
        * 获取草稿列表
        */
       async getDraftList(accessToken, offset = 0, count = 20) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.get("/api/v1/wechat/drafts", {
           access_token: accessToken,
           offset,
@@ -524,11 +577,19 @@ var init_wechat_api = __esm({
           throw new Error(`\u83B7\u53D6\u8349\u7A3F\u5217\u8868\u5931\u8D25: ${response.error}`);
         }
         const result = response.data;
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         if (result.errcode !== void 0 && result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg || "\u672A\u77E5\u9519\u8BEF"}`);
         }
         if (result.total_count === void 0) {
           throw new Error("\u5FAE\u4FE1API\u54CD\u5E94\u683C\u5F0F\u5F02\u5E38\uFF1A\u7F3A\u5C11total_count\u5B57\u6BB5");
+        }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return result;
       }
@@ -537,6 +598,8 @@ var init_wechat_api = __esm({
        * 发布内容
        */
       async publishContent(draftId, accessToken) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/publish-draft", {
           media_id: draftId,
           access_token: accessToken
@@ -554,6 +617,8 @@ var init_wechat_api = __esm({
        * 获取发布状态
        */
       async getPublishStatus(publishId, accessToken) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/publish-status", {
           publish_id: publishId,
           access_token: accessToken
@@ -564,6 +629,8 @@ var init_wechat_api = __esm({
         const result = response.data;
         if (result.errcode !== 0) {
           throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return result;
       }
@@ -583,11 +650,15 @@ var init_wechat_api = __esm({
        * 验证AuthKey是否有效
        */
       async verifyAuthKey(authKey) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/verify-auth-key", {
           auth_key: authKey
         });
         if (!response.success || !response.data) {
           throw new Error(`\u9A8C\u8BC1AuthKey\u5931\u8D25: ${response.error || "\u672A\u77E5\u9519\u8BEF"}`);
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return response.data;
       }
@@ -595,6 +666,8 @@ var init_wechat_api = __esm({
        * 注册或更新公众号账户
        */
       async registerAccount(request) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.post("/api/v1/wechat/register-account", {
           app_id: request.app_id,
           app_secret: request.app_secret,
@@ -604,17 +677,23 @@ var init_wechat_api = __esm({
         if (!response.success) {
           throw new Error(`\u6CE8\u518C\u516C\u4F17\u53F7\u5931\u8D25: ${response.error}`);
         }
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         return response;
       }
       /**
        * 检查公众号权限
        */
       async checkPermission(appId) {
+        if (BACKEND_CONFIG.DEBUG) {
+        }
         const response = await this.httpClient.get("/api/v1/wechat/check-permission", {
           app_id: appId
         });
         if (!response.success || !response.data) {
           throw new Error(`\u68C0\u67E5\u6743\u9650\u5931\u8D25: ${response.error}`);
+        }
+        if (BACKEND_CONFIG.DEBUG) {
         }
         return response.data;
       }
@@ -66941,8 +67020,16 @@ var AssetsManager = class {
     }
   }
   async openAssets() {
-    const path = require("path");
+    if (!this.app.vault.adapter) {
+      new import_obsidian.Notice("\u5F53\u524D\u5E73\u53F0\u4E0D\u652F\u6301\u6B64\u529F\u80FD");
+      return;
+    }
     const adapter = this.app.vault.adapter;
+    if (!(adapter instanceof import_obsidian.FileSystemAdapter)) {
+      new import_obsidian.Notice("\u5F53\u524D\u5E73\u53F0\u4E0D\u652F\u6301\u6253\u5F00\u6587\u4EF6\u5939");
+      return;
+    }
+    const path = require("path");
     const vaultRoot = adapter.getBasePath();
     const assets = this.assetsPath;
     if (!await adapter.exists(assets)) {
@@ -66982,16 +67069,18 @@ var AssetsManager = class {
     for (let f of files) {
       if (f instanceof import_obsidian.TFolder)
         continue;
-      file = f;
-      if (file.basename === nameOrPath || file.name === nameOrPath) {
-        return f;
+      if (f instanceof import_obsidian.TFile) {
+        file = f;
+        if (file.basename === nameOrPath || file.name === nameOrPath) {
+          return f;
+        }
       }
     }
     return null;
   }
   getResourcePath(path) {
     const file = this.searchFile(path);
-    if (file == null) {
+    if (!file || !(file instanceof import_obsidian.TFile)) {
       return null;
     }
     const resUrl = this.app.vault.getResourcePath(file);
@@ -67030,7 +67119,7 @@ var AssetsManager = class {
   async readFileBinary(path) {
     const vault = this.app.vault;
     const file = this.searchFile(path);
-    if (file == null) {
+    if (!file || !(file instanceof import_obsidian.TFile)) {
       return null;
     }
     return await vault.readBinary(file);
@@ -68200,7 +68289,6 @@ function applyCSS(html2, css2) {
   return root.outerHTML;
 }
 function uevent(name) {
-  console.log(`Event: ${name} (platform: ${PlugPlatform}, version: ${PluginVersion})`);
 }
 function debounce(func, wait) {
   let timeout = null;
@@ -72309,7 +72397,7 @@ ${styleEditorCSS}`;
     }
     const vault = this.app.vault;
     const file = this.assetsManager.searchFile(fileName);
-    if (!file) {
+    if (!file || !(file instanceof import_obsidian5.TFile)) {
       throw new Error("\u627E\u4E0D\u5230\u5C01\u9762\u6587\u4EF6: " + fileName);
     }
     const fileData = await vault.readBinary(file);
@@ -72409,10 +72497,92 @@ ${styleEditorCSS}`;
     lm.replaceImages(this.articleDiv);
   }
   async copyArticle() {
-    const content = this.getArticleContent();
-    await navigator.clipboard.write([new ClipboardItem({
-      "text/html": new Blob([content], { type: "text/html" })
-    })]);
+    const htmlContent = this.getArticleContent();
+    const plainText = this.getArticleText();
+    if (!htmlContent) {
+      throw new Error("\u6682\u65E0\u53EF\u590D\u5236\u7684\u5185\u5BB9");
+    }
+    try {
+      const w = window;
+      const electron = (w == null ? void 0 : w.require) ? w.require("electron") : void 0;
+      const electronClipboard = electron == null ? void 0 : electron.clipboard;
+      if (electronClipboard && typeof electronClipboard.write === "function") {
+        electronClipboard.write({ html: htmlContent, text: plainText });
+        return;
+      }
+    } catch (e2) {
+    }
+    const clipboard = navigator.clipboard;
+    const canUseClipboardItem = typeof ClipboardItem !== "undefined";
+    if (clipboard && canUseClipboardItem && window.isSecureContext) {
+      try {
+        if (document.hasFocus && !document.hasFocus()) {
+          window.focus();
+          await new Promise((r) => setTimeout(r, 120));
+        }
+        await clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([htmlContent], { type: "text/html" }),
+            "text/plain": new Blob([plainText], { type: "text/plain" })
+          })
+        ]);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
+        } else if (error instanceof Error && error.message.includes("Document is not focused")) {
+        } else {
+        }
+      }
+    }
+    if (this.copyArticleWithExecCommand(htmlContent, plainText)) {
+      return;
+    }
+    throw new Error("\u526A\u8D34\u677F\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
+  }
+  copyArticleWithExecCommand(htmlContent, plainText) {
+    var _a;
+    try {
+      const selection = window.getSelection();
+      if (!selection) {
+        return false;
+      }
+      const container = document.createElement("div");
+      container.innerHTML = htmlContent;
+      container.contentEditable = "true";
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.top = "0";
+      container.style.opacity = "0";
+      container.style.pointerEvents = "none";
+      container.style.userSelect = "text";
+      document.body.appendChild(container);
+      const range = document.createRange();
+      range.selectNodeContents(container);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      (_a = container.focus) == null ? void 0 : _a.call(container);
+      let successful = document.execCommand("copy");
+      selection.removeAllRanges();
+      document.body.removeChild(container);
+      if (successful) {
+        return true;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = plainText;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      successful = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return successful;
+    } catch (error) {
+      return false;
+    }
   }
   getSecret(appid) {
     for (const wx of this.settings.wxInfo) {
@@ -72592,7 +72762,7 @@ var StyleEditor = class {
   createTitleBar() {
     const titleBar = this.container.createDiv({ cls: "style-editor-header" });
     const toggleButton = titleBar.createEl("button", { cls: "style-editor-toggle" });
-    toggleButton.innerHTML = this.isCollapsed ? "\u25B6" : "\u25BC";
+    toggleButton.textContent = this.isCollapsed ? "\u25B6" : "\u25BC";
     const title = titleBar.createEl("span", { cls: "style-editor-title", text: "\u6837\u5F0F\u7F16\u8F91\u5668" });
     const resetButton = titleBar.createEl("button", { cls: "style-editor-reset", text: "\u91CD\u7F6E" });
     resetButton.title = "\u91CD\u7F6E\u6240\u6709\u6837\u5F0F";
@@ -72606,7 +72776,7 @@ var StyleEditor = class {
   createContentArea() {
     this.contentDiv = this.container.createDiv({ cls: "style-editor-content" });
     if (this.isCollapsed) {
-      this.contentDiv.style.display = "none";
+      this.contentDiv.addClass("hidden");
     }
     this.createV2StyleOptionsLayout();
   }
@@ -72731,14 +72901,14 @@ var StyleEditor = class {
     });
     colorInput.value = this.settings.primaryColor || "#2d3748";
     if (isCustomColor && this.settings.primaryColor) {
-      colorInputWrapper.style.display = "inline-block";
+      colorInputWrapper.removeClass("hidden");
     } else {
-      colorInputWrapper.style.display = "none";
+      colorInputWrapper.addClass("hidden");
     }
     colorSelect.onchange = () => {
       const selectedValue = colorSelect.value;
       if (selectedValue === "custom") {
-        colorInputWrapper.style.display = "inline-block";
+        colorInputWrapper.removeClass("hidden");
         const customColor = colorInput.value;
         this.settings.primaryColor = customColor;
         customOption.text = `\u81EA\u5B9A\u4E49 (${customColor})`;
@@ -72746,7 +72916,7 @@ var StyleEditor = class {
           this.events.onPrimaryColorChanged(customColor);
         }
       } else {
-        colorInputWrapper.style.display = "none";
+        colorInputWrapper.addClass("hidden");
         this.settings.primaryColor = selectedValue;
         if (this.events.onPrimaryColorChanged) {
           this.events.onPrimaryColorChanged(selectedValue);
@@ -72784,11 +72954,11 @@ var StyleEditor = class {
     const toggleButton = this.container.querySelector(".style-editor-toggle");
     const contentDiv = this.container.querySelector(".style-editor-content");
     if (this.isCollapsed) {
-      toggleButton.innerHTML = "\u25B6";
-      contentDiv.style.display = "none";
+      toggleButton.textContent = "\u25B6";
+      contentDiv.addClass("hidden");
     } else {
-      toggleButton.innerHTML = "\u25BC";
-      contentDiv.style.display = "block";
+      toggleButton.textContent = "\u25BC";
+      contentDiv.removeClass("hidden");
     }
   }
   addStyles() {
@@ -72886,6 +73056,14 @@ var StyleEditor = class {
             .color-input-wrapper {
                 display: inline-block;
                 margin-left: 4px;
+            }
+
+            .color-input-wrapper.hidden {
+                display: none;
+            }
+
+            .style-editor-content.hidden {
+                display: none;
             }
 
             .custom-color-input {
@@ -73083,7 +73261,6 @@ var StyleEditor = class {
   }
   updateSelections(theme, highlight, font, fontSize, primaryColor, customCSS) {
     var _a, _b, _c, _d, _e;
-    console.log("\u{1F504} \u66F4\u65B0\u6837\u5F0F\u7F16\u8F91\u5668UI:", { theme, highlight, font, fontSize, primaryColor, customCSS: customCSS == null ? void 0 : customCSS.substring(0, 50) });
     const contentDiv = this.container.querySelector(".style-editor-content");
     if (!contentDiv)
       return;
@@ -73118,7 +73295,7 @@ var StyleEditor = class {
         if (isPresetColor) {
           colorSelect.value = primaryColor;
           if (colorInputWrapper) {
-            colorInputWrapper.style.display = "none";
+            colorInputWrapper.addClass("hidden");
           }
         } else {
           colorSelect.value = "custom";
@@ -73127,7 +73304,7 @@ var StyleEditor = class {
             customOption.text = `\u81EA\u5B9A\u4E49 (${primaryColor})`;
           }
           if (colorInputWrapper) {
-            colorInputWrapper.style.display = "inline-block";
+            colorInputWrapper.removeClass("hidden");
           }
         }
       }
@@ -73226,16 +73403,14 @@ var PreviewToolbar = class {
     const uploadLabel = uploadWrapper.createEl("label", { cls: "radio-label" });
     uploadLabel.setAttr("for", "local-cover-h");
     uploadLabel.innerText = "\u4E0A\u4F20";
-    const fileUploadContainer = radioGroup.createDiv({ cls: "file-upload-container" });
-    fileUploadContainer.style.display = "none";
+    const fileUploadContainer = radioGroup.createDiv({ cls: "file-upload-container hidden" });
     const uploadButton = fileUploadContainer.createEl("button", { cls: "file-upload-btn" });
     uploadButton.type = "button";
     uploadButton.innerText = "\u9009\u62E9\u6587\u4EF6";
-    this.coverEl = fileUploadContainer.createEl("input", { cls: "file-input-hidden" });
+    this.coverEl = fileUploadContainer.createEl("input", { cls: "file-input-hidden hidden" });
     this.coverEl.setAttr("type", "file");
     this.coverEl.setAttr("accept", ".png, .jpg, .jpeg");
     this.coverEl.setAttr("name", "cover");
-    this.coverEl.style.display = "none";
     this.coverEl.id = "cover-input";
     uploadButton.onclick = () => {
       this.coverEl.click();
@@ -73251,7 +73426,7 @@ var PreviewToolbar = class {
   buildActionButtons(parent) {
     const buttonContainer = parent.createDiv({ cls: "action-buttons" });
     const refreshBtn = buttonContainer.createEl("button", { cls: "action-button" });
-    refreshBtn.innerHTML = `
+    const refreshSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
                 <path d="M21 3v5h-5"/>
@@ -73259,6 +73434,7 @@ var PreviewToolbar = class {
                 <path d="M3 21v-5h5"/>
             </svg>
         `;
+    refreshBtn.appendChild(document.createRange().createContextualFragment(refreshSvg));
     refreshBtn.setAttr("title", "\u5237\u65B0");
     refreshBtn.onclick = async () => {
       await this.handlers.onRefresh();
@@ -73266,12 +73442,13 @@ var PreviewToolbar = class {
     };
     if (import_obsidian6.Platform.isDesktop) {
       const copyBtn = buttonContainer.createEl("button", { cls: "action-button" });
-      copyBtn.innerHTML = `
+      const copySvg = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
             `;
+      copyBtn.appendChild(document.createRange().createContextualFragment(copySvg));
       copyBtn.setAttr("title", "\u590D\u5236");
       copyBtn.onclick = async () => {
         try {
@@ -73282,25 +73459,27 @@ var PreviewToolbar = class {
       };
     }
     const postBtn = buttonContainer.createEl("button", { cls: "action-button" });
-    postBtn.innerHTML = `
+    const postSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/>
                 <path d="M21.854 2.147 10.61 13.39"/>
             </svg>
         `;
+    postBtn.appendChild(document.createRange().createContextualFragment(postSvg));
     postBtn.setAttr("title", "\u53D1\u8349\u7A3F");
     postBtn.onclick = async () => {
       await this.handlers.onPost();
       uevent("pub");
     };
     const uploadBtn = buttonContainer.createEl("button", { cls: "action-button upload-btn" });
-    uploadBtn.innerHTML = `
+    const uploadSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7,10 12,5 17,10"/>
                 <line x1="12" y1="5" x2="12" y2="15"/>
             </svg>
         `;
+    uploadBtn.appendChild(document.createRange().createContextualFragment(uploadSvg));
     uploadBtn.setAttr("title", "\u4E0A\u4F20\u56FE\u7247");
     uploadBtn.onclick = async () => {
       await this.handlers.onUpload();
@@ -73324,7 +73503,11 @@ var PreviewToolbar = class {
   toggleCoverUpload(showUpload) {
     const fileUploadContainer = this.toolbar.querySelector(".file-upload-container");
     if (fileUploadContainer) {
-      fileUploadContainer.style.display = showUpload ? "flex" : "none";
+      if (showUpload) {
+        fileUploadContainer.removeClass("hidden");
+      } else {
+        fileUploadContainer.addClass("hidden");
+      }
     }
   }
   updateFromMetadata(metadata, currentTheme, currentHighlight) {
@@ -73428,7 +73611,13 @@ var PreviewContent = class {
   }
   setContent(html2) {
     if (this.articleDiv) {
-      this.articleDiv.innerHTML = html2;
+      import("obsidian").then(({ sanitizeHTMLToDom: sanitizeHTMLToDom4 }) => {
+        const sanitized = sanitizeHTMLToDom4(html2);
+        this.articleDiv.empty();
+        if (sanitized.firstChild) {
+          this.articleDiv.appendChild(sanitized.firstChild);
+        }
+      });
     }
   }
   getContent() {
@@ -73437,12 +73626,12 @@ var PreviewContent = class {
   }
   updateStyle(css2) {
     if (this.styleEl) {
-      this.styleEl.innerHTML = css2;
+      this.styleEl.textContent = css2;
     }
   }
   addStyle(css2) {
     if (this.styleEl) {
-      this.styleEl.innerHTML += css2;
+      this.styleEl.textContent += css2;
     }
   }
   showLoading() {
@@ -73497,12 +73686,15 @@ var PreviewContent = class {
   }
   setVisible(visible) {
     if (this.renderDiv) {
-      this.renderDiv.style.display = visible ? "block" : "none";
+      if (visible) {
+        this.renderDiv.removeClass("hidden");
+      } else {
+        this.renderDiv.addClass("hidden");
+      }
     }
   }
   isVisible() {
-    var _a;
-    return ((_a = this.renderDiv) == null ? void 0 : _a.style.display) !== "none";
+    return this.renderDiv ? !this.renderDiv.hasClass("hidden") : false;
   }
   getContentHeight() {
     var _a;
@@ -73534,8 +73726,7 @@ var PreviewStatus = class {
     this.build();
   }
   build() {
-    this.statusContainer = this.parent.createDiv({ cls: "preview-status" });
-    this.statusContainer.style.display = "none";
+    this.statusContainer = this.parent.createDiv({ cls: "preview-status hidden" });
     this.statusIcon = this.statusContainer.createDiv({ cls: "status-icon" });
     this.statusMessage = this.statusContainer.createDiv({ cls: "status-message" });
     this.progressBar = this.statusContainer.createDiv({ cls: "status-progress" });
@@ -73575,8 +73766,10 @@ var PreviewStatus = class {
     this.statusMessage.textContent = message;
     this.updateIcon(type);
     this.statusContainer.className = `preview-status status-${type}`;
-    this.statusContainer.style.display = "flex";
-    if (type !== "loading" && duration) {
+    this.statusContainer.removeClass("hidden");
+    const showProgress = type === "loading" || type === "upload" || type === "processing";
+    this.showProgress(showProgress);
+    if (!showProgress && duration) {
       this.hideTimeout = setTimeout(() => {
         this.hideMessage();
       }, duration);
@@ -73659,12 +73852,16 @@ var PreviewStatus = class {
                 `;
         break;
     }
-    this.statusIcon.innerHTML = iconSvg;
+    this.statusIcon.empty();
+    this.statusIcon.appendChild(document.createRange().createContextualFragment(iconSvg));
   }
   showProgress(show) {
-    this.progressBar.style.display = show ? "block" : "none";
     if (show) {
-      this.progressBar.innerHTML = '<div class="progress-bar-fill"></div>';
+      this.progressBar.removeClass("hidden");
+      this.progressBar.empty();
+      this.progressBar.createDiv({ cls: "progress-bar-fill" });
+    } else {
+      this.progressBar.addClass("hidden");
     }
   }
   updateProgress(percent) {
@@ -73678,11 +73875,11 @@ var PreviewStatus = class {
       clearTimeout(this.hideTimeout);
       this.hideTimeout = void 0;
     }
-    this.statusContainer.style.display = "none";
+    this.statusContainer.addClass("hidden");
     this.showProgress(false);
   }
   isVisible() {
-    return this.statusContainer.style.display !== "none";
+    return !this.statusContainer.hasClass("hidden");
   }
   getCurrentMessage() {
     return this.statusMessage.textContent || "";
@@ -73702,12 +73899,13 @@ var PreviewStatus = class {
   }
   addCloseButton() {
     const closeBtn = this.statusContainer.createDiv({ cls: "status-close" });
-    closeBtn.innerHTML = `
+    const closeSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
         `;
+    closeBtn.appendChild(document.createRange().createContextualFragment(closeSvg));
     closeBtn.onclick = (e2) => {
       e2.stopPropagation();
       this.hideMessage();
@@ -73744,6 +73942,9 @@ var PreviewController = class {
     this.cachedElements = /* @__PURE__ */ new Map();
     this.isCancelUpload = false;
     this.isBatchRuning = false;
+    this.backendAvailable = null;
+    this.lastBackendNoticeAt = 0;
+    this.lastBackendFailureAt = 0;
     this.app = app;
     this.view = view;
     this.plugin = plugin;
@@ -73854,11 +74055,17 @@ var PreviewController = class {
         await this.renderMarkdown();
       },
       onCopy: async () => {
-        await this.copyWithImageUpload();
-        if (this.currentAppId) {
+        const result = await this.copyWithImageUpload();
+        if (result == null ? void 0 : result.uploaded) {
           new import_obsidian7.Notice("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
         } else {
-          new import_obsidian7.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002");
+          if ((result == null ? void 0 : result.reason) === "no-appid") {
+            new import_obsidian7.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002");
+          } else if ((result == null ? void 0 : result.reason) === "backend" || (result == null ? void 0 : result.reason) === "token") {
+            new import_obsidian7.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\uFF08\u540E\u7AEF\u672A\u8FDE\u63A5\u6216\u8BA4\u8BC1\u5931\u8D25\uFF09\u3002");
+          } else {
+            new import_obsidian7.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u3002");
+          }
         }
       },
       onPost: async () => {
@@ -73946,11 +74153,22 @@ var PreviewController = class {
       this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7", 3e3);
       return;
     }
+    if (this.backendAvailable === false) {
+      const now = Date.now();
+      if (now - this.lastBackendFailureAt < 5e3) {
+        this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u65E0\u6CD5\u4E0A\u4F20\u56FE\u7247\u3002", 4e3);
+        new import_obsidian7.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
+        return;
+      }
+      this.backendAvailable = null;
+    }
     this.status.showUploading("\u56FE\u7247\u4E0A\u4F20\u4E2D...");
     try {
       await this.render.uploadImages(this.currentAppId);
+      this.backendAvailable = true;
       this.status.showSuccess("\u56FE\u7247\u4E0A\u4F20\u6210\u529F\uFF0C\u56FE\u7247\u94FE\u63A5\u5DF2\u66F4\u65B0", 3e3);
     } catch (error) {
+      this.notifyBackendUnavailable(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7")) {
         this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7", 3e3);
@@ -73973,11 +74191,22 @@ var PreviewController = class {
       this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7");
       return;
     }
+    if (this.backendAvailable === false) {
+      const now = Date.now();
+      if (now - this.lastBackendFailureAt < 5e3) {
+        this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u6682\u65E0\u6CD5\u53D1\u8349\u7A3F\u3002", 4e3);
+        new import_obsidian7.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
+        return;
+      }
+      this.backendAvailable = null;
+    }
     this.status.showProcessing("\u53D1\u5E03\u4E2D...");
     try {
       await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
+      this.backendAvailable = true;
       this.status.showSuccess("\u53D1\u5E03\u6210\u529F", 3e3);
     } catch (error) {
+      this.notifyBackendUnavailable(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("token") || errorMessage.includes("Token") || errorMessage.includes("\u8BA4\u8BC1")) {
         this.status.showError("Token\u83B7\u53D6\u5931\u8D25\uFF0C\u53D1\u5E03\u5931\u8D25\u3002\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E", 5e3);
@@ -73999,15 +74228,35 @@ var PreviewController = class {
     if (!this.currentAppId) {
       this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7", 3e3);
       await this.copyWithoutImageUpload();
-      return;
+      return { uploaded: false, reason: "no-appid" };
+    }
+    if (this.backendAvailable === false) {
+      const now = Date.now();
+      if (now - this.lastBackendFailureAt < 5e3) {
+        this.status.showWarning("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u76F4\u63A5\u590D\u5236\u672C\u5730\u5185\u5BB9\u3002", 4e3);
+        await this.copyWithoutImageUpload();
+        return { uploaded: false, reason: "backend" };
+      }
+      this.backendAvailable = null;
+    }
+    this.status.showProcessing("\u6B63\u5728\u83B7\u53D6\u5FAE\u4FE1\u8BBF\u95EE\u4EE4\u724C...");
+    let token;
+    try {
+      token = await this.render.getToken(this.currentAppId);
+      this.backendAvailable = true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.status.showError(message || "\u65E0\u6CD5\u83B7\u53D6\u8BBF\u95EE\u4EE4\u724C", 5e3);
+      this.notifyBackendUnavailable(error, { suppressNotice: true });
+      await this.copyWithoutImageUpload();
+      return { uploaded: false, reason: "token" };
+    }
+    if (!token) {
+      this.status.showError("Token\u83B7\u53D6\u5931\u8D25\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u5230\u516C\u4F17\u53F7", 5e3);
+      await this.copyWithoutImageUpload();
+      return { uploaded: false, reason: "token" };
     }
     this.status.showProcessing("\u5904\u7406\u56FE\u7247...");
-    const token = await this.render.getToken(this.currentAppId);
-    if (!token) {
-      this.status.showError("Token\u83B7\u53D6\u5931\u8D25\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E", 5e3);
-      await this.copyWithoutImageUpload();
-      return;
-    }
     this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
     const lm = LocalImageManager.getInstance();
     const imageKeys = Array.from(lm.images.keys());
@@ -74015,6 +74264,7 @@ var PreviewController = class {
       const image = lm.images.get(key);
       return image && image.url == null && image.filePath;
     });
+    let didUpload = false;
     if (localImages.length > 0) {
       const { initApiClients: initApiClients2, getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
       if (!getWechatClient3()) {
@@ -74047,15 +74297,14 @@ var PreviewController = class {
             const mediaId = uploadRes.media_id;
             imageInfo.url = uploadRes.url || `https://mmbiz.qlogo.cn/mmbiz_png/${mediaId}/0?wx_fmt=png`;
             imageInfo.media_id = mediaId;
-          } else {
-            const error = uploadRes.errmsg || "\u672A\u77E5\u9519\u8BEF";
+            didUpload = true;
           }
         } catch (error) {
+          this.notifyBackendUnavailable(error, { suppressNotice: true });
         }
       }
       this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
       lm.replaceImages(this.content.getElements().articleDiv);
-    } else {
     }
     this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F...");
     try {
@@ -74064,16 +74313,25 @@ var PreviewController = class {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       await this.render.copyArticle();
-      this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
+      if (didUpload) {
+        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
+      } else {
+        this.status.showSuccess("\u590D\u5236\u6210\u529F", 2e3);
+      }
     } catch (error) {
       try {
         await this.fallbackCopyToClipboard();
-        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
+        if (didUpload) {
+          this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
+        } else {
+          this.status.showSuccess("\u590D\u5236\u6210\u529F", 2e3);
+        }
       } catch (fallbackError) {
         this.status.hideMessage();
         throw new Error("\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u4FDD\u6D4F\u89C8\u5668\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\uFF0C\u7136\u540E\u91CD\u8BD5");
       }
     }
+    return { uploaded: didUpload, reason: "none" };
   }
   // V2风格的图片上传和草稿创建
   async uploadImagesAndCreateDraft(appid, localCover = null) {
@@ -74091,9 +74349,6 @@ var PreviewController = class {
     this.status.showProcessing("\u68C0\u67E5\u8349\u7A3F\u72B6\u6001...");
     const draftStatus = await this.shouldUpdateDraft(token);
     const isUpdate = draftStatus.shouldUpdate;
-    if (isUpdate) {
-    } else {
-    }
     this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
     const lm = LocalImageManager.getInstance();
     const imageKeys = Array.from(lm.images.keys());
@@ -74136,7 +74391,6 @@ var PreviewController = class {
       }
       this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
       lm.replaceImages(this.content.getElements().articleDiv);
-    } else {
     }
     this.status.showUploading("\u5904\u7406\u5C01\u9762...");
     let mediaId = "";
@@ -74159,7 +74413,6 @@ var PreviewController = class {
       mediaId = await this.render.getDefaultCover(token);
       if (!mediaId) {
         throw new Error("\u65E0\u6CD5\u83B7\u53D6\u5C01\u9762\u56FE\u7247\uFF0C\u8BF7\u624B\u52A8\u9009\u62E9\u4E00\u5F20\u5C01\u9762\u56FE\u7247\u6216\u786E\u4FDD\u5FAE\u4FE1\u7D20\u6750\u5E93\u4E2D\u6709\u56FE\u7247");
-      } else {
       }
     }
     const metadata = this.render.getMetadata();
@@ -74217,9 +74470,6 @@ var PreviewController = class {
       const operation = isUpdate ? "\u66F4\u65B0" : "\u521B\u5EFA";
       throw new Error(`${operation}\u8349\u7A3F\u5931\u8D25: ` + (draftRes.errmsg || "\u672A\u77E5\u9519\u8BEF"));
     }
-    if (isUpdate) {
-    } else {
-    }
   }
   async shouldUpdateDraft(token) {
     var _a, _b, _c, _d;
@@ -74235,7 +74485,6 @@ var PreviewController = class {
         for (let i = 0; i < draftsRes.item.length; i++) {
           const draft = draftsRes.item[i];
           const draftTitle = ((_d = (_c = (_b = draft.content) == null ? void 0 : _b.news_item) == null ? void 0 : _c[0]) == null ? void 0 : _d.title) || "";
-          console.log(`  - \u8349\u7A3F${i + 1}: "${draftTitle}" (ID: ${draft.media_id})`);
           if (draftTitle && draftTitle === currentTitle) {
             return {
               shouldUpdate: true,
@@ -74304,13 +74553,28 @@ var PreviewController = class {
     }
   }
   async fallbackCopyToClipboard() {
+    try {
+      const html2 = this.render.getArticleContent();
+      const text = this.render.getArticleText();
+      const w = window;
+      const electron = (w == null ? void 0 : w.require) ? w.require("electron") : void 0;
+      const electronClipboard = electron == null ? void 0 : electron.clipboard;
+      if (electronClipboard && typeof electronClipboard.write === "function") {
+        electronClipboard.write({ html: html2, text });
+        return;
+      }
+    } catch (e2) {
+    }
     const textarea = document.createElement("textarea");
-    textarea.value = this.render.getArticleContent();
+    textarea.value = this.render.getArticleText();
     textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
     textarea.style.opacity = "0";
     textarea.style.pointerEvents = "none";
     document.body.appendChild(textarea);
     try {
+      textarea.focus();
       textarea.select();
       textarea.setSelectionRange(0, textarea.value.length);
       const successful = document.execCommand("copy");
@@ -74322,21 +74586,23 @@ var PreviewController = class {
     }
   }
   async copyWithoutImageUpload() {
-    this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F...");
+    this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F\u4E2D...");
     try {
       if (document.hasFocus && !document.hasFocus()) {
         window.focus();
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       await this.render.copyArticle();
-      this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF08\u672A\u4E0A\u4F20\u56FE\u7247\uFF09", 2e3);
+      this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u5230\u516C\u4F17\u53F7", 2e3);
     } catch (error) {
       try {
         await this.fallbackCopyToClipboard();
-        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF08\u672A\u4E0A\u4F20\u56FE\u7247\uFF09", 2e3);
+        this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u5230\u516C\u4F17\u53F7", 2e3);
       } catch (fallbackError) {
         this.status.hideMessage();
-        throw new Error("\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u4FDD\u6D4F\u89C8\u5668\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\uFF0C\u7136\u540E\u91CD\u8BD5");
+        this.status.showError("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002", 4e3);
+        new import_obsidian7.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
+        throw new Error("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
       }
     }
   }
@@ -74358,6 +74624,9 @@ var PreviewController = class {
     this.isBatchRuning = true;
     try {
       for (let file of files) {
+        if (!(file instanceof import_obsidian7.TFile)) {
+          continue;
+        }
         this.showLoading(`\u5373\u5C06\u53D1\u5E03: ${file.name}`, true);
         await new Promise((resolve) => setTimeout(resolve, 5e3));
         if (this.isCancelUpload) {
@@ -74376,6 +74645,32 @@ var PreviewController = class {
       this.isBatchRuning = false;
       this.isCancelUpload = false;
     }
+  }
+  notifyBackendUnavailable(error, options2) {
+    const message = error instanceof Error ? error.message : String(error);
+    const keywords = [
+      "\u65E0\u6CD5\u8FDE\u63A5\u5230\u670D\u52A1\u5668",
+      "\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8",
+      "Failed to fetch",
+      "NetworkError",
+      "CORS",
+      "fetch failed",
+      "\u53EF\u80FD\u7684CORS\u95EE\u9898\u539F\u56E0"
+    ];
+    const matched = keywords.some((keyword) => message.includes(keyword));
+    if (matched) {
+      this.backendAvailable = false;
+      const now = Date.now();
+      this.lastBackendFailureAt = now;
+      if (now - this.lastBackendNoticeAt > 3e3) {
+        this.lastBackendNoticeAt = now;
+        this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\u6216\u65E0\u6CD5\u8FDE\u63A5\u3002\u5DF2\u5207\u6362\u4E3A\u201C\u4EC5\u590D\u5236\u201D\u6A21\u5F0F\u3002", 6e3);
+        if (!(options2 == null ? void 0 : options2.suppressNotice)) {
+          new import_obsidian7.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u672C\u5730\u670D\u52A1\u6216\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u3002");
+        }
+      }
+    }
+    return matched;
   }
   getCurrentAppId() {
     return this.currentAppId;
@@ -74475,13 +74770,6 @@ var WxSettingTab = class extends import_obsidian9.PluginSettingTab {
     try {
       for (let wx of wxInfo) {
         try {
-          console.log(`\u{1F50D} \u6D4B\u8BD5\u516C\u4F17\u53F7\u914D\u7F6E:`, {
-            name: wx.name,
-            appid: wx.appid,
-            secret: `${wx.secret.substring(0, 8)}...${wx.secret.substring(wx.secret.length - 4)}`,
-            // 只显示前8位和后4位
-            secretLength: wx.secret.length
-          });
           const tokenInfo = await wxGetToken(wx.appid, wx.secret);
           if (tokenInfo.access_token && tokenInfo.access_token.length > 0) {
             new import_obsidian9.Notice(`${wx.name} \u6D4B\u8BD5\u901A\u8FC7`);
@@ -74496,12 +74784,6 @@ var WxSettingTab = class extends import_obsidian9.PluginSettingTab {
 2. \u662F\u5426\u4F7F\u7528\u4E86\u6D4B\u8BD5\u53F7\u7684AppSecret\u4F46\u914D\u7F6E\u4E86\u6B63\u5F0F\u53F7\u7684AppID
 3. AppSecret\u662F\u5426\u5DF2\u8FC7\u671F\u6216\u88AB\u91CD\u7F6E
 4. \u516C\u4F17\u53F7\u7C7B\u578B\u662F\u5426\u652F\u6301\u6B64API`;
-            console.error(`AppSecret\u9A8C\u8BC1\u5931\u8D25:`, {
-              name: wx.name,
-              appid: wx.appid,
-              secretLength: wx.secret.length,
-              secretPreview: `${wx.secret.substring(0, 8)}...${wx.secret.substring(wx.secret.length - 4)}`
-            });
           } else if (error.message && (error.message.includes("40164") || error.message.includes("IP") || error.message.includes("whitelist"))) {
             let currentIP = "\u672A\u77E5";
             const ipMatch = error.message.match(/(?:invalid ip|IP)[:\s]+(\d+\.\d+\.\d+\.\d+)/i);
@@ -74553,10 +74835,6 @@ var WxSettingTab = class extends import_obsidian9.PluginSettingTab {
       const name = items[0].trim();
       const appid = items[1].trim();
       const secret = items[2].trim();
-      console.log(`\u{1F4DD} \u89E3\u6790\u914D\u7F6E\u884C:`, {
-        \u539F\u59CB\u884C: line,
-        \u89E3\u6790\u540E: { name, appid, secret: `${secret.substring(0, 8)}...${secret.substring(secret.length - 4)}`, secretLength: secret.length }
-      });
       wechat.push({ name, appid, secret });
     }
     if (wechat.length == 0) {

@@ -50,13 +50,6 @@ export class WxSettingTab extends PluginSettingTab {
 
 			for (let wx of wxInfo) {
 				try {
-
-					console.log(`🔍 测试公众号配置:`, {
-						name: wx.name,
-						appid: wx.appid,
-						secret: `${wx.secret.substring(0, 8)}...${wx.secret.substring(wx.secret.length - 4)}`, // 只显示前8位和后4位
-						secretLength: wx.secret.length
-					});
 					const tokenInfo = await wxGetToken(wx.appid, wx.secret);
 					if (tokenInfo.access_token && tokenInfo.access_token.length > 0) {
 						new Notice(`${wx.name} 测试通过`);
@@ -68,12 +61,6 @@ export class WxSettingTab extends PluginSettingTab {
 					let message = `${wx.name} 测试失败：${error.message || error}`;
 					if (error.message && error.message.includes('40125')) {
 						message = `${wx.name} 测试失败：AppSecret无效 (错误码40125)。请检查：\n1. AppSecret是否正确（长度应为32位）\n2. 是否使用了测试号的AppSecret但配置了正式号的AppID\n3. AppSecret是否已过期或被重置\n4. 公众号类型是否支持此API`;
-						console.error(`AppSecret验证失败:`, {
-							name: wx.name,
-							appid: wx.appid,
-							secretLength: wx.secret.length,
-							secretPreview: `${wx.secret.substring(0, 8)}...${wx.secret.substring(wx.secret.length - 4)}`
-						});
 					} else if (error.message && (error.message.includes('40164') || error.message.includes('IP') || error.message.includes('whitelist'))) {
 
 						let currentIP = '未知';
@@ -134,10 +121,6 @@ export class WxSettingTab extends PluginSettingTab {
 			const appid = items[1].trim();
 			const secret = items[2].trim();
 
-			console.log(`📝 解析配置行:`, {
-				原始行: line,
-				解析后: { name, appid, secret: `${secret.substring(0, 8)}...${secret.substring(secret.length - 4)}`, secretLength: secret.length }
-			});
 			wechat.push({name, appid, secret});
 		}
 
@@ -158,7 +141,6 @@ export class WxSettingTab extends PluginSettingTab {
 						name: wx.name,
 						auth_key: authKey.trim()
 					});
-
 				} catch (error) {
 
 					new Notice(`同步公众号 ${wx.name} 到后端失败: ${error.message || error}`);

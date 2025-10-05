@@ -23,6 +23,12 @@
 /* =========================================================== */
 /* UI 样式                                                      */
 /* =========================================================== */
+
+/* Claude Code ADD: 全局隐藏类 */
+.hidden {
+  display: none !important;
+}
+
 .note-preview {
   min-height: 100%;
   width: 100%;
@@ -44,6 +50,87 @@
   border-bottom: #e4e4e4 1px solid;
   background-color: var(--background-primary);
 }
+
+/* =========================================================== */
+/* 预览状态条（位于样式编辑器下方）                            */
+/* =========================================================== */
+.preview-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  background: #F8F8F8;
+  flex: 0 0 auto; /* 不占据多余空间，避免高度被拉伸 */
+  min-height: 32px;
+  height: auto;
+}
+
+.preview-status.hidden {
+  display: none !important;
+}
+
+.preview-status .status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.preview-status .status-icon svg {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.preview-status .status-message {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-normal);
+  white-space: normal;
+  word-break: break-word;
+  writing-mode: horizontal-tb; /* 强制水平文字排版，防止垂直布局 */
+}
+
+.preview-status .status-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  display: none; /* 默认隐藏，仅在加载/上传/处理中展示 */
+}
+
+.preview-status .progress-bar-fill {
+  height: 100%;
+  background: currentColor;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* 仅在以下状态显示进度条 */
+.preview-status.status-loading .status-progress,
+.preview-status.status-upload .status-progress,
+.preview-status.status-processing .status-progress {
+  display: block;
+}
+
+/* 颜色状态 */
+.preview-status.status-success { background: #e8f5e8; color: #2e7d32; border-color: #4caf50; }
+.preview-status.status-warning { background: #fff7e6; color: #ad6800; border-color: #ffc53d; }
+.preview-status.status-error   { background: #fff1f0; color: #a8071a; border-color: #ff4d4f; }
+.preview-status.status-info,
+.preview-status.status-loading,
+.preview-status.status-upload,
+.preview-status.status-processing { background: #f0f5ff; color: #1d39c4; border-color: #597ef7; }
 
 /* =========================================================== */
 /* 工具栏单行横向布局样式 (从v2复制)                           */

@@ -39,6 +39,9 @@ export class PreviewController {
     private currentAppId: string;
     private isCancelUpload: boolean = false;
     private isBatchRuning: boolean = false;
+    private backendAvailable: boolean | null = null;
+    private lastBackendNoticeAt = 0;
+    private lastBackendFailureAt = 0;
 
     constructor(app: App, view: any, plugin: Plugin) {
         this.app = app;
@@ -89,19 +92,15 @@ export class PreviewController {
                 );
             },
             onFontChanged: (fontFamily: string) => {
-
                 this.render.updateFont(fontFamily);
             },
             onFontSizeChanged: (fontSize: string) => {
-
                 this.render.updateFontSize(fontSize);
             },
             onPrimaryColorChanged: (color: string) => {
-
                 this.render.updatePrimaryColor(color);
             },
             onCustomCSSChanged: (css: string) => {
-
                 this.render.updateCustomCSS(css);
             }
         });
@@ -173,11 +172,18 @@ export class PreviewController {
                 await this.renderMarkdown();
             },
             onCopy: async () => {
-                await this.copyWithImageUpload();
-                if (this.currentAppId) {
+                const result = await this.copyWithImageUpload();
+                if (result?.uploaded) {
                     new Notice('复制成功，图片已上传到微信服务器，请到公众号编辑器粘贴。');
                 } else {
-                    new Notice('复制成功，未配置公众号，图片未上传。');
+
+                    if (result?.reason === 'no-appid') {
+                        new Notice('复制成功，未配置公众号，图片未上传。');
+                    } else if (result?.reason === 'backend' || result?.reason === 'token') {
+                        new Notice('复制成功，仅复制内容，未上传图片（后端未连接或认证失败）。');
+                    } else {
+                        new Notice('复制成功，仅复制内容，未上传图片。');
+                    }
                 }
             },
             onPost: async () => {
@@ -279,11 +285,24 @@ export class PreviewController {
             return;
         }
 
+        if (this.backendAvailable === false) {
+            const now = Date.now();
+            if (now - this.lastBackendFailureAt < 5000) {
+                this.status.showError('后端服务未启动，无法上传图片。', 4000);
+                new Notice('未检测到后端服务，请先启动后端后再试。');
+                return;
+            }
+            this.backendAvailable = null;
+        }
+
         this.status.showUploading('图片上传中...');
         try {
             await this.render.uploadImages(this.currentAppId);
+            this.backendAvailable = true;
             this.status.showSuccess('图片上传成功，图片链接已更新', 3000);
         } catch (error) {
+
+            this.notifyBackendUnavailable(error);
 
             const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -312,11 +331,24 @@ export class PreviewController {
             return;
         }
 
+        if (this.backendAvailable === false) {
+            const now = Date.now();
+            if (now - this.lastBackendFailureAt < 5000) {
+                this.status.showError('后端服务未启动，暂无法发草稿。', 4000);
+                new Notice('未检测到后端服务，请先启动后端后再试。');
+                return;
+            }
+            this.backendAvailable = null;
+        }
+
         this.status.showProcessing('发布中...');
         try {
             await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
+            this.backendAvailable = true;
             this.status.showSuccess('发布成功', 3000);
         } catch (error) {
+
+            this.notifyBackendUnavailable(error);
 
             const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -339,22 +371,46 @@ export class PreviewController {
         }
     }
 
-    async copyWithImageUpload() {
+    async copyWithImageUpload(): Promise<{ uploaded: boolean; reason?: 'no-appid' | 'backend' | 'token' | 'none' }> {
 
         if (!this.currentAppId) {
             this.status.showWarning('请先选择公众号', 3000);
             await this.copyWithoutImageUpload();
-            return;
+            return { uploaded: false, reason: 'no-appid' };
+        }
+
+        if (this.backendAvailable === false) {
+            const now = Date.now();
+            if (now - this.lastBackendFailureAt < 5000) {
+                this.status.showWarning('后端服务未启动，直接复制本地内容。', 4000);
+                await this.copyWithoutImageUpload();
+                return { uploaded: false, reason: 'backend' };
+            }
+            this.backendAvailable = null;
+        }
+
+        this.status.showProcessing('正在获取微信访问令牌...');
+
+        let token: string;
+        try {
+            token = await this.render.getToken(this.currentAppId);
+            this.backendAvailable = true;
+        } catch (error) {
+
+            const message = error instanceof Error ? error.message : String(error);
+            this.status.showError(message || '无法获取访问令牌', 5000);
+            this.notifyBackendUnavailable(error, { suppressNotice: true });
+            await this.copyWithoutImageUpload();
+            return { uploaded: false, reason: 'token' };
+        }
+
+        if (!token) {
+            this.status.showError('Token获取失败，图片未上传到公众号', 5000);
+            await this.copyWithoutImageUpload();
+            return { uploaded: false, reason: 'token' };
         }
 
         this.status.showProcessing('处理图片...');
-
-        const token = await this.render.getToken(this.currentAppId);
-        if (!token) {
-            this.status.showError('Token获取失败，图片未上传。请检查公众号配置', 5000);
-            await this.copyWithoutImageUpload();
-            return;
-        }
 
         this.status.showUploading('检测本地图片...');
         const lm = LocalImageManager.getInstance();
@@ -363,6 +419,7 @@ export class PreviewController {
             const image = (lm as any).images.get(key);
             return image && image.url == null && image.filePath;
         });
+        let didUpload = false;
 
         if (localImages.length > 0) {
 
@@ -404,24 +461,19 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
 
                     if (uploadRes.errcode === 0 && uploadRes.media_id) {
                         const mediaId = uploadRes.media_id;
-
                         imageInfo.url = uploadRes.url || `https://mmbiz.qlogo.cn/mmbiz_png/${mediaId}/0?wx_fmt=png`;
                         imageInfo.media_id = mediaId;
-
-                    } else {
-                        const error = uploadRes.errmsg || '未知错误';
-
+                        didUpload = true;
                     }
                 } catch (error) {
+
+                    this.notifyBackendUnavailable(error, { suppressNotice: true });
 
                 }
             }
 
             this.status.showProcessing('替换图片链接...');
-
             lm.replaceImages(this.content.getElements().articleDiv);
-        } else {
-
         }
 
         this.status.showCopying('复制到剪贴板...');
@@ -433,20 +485,28 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
             
             await this.render.copyArticle();
-            this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
-
+            if (didUpload) {
+                this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
+            } else {
+                this.status.showSuccess('复制成功', 2000);
+            }
         } catch (error) {
 
             try {
                 await this.fallbackCopyToClipboard();
-                this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
-
+                if (didUpload) {
+                    this.status.showSuccess('复制成功，图片已上传到微信服务器', 2000);
+                } else {
+                    this.status.showSuccess('复制成功', 2000);
+                }
             } catch (fallbackError) {
 
                 this.status.hideMessage();
                 throw new Error('复制失败：请确保浏览器窗口处于活动状态，然后重试');
             }
         }
+
+        return { uploaded: didUpload, reason: 'none' };
     }
 
     // V2风格的图片上传和草稿创建
@@ -468,12 +528,6 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         this.status.showProcessing('检查草稿状态...');
         const draftStatus = await this.shouldUpdateDraft(token);
         const isUpdate = draftStatus.shouldUpdate;
-        
-        if (isUpdate) {
-
-        } else {
-
-        }
 
         this.status.showUploading('检测本地图片...');
         const lm = LocalImageManager.getInstance();
@@ -515,10 +569,8 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                     
                     if (uploadRes.errcode === 0 && uploadRes.media_id) {
                         const mediaId = uploadRes.media_id;
-
                         imageInfo.url = uploadRes.url || `https://mmbiz.qlogo.cn/mmbiz_png/${mediaId}/0?wx_fmt=png`;
                         imageInfo.media_id = mediaId;
-
                     } else {
                         const error = uploadRes.errmsg || '未知错误';
 
@@ -529,10 +581,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
             
             this.status.showProcessing('替换图片链接...');
-
             lm.replaceImages(this.content.getElements().articleDiv);
-        } else {
-
         }
 
         this.status.showUploading('处理封面...');
@@ -555,13 +604,9 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 throw new Error('封面上传失败: ' + coverRes.errmsg);
             }
         } else {
-
             mediaId = await this.render.getDefaultCover(token);
             if (!mediaId) {
-
                 throw new Error('无法获取封面图片，请手动选择一张封面图片或确保微信素材库中有图片');
-            } else {
-
             }
         }
 
@@ -628,12 +673,6 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             const operation = isUpdate ? '更新' : '创建';
             throw new Error(`${operation}草稿失败: ` + (draftRes.errmsg || '未知错误'));
         }
-
-        if (isUpdate) {
-
-        } else {
-
-        }
     }
 
     private async shouldUpdateDraft(token: string): Promise<{ shouldUpdate: boolean; media_id?: string; index: number }> {
@@ -651,26 +690,22 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             const draftsRes = await wechatClient.getDraftList(token, 0, 20);
 
             if (draftsRes.total_count && draftsRes.total_count > 0 && draftsRes.item && draftsRes.item.length > 0) {
-
                 for (let i = 0; i < draftsRes.item.length; i++) {
                     const draft = draftsRes.item[i];
                     const draftTitle = draft.content?.news_item?.[0]?.title || '';
-                    console.log(`  - 草稿${i + 1}: "${draftTitle}" (ID: ${draft.media_id})`);
-                    
-                    if (draftTitle && draftTitle === currentTitle) {
 
-                        return { 
-                            shouldUpdate: true, 
-                            media_id: draft.media_id, 
+                    if (draftTitle && draftTitle === currentTitle) {
+                        return {
+                            shouldUpdate: true,
+                            media_id: draft.media_id,
                             index: 0
                         };
                     }
                 }
-
             }
 
             return { shouldUpdate: false, index: 0 };
-            
+
         } catch (error) {
 
             return { shouldUpdate: false, index: 0 };
@@ -728,38 +763,53 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
                 const line = lines[i].trim();
                 if (line.startsWith('## ')) {
                     const title = line.replace('## ', '').trim();
-
                     return title;
                 }
             }
-            
+
             for (let i = imageLineIndex; i >= 0; i--) {
                 const line = lines[i].trim();
                 if (line.startsWith('# ') && !line.startsWith('## ')) {
                     const title = line.replace('# ', '').trim();
-
                     return title;
                 }
             }
-            
+
             return '';
         } catch (error) {
-
             return '';
         }
     }
 
     private async fallbackCopyToClipboard(): Promise<void> {
+        // 1) 优先尝试Electron剪贴板（可复制HTML+纯文本）
+        try {
+            const html = this.render.getArticleContent();
+            const text = this.render.getArticleText();
+            const w = window as any;
+            const electron = w?.require ? w.require('electron') : undefined;
+            const electronClipboard = electron?.clipboard;
+            if (electronClipboard && typeof electronClipboard.write === 'function') {
+                electronClipboard.write({ html, text });
+                return;
+            }
+        } catch (e) {
 
+        }
+
+        // 2) 使用纯文本降级复制（execCommand）
         const textarea = document.createElement('textarea');
-        textarea.value = this.render.getArticleContent();
+        textarea.value = this.render.getArticleText();
         textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
         textarea.style.opacity = '0';
         textarea.style.pointerEvents = 'none';
         
         document.body.appendChild(textarea);
         
         try {
+            textarea.focus();
             textarea.select();
             textarea.setSelectionRange(0, textarea.value.length);
             
@@ -773,7 +823,7 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
     }
 
     private async copyWithoutImageUpload() {
-        this.status.showCopying('复制到剪贴板...');
+        this.status.showCopying('复制到剪贴板中...');
         
         try {
             if (document.hasFocus && !document.hasFocus()) {
@@ -782,18 +832,18 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             }
             
             await this.render.copyArticle();
-            this.status.showSuccess('复制成功（未上传图片）', 2000);
-
+            this.status.showSuccess('复制成功，未上传图片到公众号', 2000);
         } catch (error) {
 
             try {
                 await this.fallbackCopyToClipboard();
-                this.status.showSuccess('复制成功（未上传图片）', 2000);
-
+                this.status.showSuccess('复制成功，未上传图片到公众号', 2000);
             } catch (fallbackError) {
 
                 this.status.hideMessage();
-                throw new Error('复制失败：请确保浏览器窗口处于活动状态，然后重试');
+                this.status.showError('复制失败，请确认窗口处于活动状态后重试。', 4000);
+                new Notice('复制失败，请确认Obsidian窗口处于活动状态后重试。');
+                throw new Error('复制失败，请确认Obsidian窗口处于活动状态后重试。');
             }
         }
     }
@@ -819,13 +869,17 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
 
         try {
             for (let file of files) {
+
+                if (!(file instanceof TFile)) {
+                    continue;
+                }
                 this.showLoading(`即将发布: ${file.name}`, true);
                 await new Promise(resolve => setTimeout(resolve, 5000));
                 if (this.isCancelUpload) {
                     break;
                 }
                 this.cleanArticleData();
-                await this.renderMarkdown(file as TFile);
+                await this.renderMarkdown(file);
                 await this.postArticle();
             }
 
@@ -839,6 +893,36 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
             this.isBatchRuning = false;
             this.isCancelUpload = false;
         }
+    }
+
+    private notifyBackendUnavailable(error: unknown, options?: { suppressNotice?: boolean }): boolean {
+        const message = error instanceof Error ? error.message : String(error);
+        const keywords = [
+            '无法连接到服务器',
+            '后端服务未启动',
+            'Failed to fetch',
+            'NetworkError',
+            'CORS',
+            'fetch failed',
+            '可能的CORS问题原因'
+        ];
+        const matched = keywords.some(keyword => message.includes(keyword));
+
+        if (matched) {
+            this.backendAvailable = false;
+            const now = Date.now();
+            this.lastBackendFailureAt = now;
+            if (now - this.lastBackendNoticeAt > 3000) {
+                this.lastBackendNoticeAt = now;
+
+                this.status.showError('后端服务未启动或无法连接。已切换为“仅复制”模式。', 6000);
+                if (!options?.suppressNotice) {
+                    new Notice('未检测到后端服务，请先启动本地服务或检查网络连接。');
+                }
+            }
+        }
+
+        return matched;
     }
 
     getCurrentAppId(): string {

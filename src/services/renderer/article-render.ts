@@ -394,9 +394,11 @@ export class ArticleRender implements MDRendererCallback {
     else {
       fileName = name;
     }
+
     const vault = this.app.vault;
-    const file = this.assetsManager.searchFile(fileName) as TFile;
-    if (!file) {
+    const file = this.assetsManager.searchFile(fileName);
+
+    if (!file || !(file instanceof TFile)) {
       throw new Error('找不到封面文件: ' + fileName);
     }
     const fileData = await vault.readBinary(file);
@@ -524,10 +526,120 @@ export class ArticleRender implements MDRendererCallback {
   }
 
   async copyArticle() {
-    const content = this.getArticleContent();
-    await navigator.clipboard.write([new ClipboardItem({
-      'text/html': new Blob([content], { type: 'text/html' })
-    })])
+    const htmlContent = this.getArticleContent();
+    const plainText = this.getArticleText();
+
+    if (!htmlContent) {
+      throw new Error('暂无可复制的内容');
+    }
+
+    try {
+      const w = window as any;
+      const electron = w?.require ? w.require('electron') : undefined;
+      const electronClipboard = electron?.clipboard;
+      if (electronClipboard && typeof electronClipboard.write === 'function') {
+        electronClipboard.write({ html: htmlContent, text: plainText });
+        return;
+      }
+    } catch (e) {
+
+    }
+
+    // Web剪贴板API方案
+    const clipboard = navigator.clipboard;
+    const canUseClipboardItem = typeof ClipboardItem !== 'undefined';
+
+    if (clipboard && canUseClipboardItem && window.isSecureContext) {
+      try {
+
+        if (document.hasFocus && !document.hasFocus()) {
+          window.focus();
+          await new Promise((r) => setTimeout(r, 120));
+        }
+
+        await clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([htmlContent], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' })
+          })
+        ]);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
+
+        } else if (error instanceof Error && error.message.includes('Document is not focused')) {
+
+        } else {
+
+        }
+      }
+    }
+
+    if (this.copyArticleWithExecCommand(htmlContent, plainText)) {
+      return;
+    }
+
+    throw new Error('剪贴板复制失败：请确认Obsidian窗口处于活动状态后重试。');
+  }
+
+  private copyArticleWithExecCommand(htmlContent: string, plainText: string): boolean {
+    try {
+      const selection = window.getSelection();
+      if (!selection) {
+        return false;
+      }
+
+      const container = document.createElement('div');
+      container.innerHTML = htmlContent;
+      container.contentEditable = 'true';
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.opacity = '0';
+      container.style.pointerEvents = 'none';
+      container.style.userSelect = 'text';
+
+      document.body.appendChild(container);
+
+      const range = document.createRange();
+      range.selectNodeContents(container);
+
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      (container as any).focus?.();
+
+      let successful = document.execCommand('copy');
+
+      selection.removeAllRanges();
+      document.body.removeChild(container);
+
+      if (successful) {
+        return true;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = plainText;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+
+      document.body.appendChild(textarea);
+
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      successful = document.execCommand('copy');
+
+      document.body.removeChild(textarea);
+
+      return successful;
+    } catch (error) {
+
+      return false;
+    }
   }
 
   getSecret(appid: string) {
@@ -683,6 +795,7 @@ export class ArticleRender implements MDRendererCallback {
       const img = document.createElement('img');
       img.id = `img-${id}`;
       img.src = pngDataUrl;
+      // Mermaid图像宽度需要基于SVG动态计算，保留内联样式
       img.style.width = `${svg.clientWidth}px`;
       img.style.height = 'auto';
 

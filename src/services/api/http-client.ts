@@ -118,7 +118,9 @@ export class HttpClient {
           headers: Object.fromEntries(response.headers.entries()),
           url: response.url
         };
+        if (BACKEND_CONFIG.DEBUG) {
 
+        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -132,33 +134,53 @@ export class HttpClient {
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
+      const lower = (errorMsg || '').toLowerCase();
 
-      console.error(`❌ ${method} ${endpoint} 失败:`, {
-        error: errorMsg,
-        errorType: error.constructor.name,
-        stack: error instanceof Error ? error.stack : undefined,
-        url: this.buildUrl(endpoint, params),
-        method,
-        timestamp: new Date().toISOString()
-      });
-
-      if (errorMsg.includes('CORS') || errorMsg.includes('fetch')) {
-        console.error(`🚫 CORS错误详细信息:`, {
-          message: '可能的CORS问题原因:',
-          reasons: [
-            '1. 后端服务未启动或无法访问',
-            '2. 后端CORS配置不正确',
-            '3. 预检请求(OPTIONS)失败',
-            '4. Access-Control-Allow-Origin头缺失',
-            '5. 请求头被拒绝'
-          ],
-          suggestions: [
-            '检查后端服务是否运行在 localhost:8000',
-            '验证后端CORS配置是否包含 app://obsidian.md',
-            '确认API密钥是否正确',
-            '检查网络连接'
-          ]
+      if (BACKEND_CONFIG.DEBUG) {
+        console.error(`❌ ${method} ${endpoint} 失败:`, {
+          error: errorMsg,
+          errorType: (error as any)?.name || error.constructor.name,
+          stack: error instanceof Error ? error.stack : undefined,
+          url: this.buildUrl(endpoint, params),
+          method,
+          timestamp: new Date().toISOString()
         });
+      }
+
+      const isTimeout = lower.includes('aborted') || lower.includes('timeout');
+      const isBackendDown = lower.includes('failed to fetch')
+        || lower.includes('networkerror')
+        || lower.includes('err_connection_refused')
+        || lower.includes('connection refused');
+
+      if (isBackendDown) {
+        const friendly = '无法连接到服务器，请确认后端服务已启动（如：http://localhost:8000）。';
+        return { success: false, error: friendly };
+      }
+
+      if (isTimeout) {
+        return { success: false, error: '请求超时，请检查网络连接或稍后重试。' };
+      }
+
+      if (errorMsg.includes('CORS') && !lower.includes('failed to fetch')) {
+        if (BACKEND_CONFIG.DEBUG) {
+          console.error(`🚫 CORS错误详细信息:`, {
+            message: '可能的CORS问题原因:',
+            reasons: [
+              '1. 后端服务未启动或无法访问',
+              '2. 后端CORS配置不正确',
+              '3. 预检请求(OPTIONS)失败',
+              '4. Access-Control-Allow-Origin头缺失',
+              '5. 请求头被拒绝'
+            ],
+            suggestions: [
+              '检查后端服务是否运行在 localhost:8000',
+              '验证后端CORS配置是否包含 app://obsidian.md',
+              '确认API密钥是否正确',
+              '检查网络连接'
+            ]
+          });
+        }
       }
 
       return {

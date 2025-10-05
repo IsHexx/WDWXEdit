@@ -16,8 +16,7 @@ export class PreviewStatus {
 
     private build() {
 
-        this.statusContainer = this.parent.createDiv({ cls: 'preview-status' });
-        this.statusContainer.style.display = 'none';
+        this.statusContainer = this.parent.createDiv({ cls: 'preview-status hidden' });
 
         this.statusIcon = this.statusContainer.createDiv({ cls: 'status-icon' });
 
@@ -73,9 +72,12 @@ export class PreviewStatus {
         this.updateIcon(type);
 
         this.statusContainer.className = `preview-status status-${type}`;
-        this.statusContainer.style.display = 'flex';
+        this.statusContainer.removeClass('hidden');
 
-        if (type !== 'loading' && duration) {
+        const showProgress = type === 'loading' || type === 'upload' || type === 'processing';
+        this.showProgress(showProgress);
+
+        if (!showProgress && duration) {
             this.hideTimeout = setTimeout(() => {
                 this.hideMessage();
             }, duration) as NodeJS.Timeout;
@@ -84,7 +86,7 @@ export class PreviewStatus {
 
     private updateIcon(type: string) {
         let iconSvg = '';
-        
+
         switch (type) {
             case 'info':
                 iconSvg = `
@@ -161,21 +163,25 @@ export class PreviewStatus {
                 break;
         }
 
-        this.statusIcon.innerHTML = iconSvg;
+        this.statusIcon.empty();
+        this.statusIcon.appendChild(document.createRange().createContextualFragment(iconSvg));
     }
 
     private showProgress(show: boolean) {
-        this.progressBar.style.display = show ? 'block' : 'none';
-        
         if (show) {
+            this.progressBar.removeClass('hidden');
 
-            this.progressBar.innerHTML = '<div class="progress-bar-fill"></div>';
+            this.progressBar.empty();
+            this.progressBar.createDiv({ cls: 'progress-bar-fill' });
+        } else {
+            this.progressBar.addClass('hidden');
         }
     }
 
     updateProgress(percent: number) {
         const progressFill = this.progressBar.querySelector('.progress-bar-fill') as HTMLElement;
         if (progressFill) {
+
             progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
         }
     }
@@ -186,12 +192,12 @@ export class PreviewStatus {
             this.hideTimeout = undefined;
         }
 
-        this.statusContainer.style.display = 'none';
+        this.statusContainer.addClass('hidden');
         this.showProgress(false);
     }
 
     isVisible(): boolean {
-        return this.statusContainer.style.display !== 'none';
+        return !this.statusContainer.hasClass('hidden');
     }
 
     getCurrentMessage(): string {
@@ -216,12 +222,13 @@ export class PreviewStatus {
 
     addCloseButton() {
         const closeBtn = this.statusContainer.createDiv({ cls: 'status-close' });
-        closeBtn.innerHTML = `
+        const closeSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
         `;
+        closeBtn.appendChild(document.createRange().createContextualFragment(closeSvg));
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             this.hideMessage();

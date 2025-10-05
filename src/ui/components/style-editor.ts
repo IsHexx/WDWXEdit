@@ -48,12 +48,12 @@ export class StyleEditor {
 
         this.createContentArea();
     }
-    
+
     private createTitleBar(): void {
         const titleBar = this.container.createDiv({ cls: 'style-editor-header' });
 
         const toggleButton = titleBar.createEl('button', { cls: 'style-editor-toggle' });
-        toggleButton.innerHTML = this.isCollapsed ? '▶' : '▼';
+        toggleButton.textContent = this.isCollapsed ? '▶' : '▼';
 
         const title = titleBar.createEl('span', { cls: 'style-editor-title', text: '样式编辑器' });
 
@@ -67,13 +67,13 @@ export class StyleEditor {
             }
         };
     }
-    
+
     private createContentArea(): void {
         this.contentDiv = this.container.createDiv({ cls: 'style-editor-content' });
         if (this.isCollapsed) {
-            this.contentDiv.style.display = 'none';
+            this.contentDiv.addClass('hidden');
         }
-        
+
         this.createV2StyleOptionsLayout();
     }
     
@@ -178,7 +178,6 @@ export class StyleEditor {
         sizeSelect.onchange = () => {
             const fontSize = sizeSelect.value; // 直接使用value值（如 "16px", "22px"）
             this.settings.fontSize = fontSize;
-
             if (this.events.onFontSizeChanged) {
                 this.events.onFontSizeChanged(fontSize);
             }
@@ -226,9 +225,9 @@ export class StyleEditor {
         colorInput.value = this.settings.primaryColor || '#2d3748';
 
         if (isCustomColor && this.settings.primaryColor) {
-            colorInputWrapper.style.display = 'inline-block';
+            colorInputWrapper.removeClass('hidden');
         } else {
-            colorInputWrapper.style.display = 'none';
+            colorInputWrapper.addClass('hidden');
         }
 
         colorSelect.onchange = () => {
@@ -236,7 +235,7 @@ export class StyleEditor {
 
             if (selectedValue === 'custom') {
 
-                colorInputWrapper.style.display = 'inline-block';
+                colorInputWrapper.removeClass('hidden');
 
                 const customColor = colorInput.value;
                 this.settings.primaryColor = customColor;
@@ -246,7 +245,7 @@ export class StyleEditor {
                 }
             } else {
 
-                colorInputWrapper.style.display = 'none';
+                colorInputWrapper.addClass('hidden');
                 this.settings.primaryColor = selectedValue;
                 if (this.events.onPrimaryColorChanged) {
                     this.events.onPrimaryColorChanged(selectedValue);
@@ -284,19 +283,19 @@ export class StyleEditor {
             }, 500); // 500ms防抖
         };
     }
-    
+
     private toggleCollapse(): void {
         this.isCollapsed = !this.isCollapsed;
-        
+
         const toggleButton = this.container.querySelector('.style-editor-toggle') as HTMLButtonElement;
         const contentDiv = this.container.querySelector('.style-editor-content') as HTMLDivElement;
-        
+
         if (this.isCollapsed) {
-            toggleButton.innerHTML = '▶';
-            contentDiv.style.display = 'none';
+            toggleButton.textContent = '▶';
+            contentDiv.addClass('hidden');
         } else {
-            toggleButton.innerHTML = '▼';
-            contentDiv.style.display = 'block';
+            toggleButton.textContent = '▼';
+            contentDiv.removeClass('hidden');
         }
     }
 
@@ -395,6 +394,14 @@ export class StyleEditor {
             .color-input-wrapper {
                 display: inline-block;
                 margin-left: 4px;
+            }
+
+            .color-input-wrapper.hidden {
+                display: none;
+            }
+
+            .style-editor-content.hidden {
+                display: none;
             }
 
             .custom-color-input {
@@ -605,8 +612,6 @@ export class StyleEditor {
         primaryColor?: string,
         customCSS?: string
     ): void {
-        console.log('🔄 更新样式编辑器UI:', { theme, highlight, font, fontSize, primaryColor, customCSS: customCSS?.substring(0, 50) });
-
         const contentDiv = this.container.querySelector('.style-editor-content');
         if (!contentDiv) return;
 
@@ -615,20 +620,17 @@ export class StyleEditor {
         const themeSelect = dropdownGroups[0]?.querySelector('select') as HTMLSelectElement;
         if (themeSelect) {
             themeSelect.value = theme;
-
         }
 
         const highlightSelect = dropdownGroups[1]?.querySelector('select') as HTMLSelectElement;
         if (highlightSelect) {
             highlightSelect.value = highlight;
-
         }
 
         if (font !== undefined) {
             const fontSelect = dropdownGroups[2]?.querySelector('select') as HTMLSelectElement;
             if (fontSelect) {
                 fontSelect.value = font;
-
             }
         }
 
@@ -636,7 +638,6 @@ export class StyleEditor {
             const fontSizeSelect = dropdownGroups[3]?.querySelector('select') as HTMLSelectElement;
             if (fontSizeSelect) {
                 fontSizeSelect.value = fontSize;
-
             }
         }
 
@@ -653,7 +654,7 @@ export class StyleEditor {
 
                     colorSelect.value = primaryColor;
                     if (colorInputWrapper) {
-                        colorInputWrapper.style.display = 'none';
+                        colorInputWrapper.addClass('hidden');
                     }
                 } else {
 
@@ -663,7 +664,7 @@ export class StyleEditor {
                         customOption.text = `自定义 (${primaryColor})`;
                     }
                     if (colorInputWrapper) {
-                        colorInputWrapper.style.display = 'inline-block';
+                        colorInputWrapper.removeClass('hidden');
                     }
                 }
             }
@@ -671,14 +672,12 @@ export class StyleEditor {
             if (colorInput) {
                 colorInput.value = primaryColor;
             }
-
         }
 
         if (customCSS !== undefined) {
             const cssTextarea = contentDiv.querySelector('textarea.style-editor-css-textarea') as HTMLTextAreaElement;
             if (cssTextarea) {
                 cssTextarea.value = customCSS;
-
             }
         }
     }

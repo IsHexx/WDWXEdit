@@ -130,18 +130,16 @@ export class PreviewToolbar {
         uploadLabel.setAttr('for', 'local-cover-h');
         uploadLabel.innerText = '上传';
 
-        const fileUploadContainer = radioGroup.createDiv({ cls: 'file-upload-container' });
-        fileUploadContainer.style.display = 'none';
-        
+        const fileUploadContainer = radioGroup.createDiv({ cls: 'file-upload-container hidden' });
+
         const uploadButton = fileUploadContainer.createEl('button', { cls: 'file-upload-btn' });
         uploadButton.type = 'button';
         uploadButton.innerText = '选择文件';
-        
-        this.coverEl = fileUploadContainer.createEl('input', { cls: 'file-input-hidden' });
+
+        this.coverEl = fileUploadContainer.createEl('input', { cls: 'file-input-hidden hidden' });
         this.coverEl.setAttr('type', 'file');
         this.coverEl.setAttr('accept', '.png, .jpg, .jpeg');
         this.coverEl.setAttr('name', 'cover');
-        this.coverEl.style.display = 'none';
         this.coverEl.id = 'cover-input';
         
         uploadButton.onclick = () => {
@@ -161,7 +159,7 @@ export class PreviewToolbar {
         const buttonContainer = parent.createDiv({ cls: 'action-buttons' });
 
         const refreshBtn = buttonContainer.createEl('button', { cls: 'action-button' });
-        refreshBtn.innerHTML = `
+        const refreshSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
                 <path d="M21 3v5h-5"/>
@@ -169,6 +167,7 @@ export class PreviewToolbar {
                 <path d="M3 21v-5h5"/>
             </svg>
         `;
+        refreshBtn.appendChild(document.createRange().createContextualFragment(refreshSvg));
         refreshBtn.setAttr('title', '刷新');
         refreshBtn.onclick = async () => {
             await this.handlers.onRefresh();
@@ -178,12 +177,13 @@ export class PreviewToolbar {
         if (Platform.isDesktop) {
 
             const copyBtn = buttonContainer.createEl('button', { cls: 'action-button' });
-            copyBtn.innerHTML = `
+            const copySvg = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
             `;
+            copyBtn.appendChild(document.createRange().createContextualFragment(copySvg));
             copyBtn.setAttr('title', '复制');
             copyBtn.onclick = async () => {
                 try {
@@ -196,12 +196,13 @@ export class PreviewToolbar {
         }
 
         const postBtn = buttonContainer.createEl('button', { cls: 'action-button' });
-        postBtn.innerHTML = `
+        const postSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/>
                 <path d="M21.854 2.147 10.61 13.39"/>
             </svg>
         `;
+        postBtn.appendChild(document.createRange().createContextualFragment(postSvg));
         postBtn.setAttr('title', '发草稿');
         postBtn.onclick = async () => {
             await this.handlers.onPost();
@@ -209,13 +210,14 @@ export class PreviewToolbar {
         };
 
         const uploadBtn = buttonContainer.createEl('button', { cls: 'action-button upload-btn' });
-        uploadBtn.innerHTML = `
+        const uploadSvg = `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7,10 12,5 17,10"/>
                 <line x1="12" y1="5" x2="12" y2="15"/>
             </svg>
         `;
+        uploadBtn.appendChild(document.createRange().createContextualFragment(uploadSvg));
         uploadBtn.setAttr('title', '上传图片');
         uploadBtn.onclick = async () => {
             await this.handlers.onUpload();
@@ -242,7 +244,11 @@ export class PreviewToolbar {
     private toggleCoverUpload(showUpload: boolean): void {
         const fileUploadContainer = this.toolbar.querySelector('.file-upload-container') as HTMLDivElement;
         if (fileUploadContainer) {
-            fileUploadContainer.style.display = showUpload ? 'flex' : 'none';
+            if (showUpload) {
+                fileUploadContainer.removeClass('hidden');
+            } else {
+                fileUploadContainer.addClass('hidden');
+            }
         }
     }
 

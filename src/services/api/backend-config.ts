@@ -26,7 +26,7 @@ export const BACKEND_CONFIG = {
   MAX_RETRIES: 3,
   USE_BACKEND_PROXY: true,
   HEALTH_CHECK_INTERVAL: 60000,
-  DEBUG: true
+  DEBUG: false
 } as const;
 
 /**

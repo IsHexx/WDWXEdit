@@ -62,9 +62,7 @@ export class PreviewView extends ItemView {
 
     async forceRefresh(): Promise<void> {
         try {
-
             await this.controller.onRefresh();
-
         } catch (error) {
 
         }

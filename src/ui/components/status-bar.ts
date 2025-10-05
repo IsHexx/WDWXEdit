@@ -17,8 +17,7 @@ export class StatusBar {
     }
 
     private init(): void {
-        this.statusBar = this.container.createDiv({ cls: 'wdwx-status-bar' });
-        this.statusBar.setAttr('style', 'display: none;');
+        this.statusBar = this.container.createDiv({ cls: 'wdwx-status-bar hidden' });
     }
 
     showMessage(message: StatusMessage): void {
@@ -34,16 +33,16 @@ export class StatusBar {
         const messageContent = this.statusBar.createDiv({ cls: 'status-content' });
 
         const icon = messageContent.createSpan({ cls: 'status-icon' });
-        icon.innerHTML = this.getIconForType(message.type);
+        icon.textContent = this.getIconForType(message.type);
 
         const text = messageContent.createSpan({ cls: 'status-text' });
         text.textContent = message.message;
 
         const closeBtn = messageContent.createSpan({ cls: 'status-close' });
-        closeBtn.innerHTML = '×';
+        closeBtn.textContent = '×';
         closeBtn.onclick = () => this.hideMessage();
 
-        this.statusBar.setAttr('style', 'display: block;');
+        this.statusBar.removeClass('hidden');
     }
 
     showInfo(message: string): void {
@@ -64,10 +63,11 @@ export class StatusBar {
 
     showProgress(message: string, progress?: number): void {
         this.showMessage({ type: 'info', message });
-        
+
         if (typeof progress === 'number') {
             const progressBar = this.statusBar.createDiv({ cls: 'status-progress' });
             const progressFill = progressBar.createDiv({ cls: 'status-progress-fill' });
+
             progressFill.setAttr('style', `width: ${Math.min(100, Math.max(0, progress))}%`);
         }
     }
@@ -75,12 +75,13 @@ export class StatusBar {
     updateProgress(progress: number): void {
         const progressFill = this.statusBar.querySelector('.status-progress-fill') as HTMLElement;
         if (progressFill) {
+
             progressFill.setAttr('style', `width: ${Math.min(100, Math.max(0, progress))}%`);
         }
     }
 
     hideMessage(): void {
-        this.statusBar.setAttr('style', 'display: none;');
+        this.statusBar.addClass('hidden');
         this.currentMessage = null;
         if (this.autoHideTimer) {
             clearTimeout(this.autoHideTimer);
