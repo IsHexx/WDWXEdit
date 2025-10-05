@@ -42,6 +42,12 @@ pids
 # Internal documentation
 REFACTORING_SUMMARY.md
 CLAUDE.md
+CHANGELOG.md
+README_UPDATED.md
+RELEASE_CHECKLIST.md
+convert_to_png.py
+convert-svg-to-png.js
+debug.png
 
 # Claude Code ADD: 部署和同步配置文件（仅用于本地开发）
 deploy.py
