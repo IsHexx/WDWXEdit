@@ -177,9 +177,8 @@ export class WxSettingTab extends PluginSettingTab {
 
 		this.wxInfo = this.parseWXInfo();
 
-		const helpEl = containerEl.createEl('div');
-		helpEl.style.cssText = 'display: flex;flex-direction: row;align-items: center;';
-		helpEl.createEl('h2', {text: '帮助文档'}).style.cssText = 'margin-right: 10px;';
+		const helpEl = containerEl.createEl('div', { cls: 'wdwx-setting-help' });
+		helpEl.createEl('h2', {text: '帮助文档', cls: 'wdwx-setting-help__title'});
 		helpEl.createEl('a', {text: 'https://github.com/IsHexx/WDWXEdit', attr: {href: 'https://github.com/IsHexx/WDWXEdit'}});
 
 		// ==================== 主题与样式设置 ====================
@@ -286,13 +285,13 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('主题色')
 			.setDesc('设置文章主题色')
 			.addText(text => {
-				text.setPlaceholder('#2d3748')
-					.setValue(this.settings.primaryColor)
-					.onChange(async (value) => {
-						this.settings.primaryColor = value.trim();
-						await this.plugin.saveSettings();
-					})
-					.inputEl.setAttr('style', 'width: 120px;')
+				text.setPlaceholder('#2d3748');
+				text.setValue(this.settings.primaryColor);
+				text.onChange(async (value) => {
+					this.settings.primaryColor = value.trim();
+					await this.plugin.saveSettings();
+				});
+				text.inputEl.classList.add('wdwx-setting-input-sm');
 			});
 
 		// ==================== 内容渲染设置 ====================
@@ -411,13 +410,13 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('水印图片')
 			.setDesc('输入vault中的图片文件名')
 			.addText(text => {
-			    text.setPlaceholder('请输入图片名称')
-					.setValue(this.settings.watermark)
-					.onChange(async (value) => {
-					  this.settings.watermark = value.trim();
-						await this.plugin.saveSettings();
-					})
-					.inputEl.setAttr('style', 'width: 320px;')
+				text.setPlaceholder('请输入图片名称');
+				text.setValue(this.settings.watermark);
+				text.onChange(async (value) => {
+				  this.settings.watermark = value.trim();
+					await this.plugin.saveSettings();
+				});
+				text.inputEl.classList.add('wdwx-setting-input-md');
 			});
 
 		new Setting(containerEl)
@@ -435,32 +434,32 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('图片压缩质量')
 			.setDesc('压缩质量（0.1-1.0），数值越高质量越好但文件越大')
 			.addText(text => {
-				text.setPlaceholder('0.9')
-					.setValue(String(this.settings.imageQuality))
-					.onChange(async (value) => {
-						const quality = parseFloat(value);
-						if (!isNaN(quality) && quality >= 0.1 && quality <= 1.0) {
-							this.settings.imageQuality = quality;
-							await this.plugin.saveSettings();
-						}
-					})
-					.inputEl.setAttr('style', 'width: 120px;')
+				text.setPlaceholder('0.9');
+				text.setValue(String(this.settings.imageQuality));
+				text.onChange(async (value) => {
+					const quality = parseFloat(value);
+					if (!isNaN(quality) && quality >= 0.1 && quality <= 1.0) {
+						this.settings.imageQuality = quality;
+						await this.plugin.saveSettings();
+					}
+				});
+				text.inputEl.classList.add('wdwx-setting-input-sm');
 			});
 
 		new Setting(containerEl)
 			.setName('图片最大宽度')
 			.setDesc('图片最大宽度限制（像素）')
 			.addText(text => {
-				text.setPlaceholder('1200')
-					.setValue(String(this.settings.imageMaxWidth))
-					.onChange(async (value) => {
-						const width = parseInt(value);
-						if (!isNaN(width) && width > 0) {
-							this.settings.imageMaxWidth = width;
-							await this.plugin.saveSettings();
-						}
-					})
-					.inputEl.setAttr('style', 'width: 120px;')
+				text.setPlaceholder('1200');
+				text.setValue(String(this.settings.imageMaxWidth));
+				text.onChange(async (value) => {
+					const width = parseInt(value);
+					if (!isNaN(width) && width > 0) {
+						this.settings.imageMaxWidth = width;
+						await this.plugin.saveSettings();
+					}
+				});
+				text.inputEl.classList.add('wdwx-setting-input-sm');
 			});
 
 		// ==================== 自定义样式 ====================
@@ -471,13 +470,13 @@ export class WxSettingTab extends PluginSettingTab {
 			.setDesc('只能填写CSS属性，不能写选择器')
 			.addTextArea(text => {
 				this.wxTextArea = text;
-			    text.setPlaceholder('请输入CSS属性，如：background: #fff;padding: 10px;')
-				    .setValue(this.settings.baseCSS)
-					.onChange(async (value) => {
-					    this.settings.baseCSS = value;
-							await this.plugin.saveSettings();
-					})
-				    .inputEl.setAttr('style', 'width: 520px; height: 60px;');
+			    text.setPlaceholder('请输入CSS属性，如：background: #fff;padding: 10px;');
+				text.setValue(this.settings.baseCSS);
+				text.onChange(async (value) => {
+				    this.settings.baseCSS = value;
+					await this.plugin.saveSettings();
+				});
+				text.inputEl.classList.add('wdwx-setting-input-xl', 'wdwx-setting-textarea-sm');
 		});
 
 		const customCSSDoc = '使用指南：<a href="https://github.com/IsHexx/WDWXEdit">https://github.com/IsHexx/WDWXEdit</a>';
@@ -485,14 +484,14 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('自定义CSS笔记')
 			.setDesc(sanitizeHTMLToDom(customCSSDoc))
 			.addText(text => {
-				text.setPlaceholder('请输入自定义CSS笔记标题')
-				.setValue(this.settings.customCSSNote)
-				.onChange(async (value) => {
+				text.setPlaceholder('请输入自定义CSS笔记标题');
+				text.setValue(this.settings.customCSSNote);
+				text.onChange(async (value) => {
 					this.settings.customCSSNote = value.trim();
 					await this.plugin.saveSettings();
 					await this.plugin.assetsManager.loadCustomCSS();
-				})
-				.inputEl.setAttr('style', 'width: 320px;')
+				});
+				text.inputEl.classList.add('wdwx-setting-input-md');
 		});
 
 		// ==================== 导出设置 ====================
@@ -529,32 +528,32 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('预览窗口宽度')
 			.setDesc('预览窗口的默认宽度（像素）')
 			.addText(text => {
-				text.setPlaceholder('800')
-					.setValue(String(this.settings.previewWidth))
-					.onChange(async (value) => {
-						const width = parseInt(value);
-						if (!isNaN(width) && width > 0) {
-							this.settings.previewWidth = width;
-							await this.plugin.saveSettings();
-						}
-					})
-					.inputEl.setAttr('style', 'width: 120px;')
+				text.setPlaceholder('800');
+				text.setValue(String(this.settings.previewWidth));
+				text.onChange(async (value) => {
+					const width = parseInt(value);
+					if (!isNaN(width) && width > 0) {
+						this.settings.previewWidth = width;
+						await this.plugin.saveSettings();
+					}
+				});
+				text.inputEl.classList.add('wdwx-setting-input-sm');
 			});
 
 		new Setting(containerEl)
 			.setName('预览更新延迟')
 			.setDesc('预览自动刷新的延迟时间（毫秒）')
 			.addText(text => {
-				text.setPlaceholder('500')
-					.setValue(String(this.settings.previewDelay))
-					.onChange(async (value) => {
-						const delay = parseInt(value);
-						if (!isNaN(delay) && delay >= 0) {
-							this.settings.previewDelay = delay;
-							await this.plugin.saveSettings();
-						}
-					})
-					.inputEl.setAttr('style', 'width: 120px;')
+				text.setPlaceholder('500');
+				text.setValue(String(this.settings.previewDelay));
+				text.onChange(async (value) => {
+					const delay = parseInt(value);
+					if (!isNaN(delay) && delay >= 0) {
+						this.settings.previewDelay = delay;
+						await this.plugin.saveSettings();
+					}
+				});
+				text.inputEl.classList.add('wdwx-setting-input-sm');
 			});
 
 		// ==================== 公众号配置 ====================
@@ -583,13 +582,13 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('认证密钥 (AuthKey)')
 			.setDesc('请先输入由管理员提供的AuthKey，验证通过后才能保存公众号信息')
 			.addText(text => {
-				text.setPlaceholder('请输入AuthKey')
-					.setValue('')
-					.onChange(value => {
-						authKeyValue = value;
-						authKeyVerified = false;
-					});
-				text.inputEl.setAttr('style', 'width: 400px;');
+				text.setPlaceholder('请输入AuthKey');
+				text.setValue('');
+				text.onChange(value => {
+					authKeyValue = value;
+					authKeyVerified = false;
+				});
+				text.inputEl.classList.add('wdwx-setting-input-lg');
 			})
 			.addButton(button => {
 				button.setButtonText('验证AuthKey');
@@ -633,12 +632,12 @@ export class WxSettingTab extends PluginSettingTab {
 			.setName('公众号信息')
 			.addTextArea(text => {
 				this.wxTextArea = text;
-			    text.setPlaceholder('请输入公众号信息\n格式：公众号名称|公众号AppID|公众号AppSecret\n多个公众号请换行输入\n输入完成后点击保存按钮')
-				    .setValue(this.wxInfo)
-					.onChange(value => {
-					    this.wxInfo = value;
-					})
-				  .inputEl.setAttr('style', 'width: 520px; height: 120px;');
+			    text.setPlaceholder('请输入公众号信息\n格式：公众号名称|公众号AppID|公众号AppSecret\n多个公众号请换行输入\n输入完成后点击保存按钮');
+				text.setValue(this.wxInfo);
+				text.onChange(value => {
+				    this.wxInfo = value;
+				});
+				text.inputEl.classList.add('wdwx-setting-input-xl', 'wdwx-setting-textarea-lg');
 			})
 		
 		new Setting(containerEl).addButton(button => {

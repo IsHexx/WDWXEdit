@@ -1,6 +1,6 @@
 import { App, ItemView, Workspace, Notice, sanitizeHTMLToDom, apiVersion, TFile, MarkdownRenderer, FrontMatterCache } from 'obsidian';
 
-import { applyCSS } from '../../shared/utils';
+import { applyCSS, serializeElementChildren } from '../../shared/utils';
 import { UploadImageToWx } from '../wechat/imagelib';
 import { WxSettings } from '../../core/settings';
 import AssetsManager from '../../core/assets';
@@ -120,7 +120,7 @@ export class ArticleRender implements MDRendererCallback {
   }
 
   getArticleContent() {
-    const content = this.articleDiv.innerHTML;
+    const content = serializeElementChildren(this.articleDiv);
     let html = applyCSS(content, this.getCSS());
 
     html = html.replace(/rel="noopener nofollow"/g, '');
@@ -590,14 +590,11 @@ export class ArticleRender implements MDRendererCallback {
       }
 
       const container = document.createElement('div');
-      container.innerHTML = htmlContent;
+      container.classList.add('wdwx-clipboard-container');
+      container.setAttribute('aria-hidden', 'true');
       container.contentEditable = 'true';
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      container.style.opacity = '0';
-      container.style.pointerEvents = 'none';
-      container.style.userSelect = 'text';
+      const fragment = sanitizeHTMLToDom(htmlContent);
+      container.appendChild(fragment);
 
       document.body.appendChild(container);
 
@@ -620,11 +617,8 @@ export class ArticleRender implements MDRendererCallback {
 
       const textarea = document.createElement('textarea');
       textarea.value = plainText;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      textarea.style.top = '0';
-      textarea.style.opacity = '0';
-      textarea.style.pointerEvents = 'none';
+      textarea.setAttribute('readonly', 'true');
+      textarea.classList.add('wdwx-clipboard-textarea');
 
       document.body.appendChild(textarea);
 
@@ -795,9 +789,10 @@ export class ArticleRender implements MDRendererCallback {
       const img = document.createElement('img');
       img.id = `img-${id}`;
       img.src = pngDataUrl;
-      // Mermaid图像宽度需要基于SVG动态计算，保留内联样式
-      img.style.width = `${svg.clientWidth}px`;
-      img.style.height = 'auto';
+      const svgWidth = Math.max(0, svg.clientWidth);
+      if (svgWidth > 0) {
+        img.width = Math.round(svgWidth);
+      }
 
       container.replaceChild(img, mermaidContainer);
     } catch (error) {

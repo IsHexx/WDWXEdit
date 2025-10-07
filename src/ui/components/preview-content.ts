@@ -1,3 +1,6 @@
+import { sanitizeHTMLToDom } from "obsidian";
+import { serializeElementChildren } from "../../shared/utils";
+
 /**
  * 内容展示组件 - 负责文章内容的渲染容器
  */
@@ -15,7 +18,6 @@ export class PreviewContent {
 
         this.renderDiv = this.parent.createDiv({ cls: 'render-div' });
         this.renderDiv.id = 'render-div';
-        this.renderDiv.setAttribute('style', '-webkit-user-select: text; user-select: text;');
 
         this.styleEl = this.renderDiv.createEl('style');
         this.styleEl.setAttr('title', 'wdwxedit-style');
@@ -50,20 +52,22 @@ export class PreviewContent {
     }
 
     setContent(html: string) {
-        if (this.articleDiv) {
+        if (!this.articleDiv) {
+            return;
+        }
 
-            import('obsidian').then(({ sanitizeHTMLToDom }) => {
-                const sanitized = sanitizeHTMLToDom(html);
-                this.articleDiv.empty();
-                if (sanitized.firstChild) {
-                    this.articleDiv.appendChild(sanitized.firstChild);
-                }
-            });
+        const fragment = sanitizeHTMLToDom(html);
+        this.articleDiv.empty();
+        while (fragment.firstChild) {
+            this.articleDiv.appendChild(fragment.firstChild);
         }
     }
 
     getContent(): string {
-        return this.articleDiv?.innerHTML || '';
+        if (!this.articleDiv) {
+            return '';
+        }
+        return serializeElementChildren(this.articleDiv);
     }
 
     updateStyle(css: string) {

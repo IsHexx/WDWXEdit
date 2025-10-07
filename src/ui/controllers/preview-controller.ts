@@ -800,11 +800,8 @@ const { initApiClients, getWechatClient } = await import('../../services/api');
         // 2) 使用纯文本降级复制（execCommand）
         const textarea = document.createElement('textarea');
         textarea.value = this.render.getArticleText();
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
-        textarea.style.top = '0';
-        textarea.style.opacity = '0';
-        textarea.style.pointerEvents = 'none';
+        textarea.setAttribute('readonly', 'true');
+        textarea.classList.add('wdwx-clipboard-textarea');
         
         document.body.appendChild(textarea);
         

@@ -1,9 +1,10 @@
 import { Token, Tokens, MarkedExtension } from "marked";
-import { Notice, TAbstractFile, TFile, Vault, MarkdownView, requestUrl, Platform } from "obsidian";
+import { Notice, TAbstractFile, TFile, Vault, MarkdownView, requestUrl, Platform, sanitizeHTMLToDom } from "obsidian";
 import { Extension } from "./extension";
 
 import { WxSettings } from "../../../core/settings";
 import { IsImageLibReady, PrepareImageLib, WebpToJPG, UploadImageToWx } from "../../wechat/imagelib";
+import { serializeElementChildren } from "../../../shared/utils";
 
 declare module 'obsidian' {
     interface Vault {
@@ -22,6 +23,17 @@ interface ImageInfo {
     filePath: string;
     url: string | null;
     media_id: string | null;
+}
+
+interface SvgLinkParseResult {
+    filename: string;
+    width?: string;
+    height?: string;
+    position: 'left' | 'center' | 'right';
+}
+
+interface ParsedSvgLink extends SvgLinkParseResult {
+    classname: string;
 }
 
 export class LocalImageManager {
@@ -407,7 +419,7 @@ export class LocalImageManager {
                 }
             }
         }
-        return result.innerHTML;
+        return serializeElementChildren(result);
     }
 
     async cleanup() {
@@ -614,64 +626,111 @@ export class LocalFile extends Extension{
         return await fetch(src).then(response => response.blob())
     }
 
-    parseLinkStyle(link: string) {
+    private normalizeSvgDimension(value: string | undefined): string | undefined {
+        if (!value) {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        if (/^\d+(\.\d+)?%$/.test(trimmed)) {
+            return trimmed;
+        }
+        if (/^\d+(\.\d+)?(px|em|rem|vh|vw)$/.test(trimmed)) {
+            return trimmed;
+        }
+        if (/^\d+(\.\d+)?$/.test(trimmed)) {
+            return `${trimmed}px`;
+        }
+        return trimmed;
+    }
+
+    private applySvgDimensions(svgContent: string, width?: string, height?: string): string {
+        if (!width && !height) {
+            return svgContent;
+        }
+
+        try {
+            const fragment = sanitizeHTMLToDom(svgContent);
+            const container = document.createElement('div');
+            container.appendChild(fragment);
+            const svgEl = container.querySelector('svg');
+            if (!svgEl) {
+                return svgContent;
+            }
+            if (width) {
+                svgEl.setAttribute('width', width);
+            }
+            if (height) {
+                svgEl.setAttribute('height', height);
+            }
+            return serializeElementChildren(container);
+        } catch (error) {
+
+            return svgContent;
+        }
+    }
+
+    parseLinkStyle(link: string): SvgLinkParseResult {
         let filename = '';
-        let style = 'style="width:100%;height:100%"';
-        let postion = 'left';
-        const postions = ['left', 'center', 'right'];
+        let width: string | undefined;
+        let height: string | undefined;
+        let position: 'left' | 'center' | 'right' = 'left';
+        const positions = ['left', 'center', 'right'];
+
         if (link.includes('|')) {
             const items = link.split('|');
             filename = items[0];
             let size = '';
-            if (items.length == 2) {
-                if (postions.includes(items[1])) {
-                    postion = items[1];
-                }
-                else {
+            if (items.length === 2) {
+                if (positions.includes(items[1])) {
+                    position = items[1] as typeof position;
+                } else {
                     size = items[1];
                 }
-            }
-            else if (items.length == 3) {
+            } else if (items.length === 3) {
                 size = items[1];
-                if (postions.includes(items[1])) {
+                if (positions.includes(items[1])) {
                     size = items[2];
-                    postion = items[1];
-                }
-                else {
-                    size = items[1];
-                    postion = items[2];
+                    position = items[1] as typeof position;
+                } else if (positions.includes(items[2])) {
+                    position = items[2] as typeof position;
                 }
             }
 
-            if (size != '') {
+            if (size !== '') {
                 const sizes = size.split('x');
-                if (sizes.length == 2) {
-                    // SVG尺寸需要动态计算，保留内联样式
-                    style = `style="width:${sizes[0]}px;height:${sizes[1]}px;"`
-                }
-                else {
-                    style = `style="width:${sizes[0]}px;"`
+                width = this.normalizeSvgDimension(sizes[0]);
+                if (sizes.length > 1) {
+                    height = this.normalizeSvgDimension(sizes[1]);
                 }
             }
-        }
-        else {
+        } else {
             filename = link;
         }
-        return { filename, style, postion };
+
+        if (!width) {
+            width = '100%';
+        }
+        if (!height) {
+            height = '100%';
+        }
+
+        return { filename, width, height, position };
     }
 
-    parseSVGLink(link: string) {
-        let classname = 'note-embed-svg-left';
-        const postions = new Map<string, string>([
+    parseSVGLink(link: string): ParsedSvgLink {
+        const positionClasses = new Map<'left' | 'center' | 'right', string>([
             ['left', 'note-embed-svg-left'],
             ['center', 'note-embed-svg-center'],
             ['right', 'note-embed-svg-right']
-        ])
+        ]);
 
-        let {filename, style, postion} = this.parseLinkStyle(link);
-        classname = postions.get(postion) || classname;
+        const { filename, width, height, position } = this.parseLinkStyle(link);
+        const classname = positionClasses.get(position) || 'note-embed-svg-left';
 
-        return { filename, style, classname };
+        return { filename, width, height, position, classname };
     }
 
     async renderSVGFile(filename: string, id: string) {
@@ -708,14 +767,16 @@ export class LocalFile extends Extension{
                 if (token.href.endsWith('.svg') || token.href.includes('.svg|')) {
                     const info = this.parseSVGLink(token.href);
                     const id = this.generateId();
-                    let svg = '渲染中';
+                    let svgContent = '渲染中';
                     if (LocalFile.fileCache.has(info.filename)) {
-                        svg = LocalFile.fileCache.get(info.filename) || '渲染失败';
+                        const cached = LocalFile.fileCache.get(info.filename) || '渲染失败';
+                        svgContent = this.applySvgDimensions(cached, info.width, info.height);
                     }
                     else {
-                        svg = await this.renderSVGFile(info.filename, id) || '渲染失败';
+                        const rawSvg = await this.renderSVGFile(info.filename, id) || '渲染失败';
+                        svgContent = this.applySvgDimensions(rawSvg, info.width, info.height);
                     }
-                    token.html = `<span class="${info.classname}"><span class="note-embed-svg" id="${id}" ${info.style}>${svg}</span></span>`
+                    token.html = `<span class="${info.classname}"><span class="note-embed-svg" id="${id}">${svgContent}</span></span>`
                     return;
                 }
 

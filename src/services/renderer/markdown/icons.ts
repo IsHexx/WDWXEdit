@@ -1,4 +1,6 @@
 import { Tokens, MarkedExtension } from "marked";
+import { sanitizeHTMLToDom } from "obsidian";
+import { serializeElementChildren } from "../../../shared/utils";
 import { Extension } from "./extension";
 
 const iconsRegex = /^\[:(.*?):\]/;
@@ -24,39 +26,87 @@ export class SVGIcon extends Extension {
         return {width, height};
     }
 
-    renderStyle(items: string[]) {
-        let size = '';
-        let color = '';
-        if (items.length == 3) {
-            size = items[1];
-            color = items[2];
+    private isValidColorToken(token: string): boolean {
+        const normalized = token.trim();
+        if (normalized.length === 0) {
+            return false;
         }
-        else if (items.length == 2) {
-            if (items[1].startsWith('#')) {
-                color = items[1];
+        return /^#[0-9a-fA-F]{3,8}$/.test(normalized)
+            || /^rgba?\([^\)]+\)$/i.test(normalized)
+            || /^hsla?\([^\)]+\)$/i.test(normalized)
+            || /^var\(--[a-zA-Z0-9_-]+\)$/.test(normalized)
+            || /^[a-zA-Z]+$/.test(normalized);
+    }
+
+    private parseAppearance(items: string[]) {
+        let sizeToken = '';
+        let colorToken = '';
+        if (items.length === 3) {
+            sizeToken = items[1];
+            colorToken = items[2];
+        } else if (items.length === 2) {
+            if (this.isValidColorToken(items[1])) {
+                colorToken = items[1];
+            } else {
+                sizeToken = items[1];
             }
-            else {
-                size = items[1];
+        }
+
+        const appearance: { width?: string; height?: string; color?: string } = {};
+
+        if (sizeToken.length > 0) {
+            const { width, height } = this.getSize(sizeToken);
+            appearance.width = width;
+            appearance.height = height;
+        }
+
+        if (colorToken.length > 0 && this.isValidColorToken(colorToken)) {
+            appearance.color = colorToken.trim();
+        }
+
+        return appearance;
+    }
+
+    private applyIconAppearance(svgContent: string, appearance: { width?: string; height?: string; color?: string }) {
+        const { width, height, color } = appearance;
+        if (!width && !height && !color) {
+            return svgContent;
+        }
+
+        try {
+            const fragment = sanitizeHTMLToDom(svgContent);
+            const container = document.createElement('div');
+            container.appendChild(fragment);
+            const svgEl = container.querySelector('svg');
+            if (!svgEl) {
+                return svgContent;
             }
+            if (width) {
+                svgEl.setAttribute('width', width);
+            }
+            if (height) {
+                svgEl.setAttribute('height', height);
+            }
+            if (color) {
+                svgEl.setAttribute('fill', color);
+                svgEl.setAttribute('stroke', color);
+                svgEl.setAttribute('color', color);
+            }
+            return serializeElementChildren(container);
+        } catch (error) {
+
+            return svgContent;
         }
-        let style = '';
-        if (size.length > 0) {
-            const {width, height} = this.getSize(size);
-            style += `width:${width};height:${height};`;
-        }
-        if (color.length > 0) {
-            style += `color:${color};`;
-        }
-        return style.length > 0 ? `style="${style}"` : '';
     }
 
     async render(text: string) {
         const items = text.split('|');
         const name = items[0];
         const svg = await this.assetsManager.loadIcon(name);
-        const body = svg==='' ? '未找到图标' + name : svg;
-        const style = this.renderStyle(items);
-        return `<span class="note-svg-icon" ${style}>${body}</span>`
+        const body = svg === '' ? '未找到图标' + name : svg;
+        const appearance = this.parseAppearance(items);
+        const rendered = this.applyIconAppearance(body, appearance);
+        return `<span class="note-svg-icon">${rendered}</span>`;
     }
     
     markedExtension(): MarkedExtension {

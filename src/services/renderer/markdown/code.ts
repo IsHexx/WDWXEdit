@@ -154,14 +154,14 @@ export class CodeRenderer extends Extension {
 
 		let html = '';
 		if (lang) {
-		html = codeSection + '<pre style="max-width:1000% !important;" class="hljs language-'
-			+ lang
-			+ '">'
-			+ body
-			+ '</pre></section>';
+			html = codeSection + '<pre class="code-snippet__pre hljs language-'
+				+ lang
+				+ '">'
+				+ body
+				+ '</pre></section>';
 		}
 		else {
-			html = codeSection + '<pre>'
+			html = codeSection + '<pre class="code-snippet__pre">'
 				+ body
 				+ '</pre></section>';
 		}
@@ -250,4 +250,3 @@ export class CodeRenderer extends Extension {
 		}
 	}
 }
-

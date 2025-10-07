@@ -27,8 +27,8 @@ export class StatusBar {
         };
 
         this.statusBar.empty();
-        this.statusBar.removeClass('status-info', 'status-success', 'status-warning', 'status-error');
-        this.statusBar.addClass(`status-${message.type}`);
+        this.statusBar.classList.remove('status-info', 'status-success', 'status-warning', 'status-error');
+        this.statusBar.classList.add(`status-${message.type}`);
 
         const messageContent = this.statusBar.createDiv({ cls: 'status-content' });
 
@@ -42,7 +42,7 @@ export class StatusBar {
         closeBtn.textContent = '×';
         closeBtn.onclick = () => this.hideMessage();
 
-        this.statusBar.removeClass('hidden');
+        this.statusBar.classList.remove('hidden');
     }
 
     showInfo(message: string): void {
@@ -64,24 +64,24 @@ export class StatusBar {
     showProgress(message: string, progress?: number): void {
         this.showMessage({ type: 'info', message });
 
-        if (typeof progress === 'number') {
-            const progressBar = this.statusBar.createDiv({ cls: 'status-progress' });
-            const progressFill = progressBar.createDiv({ cls: 'status-progress-fill' });
+        this.statusBar.querySelector('.status-progress')?.remove();
 
-            progressFill.setAttr('style', `width: ${Math.min(100, Math.max(0, progress))}%`);
+        if (typeof progress === 'number') {
+            const clamped = Math.min(100, Math.max(0, progress));
+            const progressBar = this.statusBar.createEl('progress', { cls: 'status-progress', attr: { max: '100' } }) as HTMLProgressElement;
+            progressBar.value = clamped;
         }
     }
 
     updateProgress(progress: number): void {
-        const progressFill = this.statusBar.querySelector('.status-progress-fill') as HTMLElement;
-        if (progressFill) {
-
-            progressFill.setAttr('style', `width: ${Math.min(100, Math.max(0, progress))}%`);
+        const progressBar = this.statusBar.querySelector('.status-progress') as HTMLProgressElement | null;
+        if (progressBar) {
+            progressBar.value = Math.min(100, Math.max(0, progress));
         }
     }
 
     hideMessage(): void {
-        this.statusBar.addClass('hidden');
+        this.statusBar.classList.add('hidden');
         this.currentMessage = null;
         if (this.autoHideTimer) {
             clearTimeout(this.autoHideTimer);

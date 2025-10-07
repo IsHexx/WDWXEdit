@@ -58,7 +58,7 @@ const customRenderer = {
 		}
 		let out = '';
 		if (WxSettings.getInstance().useFigcaption) {
-			out = `<figure style="display: flex; flex-direction: column; align-items: center;"><img src="${href}" alt="${text}"`;
+			out = `<figure class="wx-preview-figure"><img src="${href}" alt="${text}"`;
 			if (title) {
 				out += ` title="${title}"`;
 			}

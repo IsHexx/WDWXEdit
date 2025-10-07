@@ -1,4 +1,5 @@
-import { App, PluginManifest, Notice, requestUrl, FileSystemAdapter, TAbstractFile, TFile, TFolder } from "obsidian";
+import type { FileSystemAdapter } from "obsidian";
+import { App, PluginManifest, Notice, requestUrl, TAbstractFile, TFile, TFolder, Platform } from "obsidian";
 import * as zip from "@zip.js/zip.js";
 import DefaultTheme from "../shared/default-theme";
 import DefaultHighlight from "../shared/default-highlight";
@@ -325,27 +326,36 @@ export default class AssetsManager {
     }
 
     async openAssets() {
-
-	    if (!this.app.vault.adapter) {
+	    if (!Platform.isDesktopApp) {
 	        new Notice('当前平台不支持此功能');
 	        return;
 	    }
 
-	    const adapter = this.app.vault.adapter;
-	    if (!(adapter instanceof FileSystemAdapter)) {
-	        new Notice('当前平台不支持打开文件夹');
+		    const adapter = this.app.vault.adapter;
+	        const fsAdapter = adapter as FileSystemAdapter;
+	        if (typeof fsAdapter.getBasePath !== 'function') {
+	            new Notice('当前平台不支持打开文件夹');
+	            return;
+	        }
+
+		    const desktopRequire = (window as any)?.require;
+	    const path = desktopRequire?.('path');
+	    const electron = desktopRequire?.('electron');
+	    const shell = electron?.shell;
+
+	    if (!path || !shell) {
+
+	        new Notice('未找到桌面系统依赖，无法打开资源目录。');
 	        return;
 	    }
 
-	    const path = require('path');
-		const vaultRoot = adapter.getBasePath();
-		const assets = this.assetsPath;
+		    const vaultRoot = fsAdapter.getBasePath();
+	    const assets = this.assetsPath;
         if (!await adapter.exists(assets)) {
             await adapter.mkdir(assets);
         }
-		const dst = path.join(vaultRoot, assets);
-		const { shell } = require('electron');
-		shell.openPath(dst);
+	    const dst = path.join(vaultRoot, assets);
+	    shell.openPath(dst);
 	}
 
     searchFile(nameOrPath: string): TAbstractFile | null {

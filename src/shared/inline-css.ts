@@ -123,8 +123,26 @@ ul {
 }
 
 .note-svg-icon svg {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.wx_topic_link,
+.wx-topic-link {
+  color: var(--wdwx-topic-link-color, #576B95) !important;
+  text-decoration: none;
+}
+
+.wx-preview-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.code-snippet__pre {
+  max-width: 1000% !important;
 }
 
 .note-embed-excalidraw-left {
@@ -184,9 +202,15 @@ ul {
   width: 100%;
 }
 
+.note-embed-svg {
+  display: inline-block;
+}
+
 .note-embed-svg svg {
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 `;

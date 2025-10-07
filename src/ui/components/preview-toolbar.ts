@@ -1,4 +1,4 @@
-import { Platform } from 'obsidian';
+import { Platform, sanitizeHTMLToDom } from 'obsidian';
 
 import { WxSettings } from '../../core/settings';
 import { StyleEditor } from './style-editor';
@@ -167,7 +167,7 @@ export class PreviewToolbar {
                 <path d="M3 21v-5h5"/>
             </svg>
         `;
-        refreshBtn.appendChild(document.createRange().createContextualFragment(refreshSvg));
+        refreshBtn.appendChild(sanitizeHTMLToDom(refreshSvg));
         refreshBtn.setAttr('title', '刷新');
         refreshBtn.onclick = async () => {
             await this.handlers.onRefresh();
@@ -183,7 +183,7 @@ export class PreviewToolbar {
                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
             `;
-            copyBtn.appendChild(document.createRange().createContextualFragment(copySvg));
+            copyBtn.appendChild(sanitizeHTMLToDom(copySvg));
             copyBtn.setAttr('title', '复制');
             copyBtn.onclick = async () => {
                 try {
@@ -202,7 +202,7 @@ export class PreviewToolbar {
                 <path d="M21.854 2.147 10.61 13.39"/>
             </svg>
         `;
-        postBtn.appendChild(document.createRange().createContextualFragment(postSvg));
+        postBtn.appendChild(sanitizeHTMLToDom(postSvg));
         postBtn.setAttr('title', '发草稿');
         postBtn.onclick = async () => {
             await this.handlers.onPost();
@@ -217,7 +217,7 @@ export class PreviewToolbar {
                 <line x1="12" y1="5" x2="12" y2="15"/>
             </svg>
         `;
-        uploadBtn.appendChild(document.createRange().createContextualFragment(uploadSvg));
+        uploadBtn.appendChild(sanitizeHTMLToDom(uploadSvg));
         uploadBtn.setAttr('title', '上传图片');
         uploadBtn.onclick = async () => {
             await this.handlers.onUpload();

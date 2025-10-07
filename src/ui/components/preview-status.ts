@@ -1,3 +1,5 @@
+import { sanitizeHTMLToDom } from 'obsidian';
+
 /**
  * 状态栏组件 - 负责显示操作状态、进度信息和用户反馈
  */
@@ -6,7 +8,7 @@ export class PreviewStatus {
     private statusContainer: HTMLDivElement;
     private statusMessage: HTMLDivElement;
     private statusIcon: HTMLDivElement;
-    private progressBar: HTMLDivElement;
+    private progressBar: HTMLProgressElement;
     private hideTimeout?: NodeJS.Timeout;
 
     constructor(parent: HTMLDivElement) {
@@ -22,7 +24,8 @@ export class PreviewStatus {
 
         this.statusMessage = this.statusContainer.createDiv({ cls: 'status-message' });
 
-        this.progressBar = this.statusContainer.createDiv({ cls: 'status-progress' });
+        this.progressBar = this.statusContainer.createEl('progress', { cls: 'status-progress', attr: { value: '0', max: '100' } }) as HTMLProgressElement;
+        this.progressBar.classList.add('hidden');
     }
 
     showInfo(message: string, duration?: number) {
@@ -71,8 +74,10 @@ export class PreviewStatus {
 
         this.updateIcon(type);
 
-        this.statusContainer.className = `preview-status status-${type}`;
-        this.statusContainer.removeClass('hidden');
+        const statusClasses = Array.from(this.statusContainer.classList).filter(cls => cls.startsWith('status-'));
+        statusClasses.forEach(cls => this.statusContainer.classList.remove(cls));
+        this.statusContainer.classList.add(`status-${type}`);
+        this.statusContainer.classList.remove('hidden');
 
         const showProgress = type === 'loading' || type === 'upload' || type === 'processing';
         this.showProgress(showProgress);
@@ -164,26 +169,26 @@ export class PreviewStatus {
         }
 
         this.statusIcon.empty();
-        this.statusIcon.appendChild(document.createRange().createContextualFragment(iconSvg));
+        this.statusIcon.appendChild(sanitizeHTMLToDom(iconSvg));
     }
 
     private showProgress(show: boolean) {
-        if (show) {
-            this.progressBar.removeClass('hidden');
+        if (!this.progressBar) {
+            return;
+        }
 
-            this.progressBar.empty();
-            this.progressBar.createDiv({ cls: 'progress-bar-fill' });
-        } else {
-            this.progressBar.addClass('hidden');
+        this.progressBar.classList.toggle('hidden', !show);
+        if (show) {
+            this.progressBar.value = 0;
         }
     }
 
     updateProgress(percent: number) {
-        const progressFill = this.progressBar.querySelector('.progress-bar-fill') as HTMLElement;
-        if (progressFill) {
-
-            progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+        if (!this.progressBar) {
+            return;
         }
+
+        this.progressBar.value = Math.min(100, Math.max(0, percent));
     }
 
     hideMessage() {
@@ -192,12 +197,12 @@ export class PreviewStatus {
             this.hideTimeout = undefined;
         }
 
-        this.statusContainer.addClass('hidden');
+        this.statusContainer.classList.add('hidden');
         this.showProgress(false);
     }
 
     isVisible(): boolean {
-        return !this.statusContainer.hasClass('hidden');
+        return !this.statusContainer.classList.contains('hidden');
     }
 
     getCurrentMessage(): string {
@@ -212,12 +217,12 @@ export class PreviewStatus {
 
     setClickHandler(handler: () => void) {
         this.statusContainer.onclick = handler;
-        this.statusContainer.style.cursor = 'pointer';
+        this.statusContainer.classList.add('preview-status-clickable');
     }
 
     removeClickHandler() {
         this.statusContainer.onclick = null;
-        this.statusContainer.style.cursor = 'default';
+        this.statusContainer.classList.remove('preview-status-clickable');
     }
 
     addCloseButton() {
@@ -228,7 +233,7 @@ export class PreviewStatus {
                 <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
         `;
-        closeBtn.appendChild(document.createRange().createContextualFragment(closeSvg));
+        closeBtn.appendChild(sanitizeHTMLToDom(closeSvg));
         closeBtn.onclick = (e) => {
             e.stopPropagation();
             this.hideMessage();
@@ -243,10 +248,8 @@ export class PreviewStatus {
     }
 
     setPosition(position: 'top' | 'bottom' | 'center') {
-        this.statusContainer.removeClass('status-top');
-        this.statusContainer.removeClass('status-bottom');
-        this.statusContainer.removeClass('status-center');
-        this.statusContainer.addClass(`status-${position}`);
+        this.statusContainer.classList.remove('status-top', 'status-bottom', 'status-center');
+        this.statusContainer.classList.add(`status-${position}`);
     }
 
     getElement(): HTMLDivElement {

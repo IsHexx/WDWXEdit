@@ -30,7 +30,7 @@ export class Topic extends Extension {
           }
         },
         renderer(token: Tokens.Generic) {
-          return `<a class="wx_topic_link" style="color: #576B95 !important;" data-topic="1">${'#' + token.text.trim()}</a>`;
+          return `<a class="wx_topic_link" data-topic="1">${'#' + token.text.trim()}</a>`;
         }
       },
       ]

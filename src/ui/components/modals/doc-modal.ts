@@ -14,16 +14,13 @@ export class DocModal extends Modal {
 
   onOpen() {
     let { contentEl, modalEl } = this;
-
-    modalEl.style.width = '640px';
-    modalEl.style.height = '720px';
-    contentEl.style.display = 'flex';
-    contentEl.style.flexDirection = 'column';
+    modalEl.classList.add('wdwx-doc-modal');
+    contentEl.classList.add('wdwx-doc-modal__container');
 
     const titleEl = contentEl.createEl('h2', { text: this.title });
-    titleEl.style.marginTop = '0.5em';
+    titleEl.classList.add('wdwx-doc-modal__title');
     const content = contentEl.createEl('div');
-    content.setAttr('style', 'margin-bottom:1em;-webkit-user-select: text; user-select: text;');
+    content.classList.add('wdwx-doc-modal__content');
     content.appendChild(sanitizeHTMLToDom(this.content));
 
     const iframe = contentEl.createEl('iframe', {
@@ -34,7 +31,7 @@ export class DocModal extends Modal {
       },
     });
 
-    iframe.style.flex = '1';
+    iframe.classList.add('wdwx-doc-modal__frame');
   }
 
   onClose() {
