@@ -1,176 +1,135 @@
 # WDWXEdit
 
-<div align="center">
-
+[![Version](https://img.shields.io/github/v/release/IsHexx/WDWXEdit)](https://github.com/IsHexx/WDWXEdit/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-7C3AED)](https://obsidian.md/)
-[![Version](https://img.shields.io/github/v/release/IsHexx/WDWXEdit)](https://github.com/IsHexx/WDWXEdit/releases)
 
-**一个强大的 Obsidian 插件，支持将 Markdown 笔记一键发布到微信公众号**
+一款强大的 Obsidian 插件，能够将笔记无缝发布到微信公众号，完美保持格式。
 
-完美保持格式 • 代码高亮 • 数学公式 • 图片上传 • 多主题支持
+> 🎉 **v1.0.0 已发布！** [查看 Release](https://github.com/IsHexx/WDWXEdit/releases/tag/v1.0.0)
 
-</div>
+## 📦 下载安装
 
-## ✨ 特性
+- **GitHub Release**: https://github.com/IsHexx/WDWXEdit/releases/latest
+- **开发仓库**（私有）: https://github.com/IsHexx/WeWxEdit
+- **公开仓库**: https://github.com/IsHexx/WDWXEdit
 
-- **🎨 丰富主题**: 30+ 款精美主题，支持代码高亮样式
-- **📝 完美格式**: 保持 Markdown 原有格式，无缝转换微信公众号样式
-- **🖼️ 图片处理**: 自动处理本地图片，支持图片压缩和优化
-- **💻 代码高亮**: 支持多种编程语言的语法高亮
-- **📐 数学公式**: 支持 LaTeX 和 AsciiMath 数学公式渲染
-- **📋 一键复制**: 格式化后可直接粘贴到微信公众号编辑器
-- **🎯 标注支持**: 完美支持 Obsidian 的 Callouts 标注块
-- **🔗 链接处理**: 智能处理内部链接和外部链接
-- **📚 脚注支持**: 自动处理脚注并转换为微信适配格式
+## 🌟 功能特性
 
-## 📦 安装
+- **完美格式保持**: 发布到微信公众号时保持笔记原始样式
+- **代码高亮**: 支持完整语法高亮，可自定义主题
+- **数学公式支持**: 完美渲染 LaTeX 和 AsciiMath 公式
+- **本地图片上传**: 自动上传本地图片到微信媒体库
+- **多主题支持**: 30+ 内置主题，打造精美文章展示
+- **自定义 CSS**: 支持添加自定义样式
+- **标注块支持**: 完整支持 Obsidian 标注块，美观样式
+- **草稿管理**: 直接在微信公众号后台创建草稿
 
-### 方法 1：通过 Obsidian 社区插件
+## 🚀 快速开始
 
-1. 打开 Obsidian
-2. 前往 `设置` → `社区插件`
-3. 搜索 "WDWXEdit"
-4. 点击安装并启用
+### 安装
 
-### 方法 2：手动安装
+1. 打开 Obsidian 设置
+2. 进入社区插件并关闭安全模式
+3. 点击浏览，搜索 "WDWXEdit"
+4. 安装并启用插件
 
-1. 从 [Releases](https://github.com/IsHexx/WDWXEdit/releases) 下载最新版本
-2. 解压文件到你的 Obsidian 插件目录：
-   ```
-   {Obsidian Vault}/.obsidian/plugins/wdwxedit/
-   ```
-3. 在 Obsidian 设置中启用插件
+### 配置
 
-## 🚀 使用方法
+1. **获取微信公众号凭证**:
+   - 登录微信公众号后台
+   - 进入设置 → 基本设置
+   - 获取 AppID 和 AppSecret
 
-### 基本使用
+2. **配置插件**:
+   - 打开插件设置
+   - 输入 AppID 和 AppSecret
+   - 保存设置
 
-1. **打开笔记预览**：在任意 Markdown 笔记中，使用命令面板 (`Ctrl+P`) 搜索 "WDWXEdit"
-2. **选择主题**：在预览窗口中选择你喜欢的主题样式
-3. **预览效果**：实时预览转换后的效果
-4. **复制内容**：点击复制按钮，内容自动复制到剪贴板
-5. **发布到微信**：在微信公众号后台编辑器中粘贴即可
+3. **开始发布**:
+   - 打开任意笔记
+   - 点击左侧边栏的"微信"图标
+   - 选择复制内容或创建草稿
+   - 笔记将被格式化并准备就绪
 
-### 高级功能
+## 📖 使用方法
 
-#### 🎨 自定义主题
+### 发布选项
 
-支持通过 CSS 自定义主题样式：
+- **复制到剪贴板**: 复制格式化 HTML 到微信编辑器
+- **创建草稿**: 直接在微信公众号创建草稿
 
-```css
-/* 在笔记中添加自定义样式 */
-<style>
-.custom-theme {
-  --primary-color: #your-color;
-  --font-family: "Your Font";
-}
-</style>
-```
+### 支持的内容
 
-#### 💻 代码块样式
+- **标题**: 所有标题级别，可自定义样式
+- **代码块**: 语法高亮，带行号
+- **数学公式**: LaTeX 和 AsciiMath 支持
+- **图片**: 本地图片自动上传
+- **链接**: 转换为微信兼容格式
+- **标注块**: Obsidian 标注块，美观样式
+- **表格**: 完整表格支持，带样式
+- **列表**: 有序和无序列表
+- **引用**: 样式化引用块
 
-支持多种代码高亮主题：
+### 主题
 
-````markdown
-```javascript
-// 支持语法高亮
-function hello() {
-  console.log('Hello WDWXEdit!');
-}
-```
-````
-
-#### 📐 数学公式
-
-支持 LaTeX 和 AsciiMath 语法：
-
-```markdown
-行内公式：$E = mc^2$
-
-块级公式：
-$$
-\sum_{i=1}^{n} x_i = x_1 + x_2 + \cdots + x_n
-$$
-```
-
-#### 🎯 标注块
-
-完美支持 Obsidian Callouts：
-
-```markdown
-> [!NOTE] 提示
-> 这是一个提示标注块
-
-> [!WARNING] 警告
-> 这是一个警告标注块
-```
-
-## 🎨 主题预览
-
-插件内置了多种精美主题：
-
-- **默认主题**: 简洁清爽的默认样式
-- **Github**: Github 风格的技术文档样式  
-- **Vue**: Vue.js 官方文档风格
-- **科技蓝**: 现代科技感的蓝色主题
-- **商务灰**: 商务风格的灰色主题
-- **更多主题**: 持续更新中...
+从 30+ 专业设计主题中选择：
+- 默认主题：干净现代的外观
+- 代码高亮主题：技术内容专用
+- 自定义主题：个性化样式
 
 ## ⚙️ 配置选项
 
-在插件设置中可以配置：
+### 基础设置
 
-- **默认主题**: 选择默认使用的主题
-- **代码高亮**: 选择代码高亮样式
-- **图片处理**: 配置图片压缩和优化选项
-- **格式设置**: 自定义各种格式转换选项
+- **AppID/AppSecret**: 微信公众号凭证
+- **主题选择**: 选择偏好主题
+- **图片质量**: 设置图片压缩质量
+- **自定义 CSS**: 添加自定义样式
 
-## 🤝 贡献
+### 高级功能
 
-欢迎贡献代码、报告问题或提出建议！
+- **自定义 Frontmatter**: 控制单笔记设置
+- **样式覆盖**: 按笔记覆盖主题样式
+- **图片水印**: 为上传图片添加水印
 
-1. Fork 这个仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
+## 📝 Frontmatter 支持
 
-## 📋 待办事项
+在笔记的 frontmatter 中添加这些选项：
 
-- [ ] 支持更多微信公众号平台
-- [ ] 添加更多主题样式
-- [ ] 优化图片处理性能
-- [ ] 支持批量文章处理
-- [ ] 添加快捷键支持
+```yaml
+---
+theme: github-light
+customCSS: |
+  .content { font-size: 16px; }
+watermark: true
+---
+```
 
-## 🐛 问题反馈
+## 📄 许可证
 
-如果你遇到任何问题或有功能建议，请：
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
-1. 查看 [FAQ](https://github.com/IsHexx/WDWXEdit/wiki/FAQ)
-2. 搜索 [已有的 Issues](https://github.com/IsHexx/WDWXEdit/issues)
-3. 创建 [新的 Issue](https://github.com/IsHexx/WDWXEdit/issues/new)
+## 📞 支持
 
-## 📜 开源协议
+- **问题反馈**: [GitHub Issues](https://github.com/IsHexx/WDWXEdit/issues)
+- **功能讨论**: [GitHub Discussions](https://github.com/IsHexx/WDWXEdit/discussions)
+- **更新日志**: [CHANGELOG.md](https://github.com/IsHexx/WDWXEdit/blob/main/CHANGELOG.md)
+- **联系作者**: [IsHexx](https://github.com/IsHexx)
 
-本项目基于 [Apache License 2.0](LICENSE) 开源协议。
+## 🔗 相关链接
 
-## 🙏 致谢
+- **公开仓库**: https://github.com/IsHexx/WDWXEdit
+- **最新版本**: https://github.com/IsHexx/WDWXEdit/releases/latest
+- **文档**: https://github.com/IsHexx/WDWXEdit/blob/main/README.md
 
-感谢所有为这个项目做出贡献的开发者和用户！
+## 🏗️ 开发
 
-特别感谢：
-- [Obsidian](https://obsidian.md/) 提供强大的笔记平台
-- [Marked.js](https://marked.js.org/) 提供 Markdown 解析支持
-- [Highlight.js](https://highlightjs.org/) 提供代码高亮功能
+本项目使用私有仓库进行开发，通过 GitHub Actions 自动同步到公开仓库。
+
+- **私有开发仓库**: https://github.com/IsHexx/WeWxEdit
+- **公开发布仓库**: https://github.com/IsHexx/WDWXEdit
 
 ---
 
-<div align="center">
-
-**如果这个插件对你有帮助，请给个 ⭐️ Star 支持一下！**
-
-Made with ❤️ by [YiNian](https://github.com/IsHexx)
-
-</div>
+用 ❤️ 为 Obsidian 社区打造 | Made by [IsHexx](https://github.com/IsHexx)

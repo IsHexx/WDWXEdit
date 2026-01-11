@@ -42,8 +42,6 @@
   flex: 1;
   overflow-y: auto;
   padding: 10px;
-  user-select: text;
-  -webkit-user-select: text;
 }
 
 .preview-toolbar {
@@ -56,10 +54,12 @@
 /* =========================================================== */
 /* 预览状态条（位于样式编辑器下方）                            */
 /* =========================================================== */
+/* Claude Code Update: 状态条采用上下布局，文字在上，进度条在下，避免被纵向撑高 */
 .preview-status {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
@@ -67,13 +67,18 @@
   border: 1px solid #E0E0E0;
   border-radius: 6px;
   background: #F8F8F8;
-  flex: 0 0 auto; /* 不占据多余空间，避免高度被拉伸 */
-  min-height: 32px;
-  height: auto;
+  flex: 0 0 auto;
 }
 
 .preview-status.hidden {
   display: none !important;
+}
+
+/* Claude Code Update: icon+文字一行显示，进度条单独一行 */
+.preview-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .preview-status .status-icon {
@@ -99,38 +104,30 @@
   color: var(--text-normal);
   white-space: normal;
   word-break: break-word;
-  writing-mode: horizontal-tb; /* 强制水平文字排版，防止垂直布局 */
 }
 
+/* Claude Code Update: 进度条占用独立一行 */
 .preview-status .status-progress {
   width: 100%;
   height: 4px;
-  appearance: none;
-  -webkit-appearance: none;
   background: rgba(0, 0, 0, 0.08);
-  border: none;
   border-radius: 2px;
   overflow: hidden;
+  display: none;
+}
+
+.preview-status .progress-bar-fill {
+  height: 100%;
+  background: currentColor;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* 仅在以下状态显示进度条 */
+.preview-status.status-loading .status-progress,
+.preview-status.status-upload .status-progress,
+.preview-status.status-processing .status-progress {
   display: block;
-}
-
-.preview-status .status-progress::-webkit-progress-bar {
-  background: rgba(0, 0, 0, 0.08);
-  border-radius: 2px;
-}
-
-.preview-status .status-progress::-webkit-progress-value {
-  background: currentColor;
-  border-radius: 2px;
-}
-
-.preview-status .status-progress::-moz-progress-bar {
-  background: currentColor;
-  border-radius: 2px;
-}
-
-.preview-status-clickable {
-  cursor: pointer;
 }
 
 /* 颜色状态 */
@@ -141,29 +138,6 @@
 .preview-status.status-loading,
 .preview-status.status-upload,
 .preview-status.status-processing { background: #f0f5ff; color: #1d39c4; border-color: #597ef7; }
-
-/* =========================================================== */
-/* 剪贴板辅助元素                                              */
-/* =========================================================== */
-
-.wdwx-clipboard-container,
-.wdwx-clipboard-textarea {
-  position: fixed;
-  left: -9999px;
-  top: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.wdwx-clipboard-container {
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.wdwx-clipboard-textarea {
-  width: 1px;
-  height: 1px;
-}
 
 /* =========================================================== */
 /* 工具栏单行横向布局样式 (从v2复制)                           */
@@ -596,29 +570,17 @@
 
 .status-progress {
   margin-top: 6px;
-  width: 100%;
   height: 4px;
-  appearance: none;
-  -webkit-appearance: none;
   background-color: rgba(255, 255, 255, 0.3);
-  border: none;
   border-radius: 2px;
   overflow: hidden;
 }
 
-.status-progress::-webkit-progress-bar {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-.status-progress::-webkit-progress-value {
+.status-progress-fill {
+  height: 100%;
   background-color: currentColor;
   border-radius: 2px;
-}
-
-.status-progress::-moz-progress-bar {
-  background-color: currentColor;
-  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 .note-mpcard-wrapper {
@@ -683,72 +645,4 @@
   100% {
     transform: rotate(360deg);
   }
-}
-
-/* =========================================================== */
-/* 设置面板帮助区域                                             */
-/* =========================================================== */
-
-.wdwx-setting-help {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-}
-
-.wdwx-setting-help__title {
-  margin: 0;
-}
-
-.wdwx-setting-input-sm {
-  width: 120px;
-}
-
-.wdwx-setting-input-md {
-  width: 320px;
-}
-
-.wdwx-setting-input-lg {
-  width: 400px;
-}
-
-.wdwx-setting-input-xl {
-  width: 520px;
-}
-
-.wdwx-setting-textarea-sm {
-  height: 60px;
-}
-
-.wdwx-setting-textarea-lg {
-  height: 120px;
-}
-
-/* =========================================================== */
-/* 文档模态框                                                   */
-/* =========================================================== */
-
-.wdwx-doc-modal {
-  width: 640px;
-  height: 720px;
-}
-
-.wdwx-doc-modal__container {
-  display: flex;
-  flex-direction: column;
-}
-
-.wdwx-doc-modal__title {
-  margin: 0.5em 0 0;
-}
-
-.wdwx-doc-modal__content {
-  margin-bottom: 1em;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.wdwx-doc-modal__frame {
-  flex: 1;
-  border: none;
 }

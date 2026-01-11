@@ -55,754 +55,446 @@ var __privateMethod = (obj, member, method) => {
   return method;
 };
 
-// src/services/api/backend-config.ts
-function getApiEndpoint(path) {
-  return `${BACKEND_CONFIG.SERVER_URL}${path}`;
+// src/services/wechat/weixin-api.ts
+var weixin_api_exports = {};
+__export(weixin_api_exports, {
+  INTERNAL_AUTH_KEY: () => INTERNAL_AUTH_KEY,
+  getInternalKey: () => getInternalKey,
+  isAuthKeyValid: () => isAuthKeyValid,
+  wxAddDraft: () => wxAddDraft,
+  wxAddDraftImages: () => wxAddDraftImages,
+  wxBatchGetMaterial: () => wxBatchGetMaterial,
+  wxEncrypt: () => wxEncrypt,
+  wxGetToken: () => wxGetToken,
+  wxUploadImage: () => wxUploadImage
+});
+function getInternalKey() {
+  return INTERNAL_AUTH_KEY;
 }
-function getBackendConfigInfo() {
-  return {
-    serverUrl: BACKEND_CONFIG.SERVER_URL,
-    hasApiKey: !!BACKEND_CONFIG.API_KEY,
-    apiKeyLength: BACKEND_CONFIG.API_KEY.length,
-    useBackendProxy: BACKEND_CONFIG.USE_BACKEND_PROXY,
-    timeout: BACKEND_CONFIG.TIMEOUT,
-    maxRetries: BACKEND_CONFIG.MAX_RETRIES
-  };
+function isAuthKeyValid(authKey) {
+  return authKey === INTERNAL_AUTH_KEY;
 }
-function validateBackendConfig() {
-  if (!BACKEND_CONFIG.SERVER_URL) {
-    return { valid: false, error: "\u670D\u52A1\u5668\u5730\u5740\u672A\u914D\u7F6E" };
+async function wxGetToken(authkey, appid, secret) {
+  const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appid}&secret=${secret}`;
+  try {
+    const res = await (0, import_obsidian2.requestUrl)({
+      url,
+      method: "GET",
+      throw: false
+    });
+    const resData = res.json;
+    if (resData.access_token) {
+      return {
+        json: {
+          token: resData.access_token,
+          expires_in: resData.expires_in || 7200
+        },
+        status: 200
+      };
+    } else {
+      const code = resData.errcode || 0;
+      let message = resData.errmsg || "\u83B7\u53D6Token\u5931\u8D25";
+      if (code === 40125) {
+        message = "AppSecret\u9519\u8BEF\uFF0C\u8BF7\u68C0\u67E5\u914D\u7F6E";
+      } else if (code === 40164) {
+        message = "IP\u5730\u5740\u4E0D\u5728\u767D\u540D\u5355\u4E2D\uFF0C\u8BF7\u5728\u516C\u4F17\u53F7\u540E\u53F0\u6DFB\u52A0\u5F53\u524D\u8BBE\u5907IP";
+      } else if (code === 50002) {
+        message = "\u7528\u6237\u53D7\u9650\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u72B6\u6001";
+      } else if (code === 40001) {
+        message = "AppSecret\u65E0\u6548\u6216\u4E0D\u5C5E\u4E8E\u6B64\u516C\u4F17\u53F7";
+      } else if (code === 40013) {
+        message = "AppID\u65E0\u6548\uFF0C\u8BF7\u68C0\u67E5\u914D\u7F6E";
+      }
+      return {
+        json: {
+          code,
+          message,
+          token: ""
+        },
+        status: 400
+      };
+    }
+  } catch (error) {
+    console.error("\u83B7\u53D6\u5FAE\u4FE1Token\u5931\u8D25:", error);
+    return {
+      json: {
+        code: 1,
+        message: `\u83B7\u53D6Token\u5931\u8D25: ${error}`,
+        token: ""
+      },
+      status: 500
+    };
   }
-  if (!BACKEND_CONFIG.API_KEY) {
-    return { valid: false, error: "API\u5BC6\u94A5\u672A\u914D\u7F6E" };
-  }
-  if (BACKEND_CONFIG.API_KEY.length < 8) {
-    return { valid: false, error: "API\u5BC6\u94A5\u957F\u5EA6\u8FC7\u77ED\uFF0C\u5EFA\u8BAE\u81F3\u5C118\u4F4D" };
+}
+async function wxUploadImage(data, filename, token, type) {
+  let url = "";
+  if (type == null || type === "") {
+    url = "https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=" + token;
+  } else {
+    url = `https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${token}&type=${type}`;
   }
   try {
-    new URL(BACKEND_CONFIG.SERVER_URL);
-  } catch (e2) {
-    return { valid: false, error: "\u670D\u52A1\u5668\u5730\u5740\u683C\u5F0F\u65E0\u6548" };
+    const N = 16;
+    const randomBoundryString = "djmangoBoundry" + Array(N + 1).join((Math.random().toString(36) + "00000000000000000").slice(2, 18)).slice(0, N);
+    const pre_string = `------${randomBoundryString}\r
+Content-Disposition: form-data; name="media"; filename="${filename}"\r
+Content-Type: "application/octet-stream"\r
+\r
+`;
+    const post_string = `\r
+------${randomBoundryString}--`;
+    const pre_string_encoded = new TextEncoder().encode(pre_string);
+    const post_string_encoded = new TextEncoder().encode(post_string);
+    const concatenated = await new Blob([pre_string_encoded, await (0, import_obsidian2.getBlobArrayBuffer)(data), post_string_encoded]).arrayBuffer();
+    const options2 = {
+      method: "POST",
+      url,
+      contentType: `multipart/form-data; boundary=----${randomBoundryString}`,
+      body: concatenated,
+      throw: false
+    };
+    const res = await (0, import_obsidian2.requestUrl)(options2);
+    const resData = res.json;
+    return {
+      url: resData.url || "",
+      media_id: resData.media_id || "",
+      errcode: resData.errcode || 0,
+      errmsg: resData.errmsg || ""
+    };
+  } catch (error) {
+    console.error("\u4E0A\u4F20\u56FE\u7247\u5931\u8D25:", error);
+    return {
+      url: "",
+      media_id: "",
+      errcode: 1,
+      errmsg: `\u4E0A\u4F20\u5931\u8D25: ${error}`
+    };
   }
-  return { valid: true };
 }
-var BACKEND_CONFIG, validationResult;
-var init_backend_config = __esm({
-  "src/services/api/backend-config.ts"() {
-    BACKEND_CONFIG = {
-      SERVER_URL: "http://localhost:8000",
-      API_KEY: "wdwxedit-api-key-2024",
-      TIMEOUT: 3e4,
-      MAX_RETRIES: 3,
-      USE_BACKEND_PROXY: true,
-      HEALTH_CHECK_INTERVAL: 6e4,
-      DEBUG: false
+async function wxAddDraft(token, data) {
+  const url = "https://api.weixin.qq.com/cgi-bin/draft/add?access_token=" + token;
+  try {
+    const body = {
+      articles: [{
+        title: data.title,
+        content: data.content,
+        digest: data.digest,
+        thumb_media_id: data.thumb_media_id,
+        ...data.pic_crop_235_1 && { pic_crop_235_1: data.pic_crop_235_1 },
+        ...data.pic_crop_1_1 && { pic_crop_1_1: data.pic_crop_1_1 },
+        ...data.content_source_url && { content_source_url: data.content_source_url },
+        ...data.need_open_comment !== void 0 && { need_open_comment: data.need_open_comment },
+        ...data.only_fans_can_comment !== void 0 && { only_fans_can_comment: data.only_fans_can_comment },
+        ...data.author && { author: data.author }
+      }]
     };
-    validationResult = validateBackendConfig();
-    if (validationResult.valid) {
-      console.log("\u2705 \u540E\u7AEF\u914D\u7F6E\u9A8C\u8BC1\u901A\u8FC7:", getBackendConfigInfo());
+    const res = await (0, import_obsidian2.requestUrl)({
+      method: "POST",
+      url,
+      throw: false,
+      body: JSON.stringify(body)
+    });
+    const resData = res.json;
+    if (resData.media_id) {
+      return {
+        json: {
+          media_id: resData.media_id,
+          errcode: 0,
+          errmsg: "ok"
+        },
+        status: 200
+      };
     } else {
+      return {
+        json: {
+          errcode: resData.errcode || 1,
+          errmsg: resData.errmsg || "\u521B\u5EFA\u8349\u7A3F\u5931\u8D25"
+        },
+        status: 400
+      };
     }
-  }
-});
-
-// src/services/api/http-client.ts
-var HttpClient;
-var init_http_client = __esm({
-  "src/services/api/http-client.ts"() {
-    init_backend_config();
-    HttpClient = class {
-      constructor(config2) {
-        this.config = {
-          timeout: BACKEND_CONFIG.TIMEOUT,
-          retries: BACKEND_CONFIG.MAX_RETRIES,
-          ...config2
-        };
-        this.defaultHeaders = {
-          "Content-Type": "application/json; charset=utf-8",
-          "X-API-Key": this.config.apiKey,
-          "User-Agent": "WDWxEdit-v2-Client/1.0"
-        };
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-      }
-      /**
-       * 通用HTTP请求方法
-       */
-      async request(endpoint, options2 = {}) {
-        var _a, _b;
-        const {
-          method = "GET",
-          headers = {},
-          params,
-          data,
-          timeout = this.config.timeout
-        } = options2;
-        try {
-          const url = this.buildUrl(endpoint, params);
-          const requestHeaders = { ...this.defaultHeaders, ...headers };
-          const requestOptions = {
-            method,
-            headers: requestHeaders,
-            body: data ? this.serializeWithoutUnicodeEscape(data) : void 0,
-            // CORS处理配置
-            mode: "cors",
-            credentials: "omit",
-            cache: "no-cache"
-          };
-          if (BACKEND_CONFIG.DEBUG) {
-            const bodyContent = requestOptions.body;
-            const hasUnicodeEscape = bodyContent ? /\\u[0-9a-fA-F]{4}/.test(bodyContent) : false;
-            if (hasUnicodeEscape || url.includes("create-draft") || url.includes("update-draft")) {
-              console.log(`\u{1F6A8} HTTP\u8BF7\u6C42Unicode\u68C0\u67E5 [${method} ${endpoint}]:`, {
-                hasUnicodeEscape,
-                titleInBody: (bodyContent == null ? void 0 : bodyContent.includes("title")) ? (_a = bodyContent.match(/"title":"[^"]*"/)) == null ? void 0 : _a[0] : "title not found",
-                firstUnicodeMatch: hasUnicodeEscape ? (_b = bodyContent == null ? void 0 : bodyContent.match(/\\u[0-9a-fA-F]{4}/)) == null ? void 0 : _b[0] : "none"
-              });
-            }
-          }
-          const response = await this.requestWithTimeout(url, requestOptions, timeout);
-          if (BACKEND_CONFIG.DEBUG) {
-            console.log(`\u{1F4E5} \u6536\u5230HTTP\u54CD\u5E94:`, {
-              status: response.status,
-              statusText: response.statusText,
-              headers: Object.fromEntries(response.headers.entries()),
-              ok: response.ok,
-              redirected: response.redirected,
-              type: response.type,
-              url: response.url
-            });
-          }
-          if (!response.ok) {
-            const errorDetails = {
-              status: response.status,
-              statusText: response.statusText,
-              headers: Object.fromEntries(response.headers.entries()),
-              url: response.url
-            };
-            if (BACKEND_CONFIG.DEBUG) {
-            }
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          const result = await response.json();
-          if (BACKEND_CONFIG.DEBUG) {
-          }
-          return result;
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          const lower = (errorMsg || "").toLowerCase();
-          if (BACKEND_CONFIG.DEBUG) {
-            console.error(`\u274C ${method} ${endpoint} \u5931\u8D25:`, {
-              error: errorMsg,
-              errorType: (error == null ? void 0 : error.name) || error.constructor.name,
-              stack: error instanceof Error ? error.stack : void 0,
-              url: this.buildUrl(endpoint, params),
-              method,
-              timestamp: new Date().toISOString()
-            });
-          }
-          const isTimeout = lower.includes("aborted") || lower.includes("timeout");
-          const isBackendDown = lower.includes("failed to fetch") || lower.includes("networkerror") || lower.includes("err_connection_refused") || lower.includes("connection refused");
-          if (isBackendDown) {
-            const friendly = "\u65E0\u6CD5\u8FDE\u63A5\u5230\u670D\u52A1\u5668\uFF0C\u8BF7\u786E\u8BA4\u540E\u7AEF\u670D\u52A1\u5DF2\u542F\u52A8\uFF08\u5982\uFF1Ahttp://localhost:8000\uFF09\u3002";
-            return { success: false, error: friendly };
-          }
-          if (isTimeout) {
-            return { success: false, error: "\u8BF7\u6C42\u8D85\u65F6\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u6216\u7A0D\u540E\u91CD\u8BD5\u3002" };
-          }
-          if (errorMsg.includes("CORS") && !lower.includes("failed to fetch")) {
-            if (BACKEND_CONFIG.DEBUG) {
-              console.error(`\u{1F6AB} CORS\u9519\u8BEF\u8BE6\u7EC6\u4FE1\u606F:`, {
-                message: "\u53EF\u80FD\u7684CORS\u95EE\u9898\u539F\u56E0:",
-                reasons: [
-                  "1. \u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\u6216\u65E0\u6CD5\u8BBF\u95EE",
-                  "2. \u540E\u7AEFCORS\u914D\u7F6E\u4E0D\u6B63\u786E",
-                  "3. \u9884\u68C0\u8BF7\u6C42(OPTIONS)\u5931\u8D25",
-                  "4. Access-Control-Allow-Origin\u5934\u7F3A\u5931",
-                  "5. \u8BF7\u6C42\u5934\u88AB\u62D2\u7EDD"
-                ],
-                suggestions: [
-                  "\u68C0\u67E5\u540E\u7AEF\u670D\u52A1\u662F\u5426\u8FD0\u884C\u5728 localhost:8000",
-                  "\u9A8C\u8BC1\u540E\u7AEFCORS\u914D\u7F6E\u662F\u5426\u5305\u542B app://obsidian.md",
-                  "\u786E\u8BA4API\u5BC6\u94A5\u662F\u5426\u6B63\u786E",
-                  "\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5"
-                ]
-              });
-            }
-          }
-          return {
-            success: false,
-            error: errorMsg
-          };
-        }
-      }
-      /**
-       * GET请求
-       */
-      async get(endpoint, params) {
-        return this.request(endpoint, { method: "GET", params });
-      }
-      /**
-       * POST请求
-       */
-      async post(endpoint, data) {
-        return this.request(endpoint, { method: "POST", data });
-      }
-      /**
-       * PUT请求
-       */
-      async put(endpoint, data) {
-        return this.request(endpoint, { method: "PUT", data });
-      }
-      /**
-       * DELETE请求
-       */
-      async delete(endpoint, data) {
-        return this.request(endpoint, { method: "DELETE", data });
-      }
-      /**
-       * 文件上传方法（支持base64数据）
-       */
-      async uploadFile(endpoint, file, filename, extra) {
-        try {
-          let fileData;
-          if (typeof file === "string") {
-            fileData = file;
-          } else {
-            fileData = await this.blobToBase64(file);
-          }
-          const requestData = {
-            image_data: fileData,
-            filename,
-            ...extra
-          };
-          return this.post(endpoint, requestData);
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          if (BACKEND_CONFIG.DEBUG) {
-          }
-          return {
-            success: false,
-            error: errorMsg
-          };
-        }
-      }
-      /**
-       * 表单数据上传方法（支持multipart/form-data）
-       */
-      async uploadFormData(endpoint, formData) {
-        try {
-          const url = this.buildUrl(endpoint);
-          const headers = {
-            "X-API-Key": this.config.apiKey
-          };
-          const requestOptions = {
-            method: "POST",
-            headers,
-            body: formData
-          };
-          const response = await this.requestWithTimeout(url, requestOptions, this.config.timeout);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          const result = await response.json();
-          if (BACKEND_CONFIG.DEBUG) {
-          }
-          return result;
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          if (BACKEND_CONFIG.DEBUG) {
-          }
-          return {
-            success: false,
-            error: errorMsg
-          };
-        }
-      }
-      /**
-       * 健康检查
-       */
-      async healthCheck() {
-        try {
-          const response = await this.get("/api/v1/wechat/health");
-          return response.success;
-        } catch (e2) {
-          return false;
-        }
-      }
-      /**
-       * 更新配置
-       */
-      updateConfig(newConfig) {
-        this.config = { ...this.config, ...newConfig };
-        if (newConfig.apiKey) {
-          this.defaultHeaders["X-API-Key"] = newConfig.apiKey;
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-      }
-      // === 私有辅助方法 ===
-      /**
-       * 构建完整的请求URL
-       */
-      buildUrl(endpoint, params) {
-        const url = new URL(endpoint, this.config.baseUrl);
-        if (params) {
-          Object.entries(params).forEach(([key, value]) => {
-            url.searchParams.append(key, String(value));
-          });
-        }
-        return url.toString();
-      }
-      /**
-       * 带超时的请求方法
-       */
-      async requestWithTimeout(url, options2, timeout) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        try {
-          const response = await fetch(url, {
-            ...options2,
-            signal: controller.signal
-          });
-          return response;
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      }
-      /**
-       * Blob转base64
-       */
-      blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result;
-            const base64 = result.split(",")[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      }
-      /**
-       * 自定义JSON序列化，避免Unicode转义
-       */
-      serializeWithoutUnicodeEscape(data) {
-        try {
-          let json = JSON.stringify(data, null, 0);
-          if (/\\u[0-9a-fA-F]{4}/.test(json)) {
-            json = json.replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => {
-              const char = String.fromCharCode(parseInt(code, 16));
-              return char;
-            });
-          }
-          return json;
-        } catch (error) {
-          return JSON.stringify(data, null, 0);
-        }
-      }
+  } catch (error) {
+    console.error("\u521B\u5EFA\u8349\u7A3F\u5931\u8D25:", error);
+    return {
+      json: {
+        errcode: 1,
+        errmsg: `\u521B\u5EFA\u8349\u7A3F\u5931\u8D25: ${error}`
+      },
+      status: 500
     };
   }
-});
-
-// src/services/api/wechat-api.ts
-var WechatClient;
-var init_wechat_api = __esm({
-  "src/services/api/wechat-api.ts"() {
-    init_backend_config();
-    WechatClient = class {
-      constructor(httpClient) {
-        this.httpClient = httpClient;
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-      }
-      // === 认证相关方法 ===
-      /**
-       * 获取访问令牌
-       */
-      async authenticate(auth) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-          console.log("\u{1F4CB} API\u8BF7\u6C42\u53C2\u6570:", {
-            app_id: auth.appId,
-            app_secret: `${auth.appSecret.substring(0, 8)}...${auth.appSecret.substring(auth.appSecret.length - 4)}`,
-            app_secret_length: auth.appSecret.length
-          });
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/access-token", {
-          app_id: auth.appId,
-          app_secret: auth.appSecret
-        });
-        if (!response.success) {
-          throw new Error(`\u83B7\u53D6\u8BBF\u95EE\u4EE4\u724C\u5931\u8D25: ${response.error}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return response.data;
-      }
-      // === 媒体管理方法 ===
-      /**
-       * 上传媒体文件
-       */
-      async uploadMedia(upload) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const requestData = {
-          image_data: upload.mediaData,
-          filename: upload.filename,
-          access_token: upload.accessToken,
-          type: upload.storageType === "permanent" ? "image" : void 0
-        };
-        const response = await this.httpClient.post("/api/v1/wechat/upload-image", requestData);
-        if (!response.success) {
-          throw new Error(`\u5A92\u4F53\u4E0A\u4F20\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      /**
-       * 获取媒体列表
-       */
-      async getMediaList(params) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/batch-get-material", {
-          type: params.type,
-          offset: params.offset,
-          count: params.count,
-          access_token: params.accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u83B7\u53D6\u5A92\u4F53\u5217\u8868\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (result.errcode !== void 0 && result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg || "\u672A\u77E5\u9519\u8BEF"}`);
-        }
-        if (result.total_count === void 0) {
-          throw new Error("\u5FAE\u4FE1API\u54CD\u5E94\u683C\u5F0F\u5F02\u5E38\uFF1A\u7F3A\u5C11total_count\u5B57\u6BB5");
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      // === 草稿管理方法 ===
-      /**
-       * 创建草稿
-       */
-      async createDraft(draft, accessToken) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/create-draft", {
-          articles: draft,
-          access_token: accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u8349\u7A3F\u521B\u5EFA\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      /**
-       * 更新草稿
-       */
-      async updateDraft(draftId, index, article, accessToken) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.put("/api/v1/wechat/update-draft", {
-          media_id: draftId,
-          index,
-          article,
-          access_token: accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u8349\u7A3F\u66F4\u65B0\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      /**
-       * 删除草稿
-       */
-      async deleteDraft(draftId, index, accessToken) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.delete("/api/v1/wechat/delete-draft", {
-          media_id: draftId,
-          index,
-          access_token: accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u8349\u7A3F\u5220\u9664\u5931\u8D25: ${response.error}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return response;
-      }
-      /**
-       * 获取草稿列表
-       */
-      async getDraftList(accessToken, offset = 0, count = 20) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.get("/api/v1/wechat/drafts", {
-          access_token: accessToken,
-          offset,
-          count
-        });
-        if (!response.success) {
-          throw new Error(`\u83B7\u53D6\u8349\u7A3F\u5217\u8868\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (result.errcode !== void 0 && result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg || "\u672A\u77E5\u9519\u8BEF"}`);
-        }
-        if (result.total_count === void 0) {
-          throw new Error("\u5FAE\u4FE1API\u54CD\u5E94\u683C\u5F0F\u5F02\u5E38\uFF1A\u7F3A\u5C11total_count\u5B57\u6BB5");
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      // === 发布管理方法 ===
-      /**
-       * 发布内容
-       */
-      async publishContent(draftId, accessToken) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/publish-draft", {
-          media_id: draftId,
-          access_token: accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u5185\u5BB9\u53D1\u5E03\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
-        }
-        return result;
-      }
-      /**
-       * 获取发布状态
-       */
-      async getPublishStatus(publishId, accessToken) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/publish-status", {
-          publish_id: publishId,
-          access_token: accessToken
-        });
-        if (!response.success) {
-          throw new Error(`\u83B7\u53D6\u53D1\u5E03\u72B6\u6001\u5931\u8D25: ${response.error}`);
-        }
-        const result = response.data;
-        if (result.errcode !== 0) {
-          throw new Error(`\u5FAE\u4FE1API\u9519\u8BEF: ${result.errmsg}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return result;
-      }
-      // === 辅助方法 ===
-      /**
-       * 健康检查
-       */
-      async healthCheck() {
-        try {
-          const response = await this.httpClient.get("/api/v1/wechat/health");
-          return response.success;
-        } catch (e2) {
-          return false;
-        }
-      }
-      /**
-       * 验证AuthKey是否有效
-       */
-      async verifyAuthKey(authKey) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/verify-auth-key", {
-          auth_key: authKey
-        });
-        if (!response.success || !response.data) {
-          throw new Error(`\u9A8C\u8BC1AuthKey\u5931\u8D25: ${response.error || "\u672A\u77E5\u9519\u8BEF"}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return response.data;
-      }
-      /**
-       * 注册或更新公众号账户
-       */
-      async registerAccount(request) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.post("/api/v1/wechat/register-account", {
-          app_id: request.app_id,
-          app_secret: request.app_secret,
-          name: request.name,
-          auth_key: request.auth_key
-        });
-        if (!response.success) {
-          throw new Error(`\u6CE8\u518C\u516C\u4F17\u53F7\u5931\u8D25: ${response.error}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return response;
-      }
-      /**
-       * 检查公众号权限
-       */
-      async checkPermission(appId) {
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        const response = await this.httpClient.get("/api/v1/wechat/check-permission", {
-          app_id: appId
-        });
-        if (!response.success || !response.data) {
-          throw new Error(`\u68C0\u67E5\u6743\u9650\u5931\u8D25: ${response.error}`);
-        }
-        if (BACKEND_CONFIG.DEBUG) {
-        }
-        return response.data;
-      }
+}
+async function wxAddDraftImages(token, data) {
+  const url = "https://api.weixin.qq.com/cgi-bin/draft/add?access_token=" + token;
+  try {
+    const body = { articles: [data] };
+    const res = await (0, import_obsidian2.requestUrl)({
+      method: "POST",
+      url,
+      throw: false,
+      body: JSON.stringify(body)
+    });
+    const resData = res.json;
+    if (resData.media_id) {
+      return {
+        json: {
+          media_id: resData.media_id,
+          errcode: 0,
+          errmsg: "ok"
+        },
+        status: 200
+      };
+    } else {
+      return {
+        json: {
+          errcode: resData.errcode || 1,
+          errmsg: resData.errmsg || "\u521B\u5EFA\u56FE\u6587\u8349\u7A3F\u5931\u8D25"
+        },
+        status: 400
+      };
+    }
+  } catch (error) {
+    console.error("\u521B\u5EFA\u56FE\u6587\u8349\u7A3F\u5931\u8D25:", error);
+    return {
+      json: {
+        errcode: 1,
+        errmsg: `\u521B\u5EFA\u56FE\u6587\u8349\u7A3F\u5931\u8D25: ${error}`
+      },
+      status: 500
     };
+  }
+}
+async function wxBatchGetMaterial(token, type, offset = 0, count = 10) {
+  const url = "https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token=" + token;
+  try {
+    const body = {
+      type,
+      offset,
+      count
+    };
+    const res = await (0, import_obsidian2.requestUrl)({
+      method: "POST",
+      url,
+      throw: false,
+      body: JSON.stringify(body)
+    });
+    const resData = res.json;
+    if (resData.item !== void 0) {
+      return {
+        item: resData.item || [],
+        total_count: resData.total_count || 0,
+        item_count: resData.item_count || 0,
+        errcode: 0,
+        errmsg: "ok"
+      };
+    } else {
+      return {
+        errcode: resData.errcode || 1,
+        errmsg: resData.errmsg || "\u83B7\u53D6\u7D20\u6750\u5217\u8868\u5931\u8D25",
+        item: [],
+        total_count: 0,
+        item_count: 0
+      };
+    }
+  } catch (error) {
+    console.error("\u83B7\u53D6\u7D20\u6750\u5217\u8868\u5931\u8D25:", error);
+    return {
+      errcode: 1,
+      errmsg: `\u83B7\u53D6\u7D20\u6750\u5217\u8868\u5931\u8D25: ${error}`,
+      item: [],
+      total_count: 0,
+      item_count: 0
+    };
+  }
+}
+async function wxEncrypt(authkey, wechat) {
+  console.warn("wxEncrypt \u5DF2\u5E9F\u5F03\uFF0C\u516C\u4F17\u53F7\u4FE1\u606F\u73B0\u5728\u76F4\u63A5\u672C\u5730\u5B58\u50A8");
+  return {
+    json: { encrypted: true, data: wechat },
+    status: 200
+  };
+}
+var import_obsidian2, INTERNAL_AUTH_KEY;
+var init_weixin_api = __esm({
+  "src/services/wechat/weixin-api.ts"() {
+    import_obsidian2 = require("obsidian");
+    INTERNAL_AUTH_KEY = "95279527";
   }
 });
 
 // src/services/api/index.ts
 var api_exports = {};
 __export(api_exports, {
-  BACKEND_CONFIG: () => BACKEND_CONFIG,
-  HttpClient: () => HttpClient,
+  INTERNAL_AUTH_KEY: () => INTERNAL_AUTH_KEY,
   WechatApiUtils: () => WechatApiUtils,
-  WechatClient: () => WechatClient,
-  getApiEndpoint: () => getApiEndpoint,
   getApiMode: () => getApiMode,
-  getBackendConfigInfo: () => getBackendConfigInfo,
-  getHttpClient: () => getHttpClient,
+  getInternalKey: () => getInternalKey,
   getPublisherClient: () => getPublisherClient,
   getWechatClient: () => getWechatClient,
   initApiClients: () => initApiClients,
   initHttpClient: () => initHttpClient,
   initWechatClient: () => initWechatClient,
+  isAuthKeyValid: () => isAuthKeyValid,
   shouldUseBackendProxy: () => shouldUseBackendProxy,
-  validateBackendConfig: () => validateBackendConfig,
   wxAddDraft: () => wxAddDraft,
+  wxAddDraftImages: () => wxAddDraftImages,
+  wxBatchGetMaterial: () => wxBatchGetMaterial,
+  wxEncrypt: () => wxEncrypt,
   wxGetToken: () => wxGetToken,
   wxUploadImage: () => wxUploadImage
 });
-function initHttpClient(config2) {
-  globalHttpClient = new HttpClient(config2);
-}
-function initWechatClient(httpClient) {
-  if (!httpClient && !globalHttpClient) {
-    throw new Error("HTTP\u5BA2\u6237\u7AEF\u672A\u521D\u59CB\u5316\uFF0C\u8BF7\u5148\u8C03\u7528 initHttpClient() \u6216\u4F20\u5165 httpClient \u53C2\u6570");
-  }
-  globalWechatClient = new WechatClient(httpClient || globalHttpClient);
-}
-function getHttpClient() {
-  if (!globalHttpClient) {
-    throw new Error("HTTP\u5BA2\u6237\u7AEF\u672A\u521D\u59CB\u5316\uFF0C\u8BF7\u5148\u8C03\u7528 initHttpClient()");
-  }
-  return globalHttpClient;
-}
-function getWechatClient() {
-  if (!globalWechatClient) {
-    throw new Error("\u5FAE\u4FE1\u5BA2\u6237\u7AEF\u672A\u521D\u59CB\u5316\uFF0C\u8BF7\u5148\u8C03\u7528 initWechatClient()");
-  }
-  return globalWechatClient;
-}
 function shouldUseBackendProxy() {
-  return BACKEND_CONFIG.USE_BACKEND_PROXY && !!BACKEND_CONFIG.SERVER_URL && !!BACKEND_CONFIG.API_KEY;
+  return false;
 }
 function getApiMode() {
-  return shouldUseBackendProxy() ? "\u540E\u7AEF\u4EE3\u7406\u6A21\u5F0F" : "\u76F4\u63A5\u8C03\u7528\u6A21\u5F0F(\u5DF2\u5F03\u7528)";
-}
-async function wxGetToken(appid, secret) {
-  const client = getWechatClient();
-  return await client.authenticate({ appId: appid, appSecret: secret });
-}
-async function wxUploadImage(data, filename, token, type) {
-  const client = getWechatClient();
-  const base64Data = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      const base64 = result.split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(data);
-  });
-  return await client.uploadMedia({
-    mediaData: base64Data,
-    filename,
-    accessToken: token,
-    storageType: type === "image" ? "permanent" : "temporary"
-  });
-}
-async function wxAddDraft(articles, token) {
-  const client = getWechatClient();
-  return await client.createDraft(articles, token);
+  return "\u76F4\u63A5\u8C03\u7528\u6A21\u5F0F";
 }
 function initApiClients() {
-  initHttpClient({
-    baseUrl: BACKEND_CONFIG.SERVER_URL,
-    apiKey: BACKEND_CONFIG.API_KEY,
-    timeout: BACKEND_CONFIG.TIMEOUT,
-    retries: BACKEND_CONFIG.MAX_RETRIES
-  });
-  initWechatClient();
+  console.log("\u{1F389} API\u6A21\u5757\u52A0\u8F7D\u5B8C\u6210\uFF08\u76F4\u63A5\u8C03\u7528\u6A21\u5F0F\uFF09");
+}
+function initHttpClient(config2) {
+  console.log("initHttpClient \u5DF2\u5F03\u7528\uFF0C\u73B0\u5728\u4F7F\u7528 Obsidian requestUrl");
+}
+function initWechatClient(httpClient) {
+  console.log("initWechatClient \u5DF2\u5F03\u7528\uFF0C\u73B0\u5728\u76F4\u63A5\u8C03\u7528 API \u51FD\u6570");
+}
+function getWechatClient() {
+  return {
+    async authenticate(auth) {
+      const { wxGetToken: wxGetToken2 } = await Promise.resolve().then(() => (init_weixin_api(), weixin_api_exports));
+      const result = await wxGetToken2("", auth.appId, auth.appSecret);
+      if (result.status === 200) {
+        return {
+          access_token: result.json.token,
+          expires_in: result.json.expires_in
+        };
+      }
+      throw new Error(result.json.message || "\u8BA4\u8BC1\u5931\u8D25");
+    },
+    async verifyAuthKey(authKey) {
+      const { isAuthKeyValid: isAuthKeyValid2 } = await Promise.resolve().then(() => (init_weixin_api(), weixin_api_exports));
+      const isValid = isAuthKeyValid2(authKey);
+      return {
+        is_valid: isValid,
+        is_vip: isValid,
+        can_register: isValid,
+        max_accounts: isValid ? 999 : 0,
+        registered_accounts: 0,
+        message: isValid ? "\u9A8C\u8BC1\u6210\u529F" : "\u65E0\u6548\u7684\u8BA4\u8BC1\u7801"
+      };
+    },
+    async registerAccount(request) {
+      return {
+        success: true,
+        data: { registered: true }
+      };
+    },
+    async healthCheck() {
+      return true;
+    },
+    // 获取草稿列表（使用草稿专用 API）
+    async getDraftList(token, offset = 0, count = 20) {
+      const url = `https://api.weixin.qq.com/cgi-bin/draft/batchget?access_token=${token}`;
+      try {
+        const response = await (0, import_obsidian3.requestUrl)({
+          url,
+          method: "POST",
+          body: JSON.stringify({ offset, count, no_content: 0 }),
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = response.json;
+        return {
+          total_count: data.total_count || 0,
+          item_count: data.item_count || 0,
+          item: data.item || [],
+          errcode: data.errcode || 0,
+          errmsg: data.errmsg || ""
+        };
+      } catch (error) {
+        console.error("\u83B7\u53D6\u8349\u7A3F\u5217\u8868\u5931\u8D25:", error);
+        return {
+          total_count: 0,
+          item_count: 0,
+          item: [],
+          errcode: -1,
+          errmsg: error instanceof Error ? error.message : "\u83B7\u53D6\u8349\u7A3F\u5217\u8868\u5931\u8D25"
+        };
+      }
+    },
+    // 创建草稿
+    async createDraft(articles, token) {
+      const { wxAddDraft: wxAddDraft3 } = await Promise.resolve().then(() => (init_weixin_api(), weixin_api_exports));
+      const article = articles[0] || {};
+      const result = await wxAddDraft3(token, article);
+      return {
+        errcode: result.status === 200 ? 0 : result.json.errcode || -1,
+        errmsg: result.json.errmsg || "",
+        media_id: result.json.media_id || ""
+      };
+    },
+    // 更新草稿
+    async updateDraft(mediaId, index, article, token) {
+      const url = `https://api.weixin.qq.com/cgi-bin/draft/update?access_token=${token}`;
+      const body = {
+        media_id: mediaId,
+        index,
+        articles: article
+      };
+      try {
+        const response = await (0, import_obsidian3.requestUrl)({
+          url,
+          method: "POST",
+          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = response.json;
+        return {
+          errcode: data.errcode || 0,
+          errmsg: data.errmsg || ""
+        };
+      } catch (error) {
+        return {
+          errcode: -1,
+          errmsg: error instanceof Error ? error.message : "\u66F4\u65B0\u8349\u7A3F\u5931\u8D25"
+        };
+      }
+    },
+    // 上传媒体素材
+    async uploadMedia(options2) {
+      const { wxUploadImage: wxUploadImage2 } = await Promise.resolve().then(() => (init_weixin_api(), weixin_api_exports));
+      const binaryString = atob(options2.mediaData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes]);
+      const uploadType = options2.storageType === "permanent" ? "image" : "";
+      const result = await wxUploadImage2(blob, options2.filename, options2.accessToken, uploadType);
+      return {
+        errcode: result.errcode || 0,
+        errmsg: result.errmsg || "",
+        media_id: result.media_id || "",
+        url: result.url || ""
+      };
+    },
+    // 获取素材列表
+    async getMediaList(options2) {
+      const { wxBatchGetMaterial: wxBatchGetMaterial2 } = await Promise.resolve().then(() => (init_weixin_api(), weixin_api_exports));
+      return await wxBatchGetMaterial2(options2.accessToken, options2.type, options2.offset, options2.count);
+    }
+  };
 }
 function getPublisherClient() {
   return getWechatClient();
 }
-var globalHttpClient, globalWechatClient, WechatApiUtils;
+var import_obsidian3, WechatApiUtils;
 var init_api = __esm({
   "src/services/api/index.ts"() {
-    init_backend_config();
-    init_http_client();
-    init_wechat_api();
-    init_backend_config();
-    init_http_client();
-    init_wechat_api();
-    globalHttpClient = null;
-    globalWechatClient = null;
+    import_obsidian3 = require("obsidian");
+    init_weixin_api();
     WechatApiUtils = {
       /**
-       * 检查是否使用后端代理
+       * 检查是否使用后端代理（已废弃）
        */
       shouldUseBackendProxy,
       /**
@@ -810,27 +502,21 @@ var init_api = __esm({
        */
       getApiMode,
       /**
-       * 测试后端连接
+       * 测试后端连接（已废弃，始终返回 true）
+       * @deprecated 不再需要后端
        */
       async testBackendConnection() {
-        try {
-          const client = getWechatClient();
-          return await client.healthCheck();
-        } catch (error) {
-          return false;
-        }
+        console.log("\u540E\u7AEF\u8FDE\u63A5\u6D4B\u8BD5\u5DF2\u5F03\u7528\uFF0C\u73B0\u5728\u76F4\u63A5\u8C03\u7528\u5FAE\u4FE1API");
+        return true;
       },
       /**
        * 获取当前配置信息
        */
       getCurrentConfig() {
         return {
-          proxyMode: shouldUseBackendProxy(),
-          serverUrl: BACKEND_CONFIG.SERVER_URL,
-          hasApiKey: !!BACKEND_CONFIG.API_KEY,
-          httpClientInitialized: !!globalHttpClient,
-          wechatClientInitialized: !!globalWechatClient,
-          configInfo: getBackendConfigInfo()
+          proxyMode: false,
+          directMode: true,
+          description: "\u76F4\u63A5\u8C03\u7528\u5FAE\u4FE1\u5B98\u65B9API"
         };
       }
     };
@@ -1400,5557 +1086,6 @@ var require_wasm_exec = __commonJS({
         }
       };
     })();
-  }
-});
-
-// src/shared/postcss/postcss.js
-var require_postcss = __commonJS({
-  "src/shared/postcss/postcss.js"(exports, module2) {
-    (function(f) {
-      if (typeof exports === "object" && typeof module2 !== "undefined") {
-        module2.exports = f();
-      } else if (typeof define === "function" && define.amd) {
-        define([], f);
-      } else {
-        var g;
-        if (typeof window !== "undefined") {
-          g = window;
-        } else if (typeof global !== "undefined") {
-          g = global;
-        } else if (typeof self !== "undefined") {
-          g = self;
-        } else {
-          g = this;
-        }
-        g.postcss = f();
-      }
-    })(function() {
-      var define2, module3, exports2;
-      return function() {
-        function r(e2, n, t) {
-          function o(i2, f) {
-            if (!n[i2]) {
-              if (!e2[i2]) {
-                var c = "function" == typeof require && require;
-                if (!f && c)
-                  return c(i2, true);
-                if (u)
-                  return u(i2, true);
-                var a = new Error("Cannot find module '" + i2 + "'");
-                throw a.code = "MODULE_NOT_FOUND", a;
-              }
-              var p = n[i2] = { exports: {} };
-              e2[i2][0].call(p.exports, function(r2) {
-                var n2 = e2[i2][1][r2];
-                return o(n2 || r2);
-              }, p, p.exports, r, e2, n, t);
-            }
-            return n[i2].exports;
-          }
-          for (var u = "function" == typeof require && require, i = 0; i < t.length; i++)
-            o(t[i]);
-          return o;
-        }
-        return r;
-      }()({ 1: [function(require2, module4, exports3) {
-        "use strict";
-        exports3.byteLength = byteLength;
-        exports3.toByteArray = toByteArray;
-        exports3.fromByteArray = fromByteArray;
-        var lookup = [];
-        var revLookup = [];
-        var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
-        var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        for (var i = 0, len = code.length; i < len; ++i) {
-          lookup[i] = code[i];
-          revLookup[code.charCodeAt(i)] = i;
-        }
-        revLookup["-".charCodeAt(0)] = 62;
-        revLookup["_".charCodeAt(0)] = 63;
-        function getLens(b64) {
-          var len2 = b64.length;
-          if (len2 % 4 > 0) {
-            throw new Error("Invalid string. Length must be a multiple of 4");
-          }
-          var validLen = b64.indexOf("=");
-          if (validLen === -1)
-            validLen = len2;
-          var placeHoldersLen = validLen === len2 ? 0 : 4 - validLen % 4;
-          return [validLen, placeHoldersLen];
-        }
-        function byteLength(b64) {
-          var lens = getLens(b64);
-          var validLen = lens[0];
-          var placeHoldersLen = lens[1];
-          return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
-        }
-        function _byteLength(b64, validLen, placeHoldersLen) {
-          return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
-        }
-        function toByteArray(b64) {
-          var tmp;
-          var lens = getLens(b64);
-          var validLen = lens[0];
-          var placeHoldersLen = lens[1];
-          var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen));
-          var curByte = 0;
-          var len2 = placeHoldersLen > 0 ? validLen - 4 : validLen;
-          var i2;
-          for (i2 = 0; i2 < len2; i2 += 4) {
-            tmp = revLookup[b64.charCodeAt(i2)] << 18 | revLookup[b64.charCodeAt(i2 + 1)] << 12 | revLookup[b64.charCodeAt(i2 + 2)] << 6 | revLookup[b64.charCodeAt(i2 + 3)];
-            arr[curByte++] = tmp >> 16 & 255;
-            arr[curByte++] = tmp >> 8 & 255;
-            arr[curByte++] = tmp & 255;
-          }
-          if (placeHoldersLen === 2) {
-            tmp = revLookup[b64.charCodeAt(i2)] << 2 | revLookup[b64.charCodeAt(i2 + 1)] >> 4;
-            arr[curByte++] = tmp & 255;
-          }
-          if (placeHoldersLen === 1) {
-            tmp = revLookup[b64.charCodeAt(i2)] << 10 | revLookup[b64.charCodeAt(i2 + 1)] << 4 | revLookup[b64.charCodeAt(i2 + 2)] >> 2;
-            arr[curByte++] = tmp >> 8 & 255;
-            arr[curByte++] = tmp & 255;
-          }
-          return arr;
-        }
-        function tripletToBase64(num) {
-          return lookup[num >> 18 & 63] + lookup[num >> 12 & 63] + lookup[num >> 6 & 63] + lookup[num & 63];
-        }
-        function encodeChunk(uint8, start, end) {
-          var tmp;
-          var output = [];
-          for (var i2 = start; i2 < end; i2 += 3) {
-            tmp = (uint8[i2] << 16 & 16711680) + (uint8[i2 + 1] << 8 & 65280) + (uint8[i2 + 2] & 255);
-            output.push(tripletToBase64(tmp));
-          }
-          return output.join("");
-        }
-        function fromByteArray(uint8) {
-          var tmp;
-          var len2 = uint8.length;
-          var extraBytes = len2 % 3;
-          var parts = [];
-          var maxChunkLength = 16383;
-          for (var i2 = 0, len22 = len2 - extraBytes; i2 < len22; i2 += maxChunkLength) {
-            parts.push(encodeChunk(uint8, i2, i2 + maxChunkLength > len22 ? len22 : i2 + maxChunkLength));
-          }
-          if (extraBytes === 1) {
-            tmp = uint8[len2 - 1];
-            parts.push(
-              lookup[tmp >> 2] + lookup[tmp << 4 & 63] + "=="
-            );
-          } else if (extraBytes === 2) {
-            tmp = (uint8[len2 - 2] << 8) + uint8[len2 - 1];
-            parts.push(
-              lookup[tmp >> 10] + lookup[tmp >> 4 & 63] + lookup[tmp << 2 & 63] + "="
-            );
-          }
-          return parts.join("");
-        }
-      }, {}], 2: [function(require2, module4, exports3) {
-      }, {}], 3: [function(require2, module4, exports3) {
-        (function(Buffer2) {
-          (function() {
-            "use strict";
-            var base64 = require2("base64-js");
-            var ieee754 = require2("ieee754");
-            exports3.Buffer = Buffer3;
-            exports3.SlowBuffer = SlowBuffer;
-            exports3.INSPECT_MAX_BYTES = 50;
-            var K_MAX_LENGTH = 2147483647;
-            exports3.kMaxLength = K_MAX_LENGTH;
-            Buffer3.TYPED_ARRAY_SUPPORT = typedArraySupport();
-            if (!Buffer3.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
-              console.error(
-                "This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support."
-              );
-            }
-            function typedArraySupport() {
-              try {
-                var arr = new Uint8Array(1);
-                arr.__proto__ = { __proto__: Uint8Array.prototype, foo: function() {
-                  return 42;
-                } };
-                return arr.foo() === 42;
-              } catch (e2) {
-                return false;
-              }
-            }
-            Object.defineProperty(Buffer3.prototype, "parent", {
-              enumerable: true,
-              get: function() {
-                if (!Buffer3.isBuffer(this))
-                  return void 0;
-                return this.buffer;
-              }
-            });
-            Object.defineProperty(Buffer3.prototype, "offset", {
-              enumerable: true,
-              get: function() {
-                if (!Buffer3.isBuffer(this))
-                  return void 0;
-                return this.byteOffset;
-              }
-            });
-            function createBuffer(length) {
-              if (length > K_MAX_LENGTH) {
-                throw new RangeError('The value "' + length + '" is invalid for option "size"');
-              }
-              var buf = new Uint8Array(length);
-              buf.__proto__ = Buffer3.prototype;
-              return buf;
-            }
-            function Buffer3(arg, encodingOrOffset, length) {
-              if (typeof arg === "number") {
-                if (typeof encodingOrOffset === "string") {
-                  throw new TypeError(
-                    'The "string" argument must be of type string. Received type number'
-                  );
-                }
-                return allocUnsafe(arg);
-              }
-              return from(arg, encodingOrOffset, length);
-            }
-            if (typeof Symbol !== "undefined" && Symbol.species != null && Buffer3[Symbol.species] === Buffer3) {
-              Object.defineProperty(Buffer3, Symbol.species, {
-                value: null,
-                configurable: true,
-                enumerable: false,
-                writable: false
-              });
-            }
-            Buffer3.poolSize = 8192;
-            function from(value, encodingOrOffset, length) {
-              if (typeof value === "string") {
-                return fromString(value, encodingOrOffset);
-              }
-              if (ArrayBuffer.isView(value)) {
-                return fromArrayLike(value);
-              }
-              if (value == null) {
-                throw TypeError(
-                  "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
-                );
-              }
-              if (isInstance(value, ArrayBuffer) || value && isInstance(value.buffer, ArrayBuffer)) {
-                return fromArrayBuffer(value, encodingOrOffset, length);
-              }
-              if (typeof value === "number") {
-                throw new TypeError(
-                  'The "value" argument must not be of type number. Received type number'
-                );
-              }
-              var valueOf = value.valueOf && value.valueOf();
-              if (valueOf != null && valueOf !== value) {
-                return Buffer3.from(valueOf, encodingOrOffset, length);
-              }
-              var b = fromObject(value);
-              if (b)
-                return b;
-              if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value[Symbol.toPrimitive] === "function") {
-                return Buffer3.from(
-                  value[Symbol.toPrimitive]("string"),
-                  encodingOrOffset,
-                  length
-                );
-              }
-              throw new TypeError(
-                "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
-              );
-            }
-            Buffer3.from = function(value, encodingOrOffset, length) {
-              return from(value, encodingOrOffset, length);
-            };
-            Buffer3.prototype.__proto__ = Uint8Array.prototype;
-            Buffer3.__proto__ = Uint8Array;
-            function assertSize(size) {
-              if (typeof size !== "number") {
-                throw new TypeError('"size" argument must be of type number');
-              } else if (size < 0) {
-                throw new RangeError('The value "' + size + '" is invalid for option "size"');
-              }
-            }
-            function alloc(size, fill, encoding) {
-              assertSize(size);
-              if (size <= 0) {
-                return createBuffer(size);
-              }
-              if (fill !== void 0) {
-                return typeof encoding === "string" ? createBuffer(size).fill(fill, encoding) : createBuffer(size).fill(fill);
-              }
-              return createBuffer(size);
-            }
-            Buffer3.alloc = function(size, fill, encoding) {
-              return alloc(size, fill, encoding);
-            };
-            function allocUnsafe(size) {
-              assertSize(size);
-              return createBuffer(size < 0 ? 0 : checked(size) | 0);
-            }
-            Buffer3.allocUnsafe = function(size) {
-              return allocUnsafe(size);
-            };
-            Buffer3.allocUnsafeSlow = function(size) {
-              return allocUnsafe(size);
-            };
-            function fromString(string, encoding) {
-              if (typeof encoding !== "string" || encoding === "") {
-                encoding = "utf8";
-              }
-              if (!Buffer3.isEncoding(encoding)) {
-                throw new TypeError("Unknown encoding: " + encoding);
-              }
-              var length = byteLength(string, encoding) | 0;
-              var buf = createBuffer(length);
-              var actual = buf.write(string, encoding);
-              if (actual !== length) {
-                buf = buf.slice(0, actual);
-              }
-              return buf;
-            }
-            function fromArrayLike(array) {
-              var length = array.length < 0 ? 0 : checked(array.length) | 0;
-              var buf = createBuffer(length);
-              for (var i = 0; i < length; i += 1) {
-                buf[i] = array[i] & 255;
-              }
-              return buf;
-            }
-            function fromArrayBuffer(array, byteOffset, length) {
-              if (byteOffset < 0 || array.byteLength < byteOffset) {
-                throw new RangeError('"offset" is outside of buffer bounds');
-              }
-              if (array.byteLength < byteOffset + (length || 0)) {
-                throw new RangeError('"length" is outside of buffer bounds');
-              }
-              var buf;
-              if (byteOffset === void 0 && length === void 0) {
-                buf = new Uint8Array(array);
-              } else if (length === void 0) {
-                buf = new Uint8Array(array, byteOffset);
-              } else {
-                buf = new Uint8Array(array, byteOffset, length);
-              }
-              buf.__proto__ = Buffer3.prototype;
-              return buf;
-            }
-            function fromObject(obj) {
-              if (Buffer3.isBuffer(obj)) {
-                var len = checked(obj.length) | 0;
-                var buf = createBuffer(len);
-                if (buf.length === 0) {
-                  return buf;
-                }
-                obj.copy(buf, 0, 0, len);
-                return buf;
-              }
-              if (obj.length !== void 0) {
-                if (typeof obj.length !== "number" || numberIsNaN(obj.length)) {
-                  return createBuffer(0);
-                }
-                return fromArrayLike(obj);
-              }
-              if (obj.type === "Buffer" && Array.isArray(obj.data)) {
-                return fromArrayLike(obj.data);
-              }
-            }
-            function checked(length) {
-              if (length >= K_MAX_LENGTH) {
-                throw new RangeError("Attempt to allocate Buffer larger than maximum size: 0x" + K_MAX_LENGTH.toString(16) + " bytes");
-              }
-              return length | 0;
-            }
-            function SlowBuffer(length) {
-              if (+length != length) {
-                length = 0;
-              }
-              return Buffer3.alloc(+length);
-            }
-            Buffer3.isBuffer = function isBuffer(b) {
-              return b != null && b._isBuffer === true && b !== Buffer3.prototype;
-            };
-            Buffer3.compare = function compare(a, b) {
-              if (isInstance(a, Uint8Array))
-                a = Buffer3.from(a, a.offset, a.byteLength);
-              if (isInstance(b, Uint8Array))
-                b = Buffer3.from(b, b.offset, b.byteLength);
-              if (!Buffer3.isBuffer(a) || !Buffer3.isBuffer(b)) {
-                throw new TypeError(
-                  'The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array'
-                );
-              }
-              if (a === b)
-                return 0;
-              var x = a.length;
-              var y = b.length;
-              for (var i = 0, len = Math.min(x, y); i < len; ++i) {
-                if (a[i] !== b[i]) {
-                  x = a[i];
-                  y = b[i];
-                  break;
-                }
-              }
-              if (x < y)
-                return -1;
-              if (y < x)
-                return 1;
-              return 0;
-            };
-            Buffer3.isEncoding = function isEncoding(encoding) {
-              switch (String(encoding).toLowerCase()) {
-                case "hex":
-                case "utf8":
-                case "utf-8":
-                case "ascii":
-                case "latin1":
-                case "binary":
-                case "base64":
-                case "ucs2":
-                case "ucs-2":
-                case "utf16le":
-                case "utf-16le":
-                  return true;
-                default:
-                  return false;
-              }
-            };
-            Buffer3.concat = function concat2(list2, length) {
-              if (!Array.isArray(list2)) {
-                throw new TypeError('"list" argument must be an Array of Buffers');
-              }
-              if (list2.length === 0) {
-                return Buffer3.alloc(0);
-              }
-              var i;
-              if (length === void 0) {
-                length = 0;
-                for (i = 0; i < list2.length; ++i) {
-                  length += list2[i].length;
-                }
-              }
-              var buffer = Buffer3.allocUnsafe(length);
-              var pos = 0;
-              for (i = 0; i < list2.length; ++i) {
-                var buf = list2[i];
-                if (isInstance(buf, Uint8Array)) {
-                  buf = Buffer3.from(buf);
-                }
-                if (!Buffer3.isBuffer(buf)) {
-                  throw new TypeError('"list" argument must be an Array of Buffers');
-                }
-                buf.copy(buffer, pos);
-                pos += buf.length;
-              }
-              return buffer;
-            };
-            function byteLength(string, encoding) {
-              if (Buffer3.isBuffer(string)) {
-                return string.length;
-              }
-              if (ArrayBuffer.isView(string) || isInstance(string, ArrayBuffer)) {
-                return string.byteLength;
-              }
-              if (typeof string !== "string") {
-                throw new TypeError(
-                  'The "string" argument must be one of type string, Buffer, or ArrayBuffer. Received type ' + typeof string
-                );
-              }
-              var len = string.length;
-              var mustMatch = arguments.length > 2 && arguments[2] === true;
-              if (!mustMatch && len === 0)
-                return 0;
-              var loweredCase = false;
-              for (; ; ) {
-                switch (encoding) {
-                  case "ascii":
-                  case "latin1":
-                  case "binary":
-                    return len;
-                  case "utf8":
-                  case "utf-8":
-                    return utf8ToBytes(string).length;
-                  case "ucs2":
-                  case "ucs-2":
-                  case "utf16le":
-                  case "utf-16le":
-                    return len * 2;
-                  case "hex":
-                    return len >>> 1;
-                  case "base64":
-                    return base64ToBytes(string).length;
-                  default:
-                    if (loweredCase) {
-                      return mustMatch ? -1 : utf8ToBytes(string).length;
-                    }
-                    encoding = ("" + encoding).toLowerCase();
-                    loweredCase = true;
-                }
-              }
-            }
-            Buffer3.byteLength = byteLength;
-            function slowToString(encoding, start, end) {
-              var loweredCase = false;
-              if (start === void 0 || start < 0) {
-                start = 0;
-              }
-              if (start > this.length) {
-                return "";
-              }
-              if (end === void 0 || end > this.length) {
-                end = this.length;
-              }
-              if (end <= 0) {
-                return "";
-              }
-              end >>>= 0;
-              start >>>= 0;
-              if (end <= start) {
-                return "";
-              }
-              if (!encoding)
-                encoding = "utf8";
-              while (true) {
-                switch (encoding) {
-                  case "hex":
-                    return hexSlice(this, start, end);
-                  case "utf8":
-                  case "utf-8":
-                    return utf8Slice(this, start, end);
-                  case "ascii":
-                    return asciiSlice(this, start, end);
-                  case "latin1":
-                  case "binary":
-                    return latin1Slice(this, start, end);
-                  case "base64":
-                    return base64Slice(this, start, end);
-                  case "ucs2":
-                  case "ucs-2":
-                  case "utf16le":
-                  case "utf-16le":
-                    return utf16leSlice(this, start, end);
-                  default:
-                    if (loweredCase)
-                      throw new TypeError("Unknown encoding: " + encoding);
-                    encoding = (encoding + "").toLowerCase();
-                    loweredCase = true;
-                }
-              }
-            }
-            Buffer3.prototype._isBuffer = true;
-            function swap(b, n, m) {
-              var i = b[n];
-              b[n] = b[m];
-              b[m] = i;
-            }
-            Buffer3.prototype.swap16 = function swap16() {
-              var len = this.length;
-              if (len % 2 !== 0) {
-                throw new RangeError("Buffer size must be a multiple of 16-bits");
-              }
-              for (var i = 0; i < len; i += 2) {
-                swap(this, i, i + 1);
-              }
-              return this;
-            };
-            Buffer3.prototype.swap32 = function swap32() {
-              var len = this.length;
-              if (len % 4 !== 0) {
-                throw new RangeError("Buffer size must be a multiple of 32-bits");
-              }
-              for (var i = 0; i < len; i += 4) {
-                swap(this, i, i + 3);
-                swap(this, i + 1, i + 2);
-              }
-              return this;
-            };
-            Buffer3.prototype.swap64 = function swap64() {
-              var len = this.length;
-              if (len % 8 !== 0) {
-                throw new RangeError("Buffer size must be a multiple of 64-bits");
-              }
-              for (var i = 0; i < len; i += 8) {
-                swap(this, i, i + 7);
-                swap(this, i + 1, i + 6);
-                swap(this, i + 2, i + 5);
-                swap(this, i + 3, i + 4);
-              }
-              return this;
-            };
-            Buffer3.prototype.toString = function toString() {
-              var length = this.length;
-              if (length === 0)
-                return "";
-              if (arguments.length === 0)
-                return utf8Slice(this, 0, length);
-              return slowToString.apply(this, arguments);
-            };
-            Buffer3.prototype.toLocaleString = Buffer3.prototype.toString;
-            Buffer3.prototype.equals = function equals(b) {
-              if (!Buffer3.isBuffer(b))
-                throw new TypeError("Argument must be a Buffer");
-              if (this === b)
-                return true;
-              return Buffer3.compare(this, b) === 0;
-            };
-            Buffer3.prototype.inspect = function inspect() {
-              var str = "";
-              var max = exports3.INSPECT_MAX_BYTES;
-              str = this.toString("hex", 0, max).replace(/(.{2})/g, "$1 ").trim();
-              if (this.length > max)
-                str += " ... ";
-              return "<Buffer " + str + ">";
-            };
-            Buffer3.prototype.compare = function compare(target, start, end, thisStart, thisEnd) {
-              if (isInstance(target, Uint8Array)) {
-                target = Buffer3.from(target, target.offset, target.byteLength);
-              }
-              if (!Buffer3.isBuffer(target)) {
-                throw new TypeError(
-                  'The "target" argument must be one of type Buffer or Uint8Array. Received type ' + typeof target
-                );
-              }
-              if (start === void 0) {
-                start = 0;
-              }
-              if (end === void 0) {
-                end = target ? target.length : 0;
-              }
-              if (thisStart === void 0) {
-                thisStart = 0;
-              }
-              if (thisEnd === void 0) {
-                thisEnd = this.length;
-              }
-              if (start < 0 || end > target.length || thisStart < 0 || thisEnd > this.length) {
-                throw new RangeError("out of range index");
-              }
-              if (thisStart >= thisEnd && start >= end) {
-                return 0;
-              }
-              if (thisStart >= thisEnd) {
-                return -1;
-              }
-              if (start >= end) {
-                return 1;
-              }
-              start >>>= 0;
-              end >>>= 0;
-              thisStart >>>= 0;
-              thisEnd >>>= 0;
-              if (this === target)
-                return 0;
-              var x = thisEnd - thisStart;
-              var y = end - start;
-              var len = Math.min(x, y);
-              var thisCopy = this.slice(thisStart, thisEnd);
-              var targetCopy = target.slice(start, end);
-              for (var i = 0; i < len; ++i) {
-                if (thisCopy[i] !== targetCopy[i]) {
-                  x = thisCopy[i];
-                  y = targetCopy[i];
-                  break;
-                }
-              }
-              if (x < y)
-                return -1;
-              if (y < x)
-                return 1;
-              return 0;
-            };
-            function bidirectionalIndexOf(buffer, val, byteOffset, encoding, dir) {
-              if (buffer.length === 0)
-                return -1;
-              if (typeof byteOffset === "string") {
-                encoding = byteOffset;
-                byteOffset = 0;
-              } else if (byteOffset > 2147483647) {
-                byteOffset = 2147483647;
-              } else if (byteOffset < -2147483648) {
-                byteOffset = -2147483648;
-              }
-              byteOffset = +byteOffset;
-              if (numberIsNaN(byteOffset)) {
-                byteOffset = dir ? 0 : buffer.length - 1;
-              }
-              if (byteOffset < 0)
-                byteOffset = buffer.length + byteOffset;
-              if (byteOffset >= buffer.length) {
-                if (dir)
-                  return -1;
-                else
-                  byteOffset = buffer.length - 1;
-              } else if (byteOffset < 0) {
-                if (dir)
-                  byteOffset = 0;
-                else
-                  return -1;
-              }
-              if (typeof val === "string") {
-                val = Buffer3.from(val, encoding);
-              }
-              if (Buffer3.isBuffer(val)) {
-                if (val.length === 0) {
-                  return -1;
-                }
-                return arrayIndexOf(buffer, val, byteOffset, encoding, dir);
-              } else if (typeof val === "number") {
-                val = val & 255;
-                if (typeof Uint8Array.prototype.indexOf === "function") {
-                  if (dir) {
-                    return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset);
-                  } else {
-                    return Uint8Array.prototype.lastIndexOf.call(buffer, val, byteOffset);
-                  }
-                }
-                return arrayIndexOf(buffer, [val], byteOffset, encoding, dir);
-              }
-              throw new TypeError("val must be string, number or Buffer");
-            }
-            function arrayIndexOf(arr, val, byteOffset, encoding, dir) {
-              var indexSize = 1;
-              var arrLength = arr.length;
-              var valLength = val.length;
-              if (encoding !== void 0) {
-                encoding = String(encoding).toLowerCase();
-                if (encoding === "ucs2" || encoding === "ucs-2" || encoding === "utf16le" || encoding === "utf-16le") {
-                  if (arr.length < 2 || val.length < 2) {
-                    return -1;
-                  }
-                  indexSize = 2;
-                  arrLength /= 2;
-                  valLength /= 2;
-                  byteOffset /= 2;
-                }
-              }
-              function read(buf, i2) {
-                if (indexSize === 1) {
-                  return buf[i2];
-                } else {
-                  return buf.readUInt16BE(i2 * indexSize);
-                }
-              }
-              var i;
-              if (dir) {
-                var foundIndex = -1;
-                for (i = byteOffset; i < arrLength; i++) {
-                  if (read(arr, i) === read(val, foundIndex === -1 ? 0 : i - foundIndex)) {
-                    if (foundIndex === -1)
-                      foundIndex = i;
-                    if (i - foundIndex + 1 === valLength)
-                      return foundIndex * indexSize;
-                  } else {
-                    if (foundIndex !== -1)
-                      i -= i - foundIndex;
-                    foundIndex = -1;
-                  }
-                }
-              } else {
-                if (byteOffset + valLength > arrLength)
-                  byteOffset = arrLength - valLength;
-                for (i = byteOffset; i >= 0; i--) {
-                  var found = true;
-                  for (var j = 0; j < valLength; j++) {
-                    if (read(arr, i + j) !== read(val, j)) {
-                      found = false;
-                      break;
-                    }
-                  }
-                  if (found)
-                    return i;
-                }
-              }
-              return -1;
-            }
-            Buffer3.prototype.includes = function includes(val, byteOffset, encoding) {
-              return this.indexOf(val, byteOffset, encoding) !== -1;
-            };
-            Buffer3.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
-              return bidirectionalIndexOf(this, val, byteOffset, encoding, true);
-            };
-            Buffer3.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
-              return bidirectionalIndexOf(this, val, byteOffset, encoding, false);
-            };
-            function hexWrite(buf, string, offset, length) {
-              offset = Number(offset) || 0;
-              var remaining = buf.length - offset;
-              if (!length) {
-                length = remaining;
-              } else {
-                length = Number(length);
-                if (length > remaining) {
-                  length = remaining;
-                }
-              }
-              var strLen = string.length;
-              if (length > strLen / 2) {
-                length = strLen / 2;
-              }
-              for (var i = 0; i < length; ++i) {
-                var parsed = parseInt(string.substr(i * 2, 2), 16);
-                if (numberIsNaN(parsed))
-                  return i;
-                buf[offset + i] = parsed;
-              }
-              return i;
-            }
-            function utf8Write(buf, string, offset, length) {
-              return blitBuffer(utf8ToBytes(string, buf.length - offset), buf, offset, length);
-            }
-            function asciiWrite(buf, string, offset, length) {
-              return blitBuffer(asciiToBytes(string), buf, offset, length);
-            }
-            function latin1Write(buf, string, offset, length) {
-              return asciiWrite(buf, string, offset, length);
-            }
-            function base64Write(buf, string, offset, length) {
-              return blitBuffer(base64ToBytes(string), buf, offset, length);
-            }
-            function ucs2Write(buf, string, offset, length) {
-              return blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length);
-            }
-            Buffer3.prototype.write = function write(string, offset, length, encoding) {
-              if (offset === void 0) {
-                encoding = "utf8";
-                length = this.length;
-                offset = 0;
-              } else if (length === void 0 && typeof offset === "string") {
-                encoding = offset;
-                length = this.length;
-                offset = 0;
-              } else if (isFinite(offset)) {
-                offset = offset >>> 0;
-                if (isFinite(length)) {
-                  length = length >>> 0;
-                  if (encoding === void 0)
-                    encoding = "utf8";
-                } else {
-                  encoding = length;
-                  length = void 0;
-                }
-              } else {
-                throw new Error(
-                  "Buffer.write(string, encoding, offset[, length]) is no longer supported"
-                );
-              }
-              var remaining = this.length - offset;
-              if (length === void 0 || length > remaining)
-                length = remaining;
-              if (string.length > 0 && (length < 0 || offset < 0) || offset > this.length) {
-                throw new RangeError("Attempt to write outside buffer bounds");
-              }
-              if (!encoding)
-                encoding = "utf8";
-              var loweredCase = false;
-              for (; ; ) {
-                switch (encoding) {
-                  case "hex":
-                    return hexWrite(this, string, offset, length);
-                  case "utf8":
-                  case "utf-8":
-                    return utf8Write(this, string, offset, length);
-                  case "ascii":
-                    return asciiWrite(this, string, offset, length);
-                  case "latin1":
-                  case "binary":
-                    return latin1Write(this, string, offset, length);
-                  case "base64":
-                    return base64Write(this, string, offset, length);
-                  case "ucs2":
-                  case "ucs-2":
-                  case "utf16le":
-                  case "utf-16le":
-                    return ucs2Write(this, string, offset, length);
-                  default:
-                    if (loweredCase)
-                      throw new TypeError("Unknown encoding: " + encoding);
-                    encoding = ("" + encoding).toLowerCase();
-                    loweredCase = true;
-                }
-              }
-            };
-            Buffer3.prototype.toJSON = function toJSON() {
-              return {
-                type: "Buffer",
-                data: Array.prototype.slice.call(this._arr || this, 0)
-              };
-            };
-            function base64Slice(buf, start, end) {
-              if (start === 0 && end === buf.length) {
-                return base64.fromByteArray(buf);
-              } else {
-                return base64.fromByteArray(buf.slice(start, end));
-              }
-            }
-            function utf8Slice(buf, start, end) {
-              end = Math.min(buf.length, end);
-              var res = [];
-              var i = start;
-              while (i < end) {
-                var firstByte = buf[i];
-                var codePoint = null;
-                var bytesPerSequence = firstByte > 239 ? 4 : firstByte > 223 ? 3 : firstByte > 191 ? 2 : 1;
-                if (i + bytesPerSequence <= end) {
-                  var secondByte, thirdByte, fourthByte, tempCodePoint;
-                  switch (bytesPerSequence) {
-                    case 1:
-                      if (firstByte < 128) {
-                        codePoint = firstByte;
-                      }
-                      break;
-                    case 2:
-                      secondByte = buf[i + 1];
-                      if ((secondByte & 192) === 128) {
-                        tempCodePoint = (firstByte & 31) << 6 | secondByte & 63;
-                        if (tempCodePoint > 127) {
-                          codePoint = tempCodePoint;
-                        }
-                      }
-                      break;
-                    case 3:
-                      secondByte = buf[i + 1];
-                      thirdByte = buf[i + 2];
-                      if ((secondByte & 192) === 128 && (thirdByte & 192) === 128) {
-                        tempCodePoint = (firstByte & 15) << 12 | (secondByte & 63) << 6 | thirdByte & 63;
-                        if (tempCodePoint > 2047 && (tempCodePoint < 55296 || tempCodePoint > 57343)) {
-                          codePoint = tempCodePoint;
-                        }
-                      }
-                      break;
-                    case 4:
-                      secondByte = buf[i + 1];
-                      thirdByte = buf[i + 2];
-                      fourthByte = buf[i + 3];
-                      if ((secondByte & 192) === 128 && (thirdByte & 192) === 128 && (fourthByte & 192) === 128) {
-                        tempCodePoint = (firstByte & 15) << 18 | (secondByte & 63) << 12 | (thirdByte & 63) << 6 | fourthByte & 63;
-                        if (tempCodePoint > 65535 && tempCodePoint < 1114112) {
-                          codePoint = tempCodePoint;
-                        }
-                      }
-                  }
-                }
-                if (codePoint === null) {
-                  codePoint = 65533;
-                  bytesPerSequence = 1;
-                } else if (codePoint > 65535) {
-                  codePoint -= 65536;
-                  res.push(codePoint >>> 10 & 1023 | 55296);
-                  codePoint = 56320 | codePoint & 1023;
-                }
-                res.push(codePoint);
-                i += bytesPerSequence;
-              }
-              return decodeCodePointsArray(res);
-            }
-            var MAX_ARGUMENTS_LENGTH = 4096;
-            function decodeCodePointsArray(codePoints) {
-              var len = codePoints.length;
-              if (len <= MAX_ARGUMENTS_LENGTH) {
-                return String.fromCharCode.apply(String, codePoints);
-              }
-              var res = "";
-              var i = 0;
-              while (i < len) {
-                res += String.fromCharCode.apply(
-                  String,
-                  codePoints.slice(i, i += MAX_ARGUMENTS_LENGTH)
-                );
-              }
-              return res;
-            }
-            function asciiSlice(buf, start, end) {
-              var ret = "";
-              end = Math.min(buf.length, end);
-              for (var i = start; i < end; ++i) {
-                ret += String.fromCharCode(buf[i] & 127);
-              }
-              return ret;
-            }
-            function latin1Slice(buf, start, end) {
-              var ret = "";
-              end = Math.min(buf.length, end);
-              for (var i = start; i < end; ++i) {
-                ret += String.fromCharCode(buf[i]);
-              }
-              return ret;
-            }
-            function hexSlice(buf, start, end) {
-              var len = buf.length;
-              if (!start || start < 0)
-                start = 0;
-              if (!end || end < 0 || end > len)
-                end = len;
-              var out = "";
-              for (var i = start; i < end; ++i) {
-                out += toHex(buf[i]);
-              }
-              return out;
-            }
-            function utf16leSlice(buf, start, end) {
-              var bytes = buf.slice(start, end);
-              var res = "";
-              for (var i = 0; i < bytes.length; i += 2) {
-                res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256);
-              }
-              return res;
-            }
-            Buffer3.prototype.slice = function slice(start, end) {
-              var len = this.length;
-              start = ~~start;
-              end = end === void 0 ? len : ~~end;
-              if (start < 0) {
-                start += len;
-                if (start < 0)
-                  start = 0;
-              } else if (start > len) {
-                start = len;
-              }
-              if (end < 0) {
-                end += len;
-                if (end < 0)
-                  end = 0;
-              } else if (end > len) {
-                end = len;
-              }
-              if (end < start)
-                end = start;
-              var newBuf = this.subarray(start, end);
-              newBuf.__proto__ = Buffer3.prototype;
-              return newBuf;
-            };
-            function checkOffset(offset, ext, length) {
-              if (offset % 1 !== 0 || offset < 0)
-                throw new RangeError("offset is not uint");
-              if (offset + ext > length)
-                throw new RangeError("Trying to access beyond buffer length");
-            }
-            Buffer3.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert)
-                checkOffset(offset, byteLength2, this.length);
-              var val = this[offset];
-              var mul = 1;
-              var i = 0;
-              while (++i < byteLength2 && (mul *= 256)) {
-                val += this[offset + i] * mul;
-              }
-              return val;
-            };
-            Buffer3.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert) {
-                checkOffset(offset, byteLength2, this.length);
-              }
-              var val = this[offset + --byteLength2];
-              var mul = 1;
-              while (byteLength2 > 0 && (mul *= 256)) {
-                val += this[offset + --byteLength2] * mul;
-              }
-              return val;
-            };
-            Buffer3.prototype.readUInt8 = function readUInt8(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 1, this.length);
-              return this[offset];
-            };
-            Buffer3.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 2, this.length);
-              return this[offset] | this[offset + 1] << 8;
-            };
-            Buffer3.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 2, this.length);
-              return this[offset] << 8 | this[offset + 1];
-            };
-            Buffer3.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return (this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16) + this[offset + 3] * 16777216;
-            };
-            Buffer3.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return this[offset] * 16777216 + (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
-            };
-            Buffer3.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert)
-                checkOffset(offset, byteLength2, this.length);
-              var val = this[offset];
-              var mul = 1;
-              var i = 0;
-              while (++i < byteLength2 && (mul *= 256)) {
-                val += this[offset + i] * mul;
-              }
-              mul *= 128;
-              if (val >= mul)
-                val -= Math.pow(2, 8 * byteLength2);
-              return val;
-            };
-            Buffer3.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert)
-                checkOffset(offset, byteLength2, this.length);
-              var i = byteLength2;
-              var mul = 1;
-              var val = this[offset + --i];
-              while (i > 0 && (mul *= 256)) {
-                val += this[offset + --i] * mul;
-              }
-              mul *= 128;
-              if (val >= mul)
-                val -= Math.pow(2, 8 * byteLength2);
-              return val;
-            };
-            Buffer3.prototype.readInt8 = function readInt8(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 1, this.length);
-              if (!(this[offset] & 128))
-                return this[offset];
-              return (255 - this[offset] + 1) * -1;
-            };
-            Buffer3.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 2, this.length);
-              var val = this[offset] | this[offset + 1] << 8;
-              return val & 32768 ? val | 4294901760 : val;
-            };
-            Buffer3.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 2, this.length);
-              var val = this[offset + 1] | this[offset] << 8;
-              return val & 32768 ? val | 4294901760 : val;
-            };
-            Buffer3.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16 | this[offset + 3] << 24;
-            };
-            Buffer3.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return this[offset] << 24 | this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3];
-            };
-            Buffer3.prototype.readFloatLE = function readFloatLE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return ieee754.read(this, offset, true, 23, 4);
-            };
-            Buffer3.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 4, this.length);
-              return ieee754.read(this, offset, false, 23, 4);
-            };
-            Buffer3.prototype.readDoubleLE = function readDoubleLE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 8, this.length);
-              return ieee754.read(this, offset, true, 52, 8);
-            };
-            Buffer3.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkOffset(offset, 8, this.length);
-              return ieee754.read(this, offset, false, 52, 8);
-            };
-            function checkInt(buf, value, offset, ext, max, min) {
-              if (!Buffer3.isBuffer(buf))
-                throw new TypeError('"buffer" argument must be a Buffer instance');
-              if (value > max || value < min)
-                throw new RangeError('"value" argument is out of bounds');
-              if (offset + ext > buf.length)
-                throw new RangeError("Index out of range");
-            }
-            Buffer3.prototype.writeUIntLE = function writeUIntLE(value, offset, byteLength2, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert) {
-                var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
-                checkInt(this, value, offset, byteLength2, maxBytes, 0);
-              }
-              var mul = 1;
-              var i = 0;
-              this[offset] = value & 255;
-              while (++i < byteLength2 && (mul *= 256)) {
-                this[offset + i] = value / mul & 255;
-              }
-              return offset + byteLength2;
-            };
-            Buffer3.prototype.writeUIntBE = function writeUIntBE(value, offset, byteLength2, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              byteLength2 = byteLength2 >>> 0;
-              if (!noAssert) {
-                var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
-                checkInt(this, value, offset, byteLength2, maxBytes, 0);
-              }
-              var i = byteLength2 - 1;
-              var mul = 1;
-              this[offset + i] = value & 255;
-              while (--i >= 0 && (mul *= 256)) {
-                this[offset + i] = value / mul & 255;
-              }
-              return offset + byteLength2;
-            };
-            Buffer3.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 1, 255, 0);
-              this[offset] = value & 255;
-              return offset + 1;
-            };
-            Buffer3.prototype.writeUInt16LE = function writeUInt16LE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 2, 65535, 0);
-              this[offset] = value & 255;
-              this[offset + 1] = value >>> 8;
-              return offset + 2;
-            };
-            Buffer3.prototype.writeUInt16BE = function writeUInt16BE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 2, 65535, 0);
-              this[offset] = value >>> 8;
-              this[offset + 1] = value & 255;
-              return offset + 2;
-            };
-            Buffer3.prototype.writeUInt32LE = function writeUInt32LE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 4, 4294967295, 0);
-              this[offset + 3] = value >>> 24;
-              this[offset + 2] = value >>> 16;
-              this[offset + 1] = value >>> 8;
-              this[offset] = value & 255;
-              return offset + 4;
-            };
-            Buffer3.prototype.writeUInt32BE = function writeUInt32BE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 4, 4294967295, 0);
-              this[offset] = value >>> 24;
-              this[offset + 1] = value >>> 16;
-              this[offset + 2] = value >>> 8;
-              this[offset + 3] = value & 255;
-              return offset + 4;
-            };
-            Buffer3.prototype.writeIntLE = function writeIntLE(value, offset, byteLength2, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert) {
-                var limit = Math.pow(2, 8 * byteLength2 - 1);
-                checkInt(this, value, offset, byteLength2, limit - 1, -limit);
-              }
-              var i = 0;
-              var mul = 1;
-              var sub = 0;
-              this[offset] = value & 255;
-              while (++i < byteLength2 && (mul *= 256)) {
-                if (value < 0 && sub === 0 && this[offset + i - 1] !== 0) {
-                  sub = 1;
-                }
-                this[offset + i] = (value / mul >> 0) - sub & 255;
-              }
-              return offset + byteLength2;
-            };
-            Buffer3.prototype.writeIntBE = function writeIntBE(value, offset, byteLength2, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert) {
-                var limit = Math.pow(2, 8 * byteLength2 - 1);
-                checkInt(this, value, offset, byteLength2, limit - 1, -limit);
-              }
-              var i = byteLength2 - 1;
-              var mul = 1;
-              var sub = 0;
-              this[offset + i] = value & 255;
-              while (--i >= 0 && (mul *= 256)) {
-                if (value < 0 && sub === 0 && this[offset + i + 1] !== 0) {
-                  sub = 1;
-                }
-                this[offset + i] = (value / mul >> 0) - sub & 255;
-              }
-              return offset + byteLength2;
-            };
-            Buffer3.prototype.writeInt8 = function writeInt8(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 1, 127, -128);
-              if (value < 0)
-                value = 255 + value + 1;
-              this[offset] = value & 255;
-              return offset + 1;
-            };
-            Buffer3.prototype.writeInt16LE = function writeInt16LE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 2, 32767, -32768);
-              this[offset] = value & 255;
-              this[offset + 1] = value >>> 8;
-              return offset + 2;
-            };
-            Buffer3.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 2, 32767, -32768);
-              this[offset] = value >>> 8;
-              this[offset + 1] = value & 255;
-              return offset + 2;
-            };
-            Buffer3.prototype.writeInt32LE = function writeInt32LE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 4, 2147483647, -2147483648);
-              this[offset] = value & 255;
-              this[offset + 1] = value >>> 8;
-              this[offset + 2] = value >>> 16;
-              this[offset + 3] = value >>> 24;
-              return offset + 4;
-            };
-            Buffer3.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert)
-                checkInt(this, value, offset, 4, 2147483647, -2147483648);
-              if (value < 0)
-                value = 4294967295 + value + 1;
-              this[offset] = value >>> 24;
-              this[offset + 1] = value >>> 16;
-              this[offset + 2] = value >>> 8;
-              this[offset + 3] = value & 255;
-              return offset + 4;
-            };
-            function checkIEEE754(buf, value, offset, ext, max, min) {
-              if (offset + ext > buf.length)
-                throw new RangeError("Index out of range");
-              if (offset < 0)
-                throw new RangeError("Index out of range");
-            }
-            function writeFloat(buf, value, offset, littleEndian, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert) {
-                checkIEEE754(buf, value, offset, 4, 34028234663852886e22, -34028234663852886e22);
-              }
-              ieee754.write(buf, value, offset, littleEndian, 23, 4);
-              return offset + 4;
-            }
-            Buffer3.prototype.writeFloatLE = function writeFloatLE(value, offset, noAssert) {
-              return writeFloat(this, value, offset, true, noAssert);
-            };
-            Buffer3.prototype.writeFloatBE = function writeFloatBE(value, offset, noAssert) {
-              return writeFloat(this, value, offset, false, noAssert);
-            };
-            function writeDouble(buf, value, offset, littleEndian, noAssert) {
-              value = +value;
-              offset = offset >>> 0;
-              if (!noAssert) {
-                checkIEEE754(buf, value, offset, 8, 17976931348623157e292, -17976931348623157e292);
-              }
-              ieee754.write(buf, value, offset, littleEndian, 52, 8);
-              return offset + 8;
-            }
-            Buffer3.prototype.writeDoubleLE = function writeDoubleLE(value, offset, noAssert) {
-              return writeDouble(this, value, offset, true, noAssert);
-            };
-            Buffer3.prototype.writeDoubleBE = function writeDoubleBE(value, offset, noAssert) {
-              return writeDouble(this, value, offset, false, noAssert);
-            };
-            Buffer3.prototype.copy = function copy(target, targetStart, start, end) {
-              if (!Buffer3.isBuffer(target))
-                throw new TypeError("argument should be a Buffer");
-              if (!start)
-                start = 0;
-              if (!end && end !== 0)
-                end = this.length;
-              if (targetStart >= target.length)
-                targetStart = target.length;
-              if (!targetStart)
-                targetStart = 0;
-              if (end > 0 && end < start)
-                end = start;
-              if (end === start)
-                return 0;
-              if (target.length === 0 || this.length === 0)
-                return 0;
-              if (targetStart < 0) {
-                throw new RangeError("targetStart out of bounds");
-              }
-              if (start < 0 || start >= this.length)
-                throw new RangeError("Index out of range");
-              if (end < 0)
-                throw new RangeError("sourceEnd out of bounds");
-              if (end > this.length)
-                end = this.length;
-              if (target.length - targetStart < end - start) {
-                end = target.length - targetStart + start;
-              }
-              var len = end - start;
-              if (this === target && typeof Uint8Array.prototype.copyWithin === "function") {
-                this.copyWithin(targetStart, start, end);
-              } else if (this === target && start < targetStart && targetStart < end) {
-                for (var i = len - 1; i >= 0; --i) {
-                  target[i + targetStart] = this[i + start];
-                }
-              } else {
-                Uint8Array.prototype.set.call(
-                  target,
-                  this.subarray(start, end),
-                  targetStart
-                );
-              }
-              return len;
-            };
-            Buffer3.prototype.fill = function fill(val, start, end, encoding) {
-              if (typeof val === "string") {
-                if (typeof start === "string") {
-                  encoding = start;
-                  start = 0;
-                  end = this.length;
-                } else if (typeof end === "string") {
-                  encoding = end;
-                  end = this.length;
-                }
-                if (encoding !== void 0 && typeof encoding !== "string") {
-                  throw new TypeError("encoding must be a string");
-                }
-                if (typeof encoding === "string" && !Buffer3.isEncoding(encoding)) {
-                  throw new TypeError("Unknown encoding: " + encoding);
-                }
-                if (val.length === 1) {
-                  var code = val.charCodeAt(0);
-                  if (encoding === "utf8" && code < 128 || encoding === "latin1") {
-                    val = code;
-                  }
-                }
-              } else if (typeof val === "number") {
-                val = val & 255;
-              }
-              if (start < 0 || this.length < start || this.length < end) {
-                throw new RangeError("Out of range index");
-              }
-              if (end <= start) {
-                return this;
-              }
-              start = start >>> 0;
-              end = end === void 0 ? this.length : end >>> 0;
-              if (!val)
-                val = 0;
-              var i;
-              if (typeof val === "number") {
-                for (i = start; i < end; ++i) {
-                  this[i] = val;
-                }
-              } else {
-                var bytes = Buffer3.isBuffer(val) ? val : Buffer3.from(val, encoding);
-                var len = bytes.length;
-                if (len === 0) {
-                  throw new TypeError('The value "' + val + '" is invalid for argument "value"');
-                }
-                for (i = 0; i < end - start; ++i) {
-                  this[i + start] = bytes[i % len];
-                }
-              }
-              return this;
-            };
-            var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g;
-            function base64clean(str) {
-              str = str.split("=")[0];
-              str = str.trim().replace(INVALID_BASE64_RE, "");
-              if (str.length < 2)
-                return "";
-              while (str.length % 4 !== 0) {
-                str = str + "=";
-              }
-              return str;
-            }
-            function toHex(n) {
-              if (n < 16)
-                return "0" + n.toString(16);
-              return n.toString(16);
-            }
-            function utf8ToBytes(string, units) {
-              units = units || Infinity;
-              var codePoint;
-              var length = string.length;
-              var leadSurrogate = null;
-              var bytes = [];
-              for (var i = 0; i < length; ++i) {
-                codePoint = string.charCodeAt(i);
-                if (codePoint > 55295 && codePoint < 57344) {
-                  if (!leadSurrogate) {
-                    if (codePoint > 56319) {
-                      if ((units -= 3) > -1)
-                        bytes.push(239, 191, 189);
-                      continue;
-                    } else if (i + 1 === length) {
-                      if ((units -= 3) > -1)
-                        bytes.push(239, 191, 189);
-                      continue;
-                    }
-                    leadSurrogate = codePoint;
-                    continue;
-                  }
-                  if (codePoint < 56320) {
-                    if ((units -= 3) > -1)
-                      bytes.push(239, 191, 189);
-                    leadSurrogate = codePoint;
-                    continue;
-                  }
-                  codePoint = (leadSurrogate - 55296 << 10 | codePoint - 56320) + 65536;
-                } else if (leadSurrogate) {
-                  if ((units -= 3) > -1)
-                    bytes.push(239, 191, 189);
-                }
-                leadSurrogate = null;
-                if (codePoint < 128) {
-                  if ((units -= 1) < 0)
-                    break;
-                  bytes.push(codePoint);
-                } else if (codePoint < 2048) {
-                  if ((units -= 2) < 0)
-                    break;
-                  bytes.push(
-                    codePoint >> 6 | 192,
-                    codePoint & 63 | 128
-                  );
-                } else if (codePoint < 65536) {
-                  if ((units -= 3) < 0)
-                    break;
-                  bytes.push(
-                    codePoint >> 12 | 224,
-                    codePoint >> 6 & 63 | 128,
-                    codePoint & 63 | 128
-                  );
-                } else if (codePoint < 1114112) {
-                  if ((units -= 4) < 0)
-                    break;
-                  bytes.push(
-                    codePoint >> 18 | 240,
-                    codePoint >> 12 & 63 | 128,
-                    codePoint >> 6 & 63 | 128,
-                    codePoint & 63 | 128
-                  );
-                } else {
-                  throw new Error("Invalid code point");
-                }
-              }
-              return bytes;
-            }
-            function asciiToBytes(str) {
-              var byteArray = [];
-              for (var i = 0; i < str.length; ++i) {
-                byteArray.push(str.charCodeAt(i) & 255);
-              }
-              return byteArray;
-            }
-            function utf16leToBytes(str, units) {
-              var c, hi, lo;
-              var byteArray = [];
-              for (var i = 0; i < str.length; ++i) {
-                if ((units -= 2) < 0)
-                  break;
-                c = str.charCodeAt(i);
-                hi = c >> 8;
-                lo = c % 256;
-                byteArray.push(lo);
-                byteArray.push(hi);
-              }
-              return byteArray;
-            }
-            function base64ToBytes(str) {
-              return base64.toByteArray(base64clean(str));
-            }
-            function blitBuffer(src, dst, offset, length) {
-              for (var i = 0; i < length; ++i) {
-                if (i + offset >= dst.length || i >= src.length)
-                  break;
-                dst[i + offset] = src[i];
-              }
-              return i;
-            }
-            function isInstance(obj, type) {
-              return obj instanceof type || obj != null && obj.constructor != null && obj.constructor.name != null && obj.constructor.name === type.name;
-            }
-            function numberIsNaN(obj) {
-              return obj !== obj;
-            }
-          }).call(this);
-        }).call(this, require2("buffer").Buffer);
-      }, { "base64-js": 1, "buffer": 3, "ieee754": 4 }], 4: [function(require2, module4, exports3) {
-        exports3.read = function(buffer, offset, isLE, mLen, nBytes) {
-          var e2, m;
-          var eLen = nBytes * 8 - mLen - 1;
-          var eMax = (1 << eLen) - 1;
-          var eBias = eMax >> 1;
-          var nBits = -7;
-          var i = isLE ? nBytes - 1 : 0;
-          var d = isLE ? -1 : 1;
-          var s = buffer[offset + i];
-          i += d;
-          e2 = s & (1 << -nBits) - 1;
-          s >>= -nBits;
-          nBits += eLen;
-          for (; nBits > 0; e2 = e2 * 256 + buffer[offset + i], i += d, nBits -= 8) {
-          }
-          m = e2 & (1 << -nBits) - 1;
-          e2 >>= -nBits;
-          nBits += mLen;
-          for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8) {
-          }
-          if (e2 === 0) {
-            e2 = 1 - eBias;
-          } else if (e2 === eMax) {
-            return m ? NaN : (s ? -1 : 1) * Infinity;
-          } else {
-            m = m + Math.pow(2, mLen);
-            e2 = e2 - eBias;
-          }
-          return (s ? -1 : 1) * m * Math.pow(2, e2 - mLen);
-        };
-        exports3.write = function(buffer, value, offset, isLE, mLen, nBytes) {
-          var e2, m, c;
-          var eLen = nBytes * 8 - mLen - 1;
-          var eMax = (1 << eLen) - 1;
-          var eBias = eMax >> 1;
-          var rt = mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0;
-          var i = isLE ? 0 : nBytes - 1;
-          var d = isLE ? 1 : -1;
-          var s = value < 0 || value === 0 && 1 / value < 0 ? 1 : 0;
-          value = Math.abs(value);
-          if (isNaN(value) || value === Infinity) {
-            m = isNaN(value) ? 1 : 0;
-            e2 = eMax;
-          } else {
-            e2 = Math.floor(Math.log(value) / Math.LN2);
-            if (value * (c = Math.pow(2, -e2)) < 1) {
-              e2--;
-              c *= 2;
-            }
-            if (e2 + eBias >= 1) {
-              value += rt / c;
-            } else {
-              value += rt * Math.pow(2, 1 - eBias);
-            }
-            if (value * c >= 2) {
-              e2++;
-              c /= 2;
-            }
-            if (e2 + eBias >= eMax) {
-              m = 0;
-              e2 = eMax;
-            } else if (e2 + eBias >= 1) {
-              m = (value * c - 1) * Math.pow(2, mLen);
-              e2 = e2 + eBias;
-            } else {
-              m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
-              e2 = 0;
-            }
-          }
-          for (; mLen >= 8; buffer[offset + i] = m & 255, i += d, m /= 256, mLen -= 8) {
-          }
-          e2 = e2 << mLen | m;
-          eLen += mLen;
-          for (; eLen > 0; buffer[offset + i] = e2 & 255, i += d, e2 /= 256, eLen -= 8) {
-          }
-          buffer[offset + i - d] |= s * 128;
-        };
-      }, {}], 5: [function(require2, module4, exports3) {
-        let urlAlphabet = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
-        let customAlphabet = (alphabet, defaultSize = 21) => {
-          return (size = defaultSize) => {
-            let id = "";
-            let i = size;
-            while (i--) {
-              id += alphabet[Math.random() * alphabet.length | 0];
-            }
-            return id;
-          };
-        };
-        let nanoid = (size = 21) => {
-          let id = "";
-          let i = size;
-          while (i--) {
-            id += urlAlphabet[Math.random() * 64 | 0];
-          }
-          return id;
-        };
-        module4.exports = { nanoid, customAlphabet };
-      }, {}], 6: [function(require2, module4, exports3) {
-        var x = String;
-        var create = function() {
-          return { isColorSupported: false, reset: x, bold: x, dim: x, italic: x, underline: x, inverse: x, hidden: x, strikethrough: x, black: x, red: x, green: x, yellow: x, blue: x, magenta: x, cyan: x, white: x, gray: x, bgBlack: x, bgRed: x, bgGreen: x, bgYellow: x, bgBlue: x, bgMagenta: x, bgCyan: x, bgWhite: x };
-        };
-        module4.exports = create();
-        module4.exports.createColors = create;
-      }, {}], 7: [function(require2, module4, exports3) {
-        "use strict";
-        let Container = require2("./container");
-        class AtRule extends Container {
-          constructor(defaults) {
-            super(defaults);
-            this.type = "atrule";
-          }
-          append(...children) {
-            if (!this.proxyOf.nodes)
-              this.nodes = [];
-            return super.append(...children);
-          }
-          prepend(...children) {
-            if (!this.proxyOf.nodes)
-              this.nodes = [];
-            return super.prepend(...children);
-          }
-        }
-        module4.exports = AtRule;
-        AtRule.default = AtRule;
-        Container.registerAtRule(AtRule);
-      }, { "./container": 9 }], 8: [function(require2, module4, exports3) {
-        "use strict";
-        let Node = require2("./node");
-        class Comment2 extends Node {
-          constructor(defaults) {
-            super(defaults);
-            this.type = "comment";
-          }
-        }
-        module4.exports = Comment2;
-        Comment2.default = Comment2;
-      }, { "./node": 19 }], 9: [function(require2, module4, exports3) {
-        "use strict";
-        let { isClean, my } = require2("./symbols");
-        let Declaration = require2("./declaration");
-        let Comment2 = require2("./comment");
-        let Node = require2("./node");
-        let parse2, Rule, AtRule, Root;
-        function cleanSource(nodes) {
-          return nodes.map((i) => {
-            if (i.nodes)
-              i.nodes = cleanSource(i.nodes);
-            delete i.source;
-            return i;
-          });
-        }
-        function markTreeDirty(node) {
-          node[isClean] = false;
-          if (node.proxyOf.nodes) {
-            for (let i of node.proxyOf.nodes) {
-              markTreeDirty(i);
-            }
-          }
-        }
-        class Container extends Node {
-          append(...children) {
-            for (let child of children) {
-              let nodes = this.normalize(child, this.last);
-              for (let node of nodes)
-                this.proxyOf.nodes.push(node);
-            }
-            this.markDirty();
-            return this;
-          }
-          cleanRaws(keepBetween) {
-            super.cleanRaws(keepBetween);
-            if (this.nodes) {
-              for (let node of this.nodes)
-                node.cleanRaws(keepBetween);
-            }
-          }
-          each(callback) {
-            if (!this.proxyOf.nodes)
-              return void 0;
-            let iterator = this.getIterator();
-            let index, result;
-            while (this.indexes[iterator] < this.proxyOf.nodes.length) {
-              index = this.indexes[iterator];
-              result = callback(this.proxyOf.nodes[index], index);
-              if (result === false)
-                break;
-              this.indexes[iterator] += 1;
-            }
-            delete this.indexes[iterator];
-            return result;
-          }
-          every(condition) {
-            return this.nodes.every(condition);
-          }
-          getIterator() {
-            if (!this.lastEach)
-              this.lastEach = 0;
-            if (!this.indexes)
-              this.indexes = {};
-            this.lastEach += 1;
-            let iterator = this.lastEach;
-            this.indexes[iterator] = 0;
-            return iterator;
-          }
-          getProxyProcessor() {
-            return {
-              get(node, prop) {
-                if (prop === "proxyOf") {
-                  return node;
-                } else if (!node[prop]) {
-                  return node[prop];
-                } else if (prop === "each" || typeof prop === "string" && prop.startsWith("walk")) {
-                  return (...args) => {
-                    return node[prop](
-                      ...args.map((i) => {
-                        if (typeof i === "function") {
-                          return (child, index) => i(child.toProxy(), index);
-                        } else {
-                          return i;
-                        }
-                      })
-                    );
-                  };
-                } else if (prop === "every" || prop === "some") {
-                  return (cb) => {
-                    return node[prop](
-                      (child, ...other) => cb(child.toProxy(), ...other)
-                    );
-                  };
-                } else if (prop === "root") {
-                  return () => node.root().toProxy();
-                } else if (prop === "nodes") {
-                  return node.nodes.map((i) => i.toProxy());
-                } else if (prop === "first" || prop === "last") {
-                  return node[prop].toProxy();
-                } else {
-                  return node[prop];
-                }
-              },
-              set(node, prop, value) {
-                if (node[prop] === value)
-                  return true;
-                node[prop] = value;
-                if (prop === "name" || prop === "params" || prop === "selector") {
-                  node.markDirty();
-                }
-                return true;
-              }
-            };
-          }
-          index(child) {
-            if (typeof child === "number")
-              return child;
-            if (child.proxyOf)
-              child = child.proxyOf;
-            return this.proxyOf.nodes.indexOf(child);
-          }
-          insertAfter(exist, add) {
-            let existIndex = this.index(exist);
-            let nodes = this.normalize(add, this.proxyOf.nodes[existIndex]).reverse();
-            existIndex = this.index(exist);
-            for (let node of nodes)
-              this.proxyOf.nodes.splice(existIndex + 1, 0, node);
-            let index;
-            for (let id in this.indexes) {
-              index = this.indexes[id];
-              if (existIndex < index) {
-                this.indexes[id] = index + nodes.length;
-              }
-            }
-            this.markDirty();
-            return this;
-          }
-          insertBefore(exist, add) {
-            let existIndex = this.index(exist);
-            let type = existIndex === 0 ? "prepend" : false;
-            let nodes = this.normalize(
-              add,
-              this.proxyOf.nodes[existIndex],
-              type
-            ).reverse();
-            existIndex = this.index(exist);
-            for (let node of nodes)
-              this.proxyOf.nodes.splice(existIndex, 0, node);
-            let index;
-            for (let id in this.indexes) {
-              index = this.indexes[id];
-              if (existIndex <= index) {
-                this.indexes[id] = index + nodes.length;
-              }
-            }
-            this.markDirty();
-            return this;
-          }
-          normalize(nodes, sample) {
-            if (typeof nodes === "string") {
-              nodes = cleanSource(parse2(nodes).nodes);
-            } else if (typeof nodes === "undefined") {
-              nodes = [];
-            } else if (Array.isArray(nodes)) {
-              nodes = nodes.slice(0);
-              for (let i of nodes) {
-                if (i.parent)
-                  i.parent.removeChild(i, "ignore");
-              }
-            } else if (nodes.type === "root" && this.type !== "document") {
-              nodes = nodes.nodes.slice(0);
-              for (let i of nodes) {
-                if (i.parent)
-                  i.parent.removeChild(i, "ignore");
-              }
-            } else if (nodes.type) {
-              nodes = [nodes];
-            } else if (nodes.prop) {
-              if (typeof nodes.value === "undefined") {
-                throw new Error("Value field is missed in node creation");
-              } else if (typeof nodes.value !== "string") {
-                nodes.value = String(nodes.value);
-              }
-              nodes = [new Declaration(nodes)];
-            } else if (nodes.selector) {
-              nodes = [new Rule(nodes)];
-            } else if (nodes.name) {
-              nodes = [new AtRule(nodes)];
-            } else if (nodes.text) {
-              nodes = [new Comment2(nodes)];
-            } else {
-              throw new Error("Unknown node type in node creation");
-            }
-            let processed = nodes.map((i) => {
-              if (!i[my])
-                Container.rebuild(i);
-              i = i.proxyOf;
-              if (i.parent)
-                i.parent.removeChild(i);
-              if (i[isClean])
-                markTreeDirty(i);
-              if (typeof i.raws.before === "undefined") {
-                if (sample && typeof sample.raws.before !== "undefined") {
-                  i.raws.before = sample.raws.before.replace(/\S/g, "");
-                }
-              }
-              i.parent = this.proxyOf;
-              return i;
-            });
-            return processed;
-          }
-          prepend(...children) {
-            children = children.reverse();
-            for (let child of children) {
-              let nodes = this.normalize(child, this.first, "prepend").reverse();
-              for (let node of nodes)
-                this.proxyOf.nodes.unshift(node);
-              for (let id in this.indexes) {
-                this.indexes[id] = this.indexes[id] + nodes.length;
-              }
-            }
-            this.markDirty();
-            return this;
-          }
-          push(child) {
-            child.parent = this;
-            this.proxyOf.nodes.push(child);
-            return this;
-          }
-          removeAll() {
-            for (let node of this.proxyOf.nodes)
-              node.parent = void 0;
-            this.proxyOf.nodes = [];
-            this.markDirty();
-            return this;
-          }
-          removeChild(child) {
-            child = this.index(child);
-            this.proxyOf.nodes[child].parent = void 0;
-            this.proxyOf.nodes.splice(child, 1);
-            let index;
-            for (let id in this.indexes) {
-              index = this.indexes[id];
-              if (index >= child) {
-                this.indexes[id] = index - 1;
-              }
-            }
-            this.markDirty();
-            return this;
-          }
-          replaceValues(pattern, opts, callback) {
-            if (!callback) {
-              callback = opts;
-              opts = {};
-            }
-            this.walkDecls((decl) => {
-              if (opts.props && !opts.props.includes(decl.prop))
-                return;
-              if (opts.fast && !decl.value.includes(opts.fast))
-                return;
-              decl.value = decl.value.replace(pattern, callback);
-            });
-            this.markDirty();
-            return this;
-          }
-          some(condition) {
-            return this.nodes.some(condition);
-          }
-          walk(callback) {
-            return this.each((child, i) => {
-              let result;
-              try {
-                result = callback(child, i);
-              } catch (e2) {
-                throw child.addToError(e2);
-              }
-              if (result !== false && child.walk) {
-                result = child.walk(callback);
-              }
-              return result;
-            });
-          }
-          walkAtRules(name, callback) {
-            if (!callback) {
-              callback = name;
-              return this.walk((child, i) => {
-                if (child.type === "atrule") {
-                  return callback(child, i);
-                }
-              });
-            }
-            if (name instanceof RegExp) {
-              return this.walk((child, i) => {
-                if (child.type === "atrule" && name.test(child.name)) {
-                  return callback(child, i);
-                }
-              });
-            }
-            return this.walk((child, i) => {
-              if (child.type === "atrule" && child.name === name) {
-                return callback(child, i);
-              }
-            });
-          }
-          walkComments(callback) {
-            return this.walk((child, i) => {
-              if (child.type === "comment") {
-                return callback(child, i);
-              }
-            });
-          }
-          walkDecls(prop, callback) {
-            if (!callback) {
-              callback = prop;
-              return this.walk((child, i) => {
-                if (child.type === "decl") {
-                  return callback(child, i);
-                }
-              });
-            }
-            if (prop instanceof RegExp) {
-              return this.walk((child, i) => {
-                if (child.type === "decl" && prop.test(child.prop)) {
-                  return callback(child, i);
-                }
-              });
-            }
-            return this.walk((child, i) => {
-              if (child.type === "decl" && child.prop === prop) {
-                return callback(child, i);
-              }
-            });
-          }
-          walkRules(selector, callback) {
-            if (!callback) {
-              callback = selector;
-              return this.walk((child, i) => {
-                if (child.type === "rule") {
-                  return callback(child, i);
-                }
-              });
-            }
-            if (selector instanceof RegExp) {
-              return this.walk((child, i) => {
-                if (child.type === "rule" && selector.test(child.selector)) {
-                  return callback(child, i);
-                }
-              });
-            }
-            return this.walk((child, i) => {
-              if (child.type === "rule" && child.selector === selector) {
-                return callback(child, i);
-              }
-            });
-          }
-          get first() {
-            if (!this.proxyOf.nodes)
-              return void 0;
-            return this.proxyOf.nodes[0];
-          }
-          get last() {
-            if (!this.proxyOf.nodes)
-              return void 0;
-            return this.proxyOf.nodes[this.proxyOf.nodes.length - 1];
-          }
-        }
-        Container.registerParse = (dependant) => {
-          parse2 = dependant;
-        };
-        Container.registerRule = (dependant) => {
-          Rule = dependant;
-        };
-        Container.registerAtRule = (dependant) => {
-          AtRule = dependant;
-        };
-        Container.registerRoot = (dependant) => {
-          Root = dependant;
-        };
-        module4.exports = Container;
-        Container.default = Container;
-        Container.rebuild = (node) => {
-          if (node.type === "atrule") {
-            Object.setPrototypeOf(node, AtRule.prototype);
-          } else if (node.type === "rule") {
-            Object.setPrototypeOf(node, Rule.prototype);
-          } else if (node.type === "decl") {
-            Object.setPrototypeOf(node, Declaration.prototype);
-          } else if (node.type === "comment") {
-            Object.setPrototypeOf(node, Comment2.prototype);
-          } else if (node.type === "root") {
-            Object.setPrototypeOf(node, Root.prototype);
-          }
-          node[my] = true;
-          if (node.nodes) {
-            node.nodes.forEach((child) => {
-              Container.rebuild(child);
-            });
-          }
-        };
-      }, { "./comment": 8, "./declaration": 11, "./node": 19, "./symbols": 29 }], 10: [function(require2, module4, exports3) {
-        "use strict";
-        let pico = require2("picocolors");
-        let terminalHighlight = require2("./terminal-highlight");
-        class CssSyntaxError extends Error {
-          constructor(message, line, column, source, file, plugin) {
-            super(message);
-            this.name = "CssSyntaxError";
-            this.reason = message;
-            if (file) {
-              this.file = file;
-            }
-            if (source) {
-              this.source = source;
-            }
-            if (plugin) {
-              this.plugin = plugin;
-            }
-            if (typeof line !== "undefined" && typeof column !== "undefined") {
-              if (typeof line === "number") {
-                this.line = line;
-                this.column = column;
-              } else {
-                this.line = line.line;
-                this.column = line.column;
-                this.endLine = column.line;
-                this.endColumn = column.column;
-              }
-            }
-            this.setMessage();
-            if (Error.captureStackTrace) {
-              Error.captureStackTrace(this, CssSyntaxError);
-            }
-          }
-          setMessage() {
-            this.message = this.plugin ? this.plugin + ": " : "";
-            this.message += this.file ? this.file : "<css input>";
-            if (typeof this.line !== "undefined") {
-              this.message += ":" + this.line + ":" + this.column;
-            }
-            this.message += ": " + this.reason;
-          }
-          showSourceCode(color) {
-            if (!this.source)
-              return "";
-            let css2 = this.source;
-            if (color == null)
-              color = pico.isColorSupported;
-            if (terminalHighlight) {
-              if (color)
-                css2 = terminalHighlight(css2);
-            }
-            let lines = css2.split(/\r?\n/);
-            let start = Math.max(this.line - 3, 0);
-            let end = Math.min(this.line + 2, lines.length);
-            let maxWidth = String(end).length;
-            let mark2, aside;
-            if (color) {
-              let { bold, gray, red } = pico.createColors(true);
-              mark2 = (text) => bold(red(text));
-              aside = (text) => gray(text);
-            } else {
-              mark2 = aside = (str) => str;
-            }
-            return lines.slice(start, end).map((line, index) => {
-              let number = start + 1 + index;
-              let gutter = " " + (" " + number).slice(-maxWidth) + " | ";
-              if (number === this.line) {
-                let spacing = aside(gutter.replace(/\d/g, " ")) + line.slice(0, this.column - 1).replace(/[^\t]/g, " ");
-                return mark2(">") + aside(gutter) + line + "\n " + spacing + mark2("^");
-              }
-              return " " + aside(gutter) + line;
-            }).join("\n");
-          }
-          toString() {
-            let code = this.showSourceCode();
-            if (code) {
-              code = "\n\n" + code + "\n";
-            }
-            return this.name + ": " + this.message + code;
-          }
-        }
-        module4.exports = CssSyntaxError;
-        CssSyntaxError.default = CssSyntaxError;
-      }, { "./terminal-highlight": 2, "picocolors": 6 }], 11: [function(require2, module4, exports3) {
-        "use strict";
-        let Node = require2("./node");
-        class Declaration extends Node {
-          constructor(defaults) {
-            if (defaults && typeof defaults.value !== "undefined" && typeof defaults.value !== "string") {
-              defaults = { ...defaults, value: String(defaults.value) };
-            }
-            super(defaults);
-            this.type = "decl";
-          }
-          get variable() {
-            return this.prop.startsWith("--") || this.prop[0] === "$";
-          }
-        }
-        module4.exports = Declaration;
-        Declaration.default = Declaration;
-      }, { "./node": 19 }], 12: [function(require2, module4, exports3) {
-        "use strict";
-        let Container = require2("./container");
-        let LazyResult, Processor;
-        class Document extends Container {
-          constructor(defaults) {
-            super({ type: "document", ...defaults });
-            if (!this.nodes) {
-              this.nodes = [];
-            }
-          }
-          toResult(opts = {}) {
-            let lazy = new LazyResult(new Processor(), this, opts);
-            return lazy.stringify();
-          }
-        }
-        Document.registerLazyResult = (dependant) => {
-          LazyResult = dependant;
-        };
-        Document.registerProcessor = (dependant) => {
-          Processor = dependant;
-        };
-        module4.exports = Document;
-        Document.default = Document;
-      }, { "./container": 9 }], 13: [function(require2, module4, exports3) {
-        "use strict";
-        let Declaration = require2("./declaration");
-        let PreviousMap = require2("./previous-map");
-        let Comment2 = require2("./comment");
-        let AtRule = require2("./at-rule");
-        let Input = require2("./input");
-        let Root = require2("./root");
-        let Rule = require2("./rule");
-        function fromJSON(json, inputs) {
-          if (Array.isArray(json))
-            return json.map((n) => fromJSON(n));
-          let { inputs: ownInputs, ...defaults } = json;
-          if (ownInputs) {
-            inputs = [];
-            for (let input of ownInputs) {
-              let inputHydrated = { ...input, __proto__: Input.prototype };
-              if (inputHydrated.map) {
-                inputHydrated.map = {
-                  ...inputHydrated.map,
-                  __proto__: PreviousMap.prototype
-                };
-              }
-              inputs.push(inputHydrated);
-            }
-          }
-          if (defaults.nodes) {
-            defaults.nodes = json.nodes.map((n) => fromJSON(n, inputs));
-          }
-          if (defaults.source) {
-            let { inputId, ...source } = defaults.source;
-            defaults.source = source;
-            if (inputId != null) {
-              defaults.source.input = inputs[inputId];
-            }
-          }
-          if (defaults.type === "root") {
-            return new Root(defaults);
-          } else if (defaults.type === "decl") {
-            return new Declaration(defaults);
-          } else if (defaults.type === "rule") {
-            return new Rule(defaults);
-          } else if (defaults.type === "comment") {
-            return new Comment2(defaults);
-          } else if (defaults.type === "atrule") {
-            return new AtRule(defaults);
-          } else {
-            throw new Error("Unknown node type: " + json.type);
-          }
-        }
-        module4.exports = fromJSON;
-        fromJSON.default = fromJSON;
-      }, { "./at-rule": 7, "./comment": 8, "./declaration": 11, "./input": 14, "./previous-map": 22, "./root": 25, "./rule": 26 }], 14: [function(require2, module4, exports3) {
-        "use strict";
-        let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
-        let { fileURLToPath, pathToFileURL } = require2("url");
-        let { isAbsolute, resolve } = require2("path");
-        let { nanoid } = require2("nanoid/non-secure");
-        let terminalHighlight = require2("./terminal-highlight");
-        let CssSyntaxError = require2("./css-syntax-error");
-        let PreviousMap = require2("./previous-map");
-        let fromOffsetCache = Symbol("fromOffsetCache");
-        let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator);
-        let pathAvailable = Boolean(resolve && isAbsolute);
-        class Input {
-          constructor(css2, opts = {}) {
-            if (css2 === null || typeof css2 === "undefined" || typeof css2 === "object" && !css2.toString) {
-              throw new Error(`PostCSS received ${css2} instead of CSS string`);
-            }
-            this.css = css2.toString();
-            if (this.css[0] === "\uFEFF" || this.css[0] === "\uFFFE") {
-              this.hasBOM = true;
-              this.css = this.css.slice(1);
-            } else {
-              this.hasBOM = false;
-            }
-            if (opts.from) {
-              if (!pathAvailable || /^\w+:\/\//.test(opts.from) || isAbsolute(opts.from)) {
-                this.file = opts.from;
-              } else {
-                this.file = resolve(opts.from);
-              }
-            }
-            if (pathAvailable && sourceMapAvailable) {
-              let map = new PreviousMap(this.css, opts);
-              if (map.text) {
-                this.map = map;
-                let file = map.consumer().file;
-                if (!this.file && file)
-                  this.file = this.mapResolve(file);
-              }
-            }
-            if (!this.file) {
-              this.id = "<input css " + nanoid(6) + ">";
-            }
-            if (this.map)
-              this.map.file = this.from;
-          }
-          error(message, line, column, opts = {}) {
-            let result, endLine, endColumn;
-            if (line && typeof line === "object") {
-              let start = line;
-              let end = column;
-              if (typeof start.offset === "number") {
-                let pos = this.fromOffset(start.offset);
-                line = pos.line;
-                column = pos.col;
-              } else {
-                line = start.line;
-                column = start.column;
-              }
-              if (typeof end.offset === "number") {
-                let pos = this.fromOffset(end.offset);
-                endLine = pos.line;
-                endColumn = pos.col;
-              } else {
-                endLine = end.line;
-                endColumn = end.column;
-              }
-            } else if (!column) {
-              let pos = this.fromOffset(line);
-              line = pos.line;
-              column = pos.col;
-            }
-            let origin = this.origin(line, column, endLine, endColumn);
-            if (origin) {
-              result = new CssSyntaxError(
-                message,
-                origin.endLine === void 0 ? origin.line : { column: origin.column, line: origin.line },
-                origin.endLine === void 0 ? origin.column : { column: origin.endColumn, line: origin.endLine },
-                origin.source,
-                origin.file,
-                opts.plugin
-              );
-            } else {
-              result = new CssSyntaxError(
-                message,
-                endLine === void 0 ? line : { column, line },
-                endLine === void 0 ? column : { column: endColumn, line: endLine },
-                this.css,
-                this.file,
-                opts.plugin
-              );
-            }
-            result.input = { column, endColumn, endLine, line, source: this.css };
-            if (this.file) {
-              if (pathToFileURL) {
-                result.input.url = pathToFileURL(this.file).toString();
-              }
-              result.input.file = this.file;
-            }
-            return result;
-          }
-          fromOffset(offset) {
-            let lastLine, lineToIndex;
-            if (!this[fromOffsetCache]) {
-              let lines = this.css.split("\n");
-              lineToIndex = new Array(lines.length);
-              let prevIndex = 0;
-              for (let i = 0, l = lines.length; i < l; i++) {
-                lineToIndex[i] = prevIndex;
-                prevIndex += lines[i].length + 1;
-              }
-              this[fromOffsetCache] = lineToIndex;
-            } else {
-              lineToIndex = this[fromOffsetCache];
-            }
-            lastLine = lineToIndex[lineToIndex.length - 1];
-            let min = 0;
-            if (offset >= lastLine) {
-              min = lineToIndex.length - 1;
-            } else {
-              let max = lineToIndex.length - 2;
-              let mid;
-              while (min < max) {
-                mid = min + (max - min >> 1);
-                if (offset < lineToIndex[mid]) {
-                  max = mid - 1;
-                } else if (offset >= lineToIndex[mid + 1]) {
-                  min = mid + 1;
-                } else {
-                  min = mid;
-                  break;
-                }
-              }
-            }
-            return {
-              col: offset - lineToIndex[min] + 1,
-              line: min + 1
-            };
-          }
-          mapResolve(file) {
-            if (/^\w+:\/\//.test(file)) {
-              return file;
-            }
-            return resolve(this.map.consumer().sourceRoot || this.map.root || ".", file);
-          }
-          origin(line, column, endLine, endColumn) {
-            if (!this.map)
-              return false;
-            let consumer = this.map.consumer();
-            let from = consumer.originalPositionFor({ column, line });
-            if (!from.source)
-              return false;
-            let to;
-            if (typeof endLine === "number") {
-              to = consumer.originalPositionFor({ column: endColumn, line: endLine });
-            }
-            let fromUrl;
-            if (isAbsolute(from.source)) {
-              fromUrl = pathToFileURL(from.source);
-            } else {
-              fromUrl = new URL(
-                from.source,
-                this.map.consumer().sourceRoot || pathToFileURL(this.map.mapFile)
-              );
-            }
-            let result = {
-              column: from.column,
-              endColumn: to && to.column,
-              endLine: to && to.line,
-              line: from.line,
-              url: fromUrl.toString()
-            };
-            if (fromUrl.protocol === "file:") {
-              if (fileURLToPath) {
-                result.file = fileURLToPath(fromUrl);
-              } else {
-                throw new Error(`file: protocol is not available in this PostCSS build`);
-              }
-            }
-            let source = consumer.sourceContentFor(from.source);
-            if (source)
-              result.source = source;
-            return result;
-          }
-          toJSON() {
-            let json = {};
-            for (let name of ["hasBOM", "css", "file", "id"]) {
-              if (this[name] != null) {
-                json[name] = this[name];
-              }
-            }
-            if (this.map) {
-              json.map = { ...this.map };
-              if (json.map.consumerCache) {
-                json.map.consumerCache = void 0;
-              }
-            }
-            return json;
-          }
-          get from() {
-            return this.file || this.id;
-          }
-        }
-        module4.exports = Input;
-        Input.default = Input;
-        if (terminalHighlight && terminalHighlight.registerInput) {
-          terminalHighlight.registerInput(Input);
-        }
-      }, { "./css-syntax-error": 10, "./previous-map": 22, "./terminal-highlight": 2, "nanoid/non-secure": 5, "path": 2, "source-map-js": 2, "url": 2 }], 15: [function(require2, module4, exports3) {
-        (function(process2) {
-          (function() {
-            "use strict";
-            let { isClean, my } = require2("./symbols");
-            let MapGenerator = require2("./map-generator");
-            let stringify = require2("./stringify");
-            let Container = require2("./container");
-            let Document = require2("./document");
-            let warnOnce = require2("./warn-once");
-            let Result = require2("./result");
-            let parse2 = require2("./parse");
-            let Root = require2("./root");
-            const TYPE_TO_CLASS_NAME = {
-              atrule: "AtRule",
-              comment: "Comment",
-              decl: "Declaration",
-              document: "Document",
-              root: "Root",
-              rule: "Rule"
-            };
-            const PLUGIN_PROPS = {
-              AtRule: true,
-              AtRuleExit: true,
-              Comment: true,
-              CommentExit: true,
-              Declaration: true,
-              DeclarationExit: true,
-              Document: true,
-              DocumentExit: true,
-              Once: true,
-              OnceExit: true,
-              postcssPlugin: true,
-              prepare: true,
-              Root: true,
-              RootExit: true,
-              Rule: true,
-              RuleExit: true
-            };
-            const NOT_VISITORS = {
-              Once: true,
-              postcssPlugin: true,
-              prepare: true
-            };
-            const CHILDREN = 0;
-            function isPromise(obj) {
-              return typeof obj === "object" && typeof obj.then === "function";
-            }
-            function getEvents(node) {
-              let key = false;
-              let type = TYPE_TO_CLASS_NAME[node.type];
-              if (node.type === "decl") {
-                key = node.prop.toLowerCase();
-              } else if (node.type === "atrule") {
-                key = node.name.toLowerCase();
-              }
-              if (key && node.append) {
-                return [
-                  type,
-                  type + "-" + key,
-                  CHILDREN,
-                  type + "Exit",
-                  type + "Exit-" + key
-                ];
-              } else if (key) {
-                return [type, type + "-" + key, type + "Exit", type + "Exit-" + key];
-              } else if (node.append) {
-                return [type, CHILDREN, type + "Exit"];
-              } else {
-                return [type, type + "Exit"];
-              }
-            }
-            function toStack(node) {
-              let events;
-              if (node.type === "document") {
-                events = ["Document", CHILDREN, "DocumentExit"];
-              } else if (node.type === "root") {
-                events = ["Root", CHILDREN, "RootExit"];
-              } else {
-                events = getEvents(node);
-              }
-              return {
-                eventIndex: 0,
-                events,
-                iterator: 0,
-                node,
-                visitorIndex: 0,
-                visitors: []
-              };
-            }
-            function cleanMarks(node) {
-              node[isClean] = false;
-              if (node.nodes)
-                node.nodes.forEach((i) => cleanMarks(i));
-              return node;
-            }
-            let postcss2 = {};
-            class LazyResult {
-              constructor(processor, css2, opts) {
-                this.stringified = false;
-                this.processed = false;
-                let root;
-                if (typeof css2 === "object" && css2 !== null && (css2.type === "root" || css2.type === "document")) {
-                  root = cleanMarks(css2);
-                } else if (css2 instanceof LazyResult || css2 instanceof Result) {
-                  root = cleanMarks(css2.root);
-                  if (css2.map) {
-                    if (typeof opts.map === "undefined")
-                      opts.map = {};
-                    if (!opts.map.inline)
-                      opts.map.inline = false;
-                    opts.map.prev = css2.map;
-                  }
-                } else {
-                  let parser2 = parse2;
-                  if (opts.syntax)
-                    parser2 = opts.syntax.parse;
-                  if (opts.parser)
-                    parser2 = opts.parser;
-                  if (parser2.parse)
-                    parser2 = parser2.parse;
-                  try {
-                    root = parser2(css2, opts);
-                  } catch (error) {
-                    this.processed = true;
-                    this.error = error;
-                  }
-                  if (root && !root[my]) {
-                    Container.rebuild(root);
-                  }
-                }
-                this.result = new Result(processor, root, opts);
-                this.helpers = { ...postcss2, postcss: postcss2, result: this.result };
-                this.plugins = this.processor.plugins.map((plugin) => {
-                  if (typeof plugin === "object" && plugin.prepare) {
-                    return { ...plugin, ...plugin.prepare(this.result) };
-                  } else {
-                    return plugin;
-                  }
-                });
-              }
-              async() {
-                if (this.error)
-                  return Promise.reject(this.error);
-                if (this.processed)
-                  return Promise.resolve(this.result);
-                if (!this.processing) {
-                  this.processing = this.runAsync();
-                }
-                return this.processing;
-              }
-              catch(onRejected) {
-                return this.async().catch(onRejected);
-              }
-              finally(onFinally) {
-                return this.async().then(onFinally, onFinally);
-              }
-              getAsyncError() {
-                throw new Error("Use process(css).then(cb) to work with async plugins");
-              }
-              handleError(error, node) {
-                let plugin = this.result.lastPlugin;
-                try {
-                  if (node)
-                    node.addToError(error);
-                  this.error = error;
-                  if (error.name === "CssSyntaxError" && !error.plugin) {
-                    error.plugin = plugin.postcssPlugin;
-                    error.setMessage();
-                  } else if (plugin.postcssVersion) {
-                    if (process2.env.NODE_ENV !== "production") {
-                      let pluginName = plugin.postcssPlugin;
-                      let pluginVer = plugin.postcssVersion;
-                      let runtimeVer = this.result.processor.version;
-                      let a = pluginVer.split(".");
-                      let b = runtimeVer.split(".");
-                      if (a[0] !== b[0] || parseInt(a[1]) > parseInt(b[1])) {
-                        console.error(
-                          "Unknown error from PostCSS plugin. Your current PostCSS version is " + runtimeVer + ", but " + pluginName + " uses " + pluginVer + ". Perhaps this is the source of the error below."
-                        );
-                      }
-                    }
-                  }
-                } catch (err) {
-                  if (console && console.error)
-                    console.error(err);
-                }
-                return error;
-              }
-              prepareVisitors() {
-                this.listeners = {};
-                let add = (plugin, type, cb) => {
-                  if (!this.listeners[type])
-                    this.listeners[type] = [];
-                  this.listeners[type].push([plugin, cb]);
-                };
-                for (let plugin of this.plugins) {
-                  if (typeof plugin === "object") {
-                    for (let event in plugin) {
-                      if (!PLUGIN_PROPS[event] && /^[A-Z]/.test(event)) {
-                        throw new Error(
-                          `Unknown event ${event} in ${plugin.postcssPlugin}. Try to update PostCSS (${this.processor.version} now).`
-                        );
-                      }
-                      if (!NOT_VISITORS[event]) {
-                        if (typeof plugin[event] === "object") {
-                          for (let filter in plugin[event]) {
-                            if (filter === "*") {
-                              add(plugin, event, plugin[event][filter]);
-                            } else {
-                              add(
-                                plugin,
-                                event + "-" + filter.toLowerCase(),
-                                plugin[event][filter]
-                              );
-                            }
-                          }
-                        } else if (typeof plugin[event] === "function") {
-                          add(plugin, event, plugin[event]);
-                        }
-                      }
-                    }
-                  }
-                }
-                this.hasListener = Object.keys(this.listeners).length > 0;
-              }
-              async runAsync() {
-                this.plugin = 0;
-                for (let i = 0; i < this.plugins.length; i++) {
-                  let plugin = this.plugins[i];
-                  let promise = this.runOnRoot(plugin);
-                  if (isPromise(promise)) {
-                    try {
-                      await promise;
-                    } catch (error) {
-                      throw this.handleError(error);
-                    }
-                  }
-                }
-                this.prepareVisitors();
-                if (this.hasListener) {
-                  let root = this.result.root;
-                  while (!root[isClean]) {
-                    root[isClean] = true;
-                    let stack = [toStack(root)];
-                    while (stack.length > 0) {
-                      let promise = this.visitTick(stack);
-                      if (isPromise(promise)) {
-                        try {
-                          await promise;
-                        } catch (e2) {
-                          let node = stack[stack.length - 1].node;
-                          throw this.handleError(e2, node);
-                        }
-                      }
-                    }
-                  }
-                  if (this.listeners.OnceExit) {
-                    for (let [plugin, visitor] of this.listeners.OnceExit) {
-                      this.result.lastPlugin = plugin;
-                      try {
-                        if (root.type === "document") {
-                          let roots = root.nodes.map(
-                            (subRoot) => visitor(subRoot, this.helpers)
-                          );
-                          await Promise.all(roots);
-                        } else {
-                          await visitor(root, this.helpers);
-                        }
-                      } catch (e2) {
-                        throw this.handleError(e2);
-                      }
-                    }
-                  }
-                }
-                this.processed = true;
-                return this.stringify();
-              }
-              runOnRoot(plugin) {
-                this.result.lastPlugin = plugin;
-                try {
-                  if (typeof plugin === "object" && plugin.Once) {
-                    if (this.result.root.type === "document") {
-                      let roots = this.result.root.nodes.map(
-                        (root) => plugin.Once(root, this.helpers)
-                      );
-                      if (isPromise(roots[0])) {
-                        return Promise.all(roots);
-                      }
-                      return roots;
-                    }
-                    return plugin.Once(this.result.root, this.helpers);
-                  } else if (typeof plugin === "function") {
-                    return plugin(this.result.root, this.result);
-                  }
-                } catch (error) {
-                  throw this.handleError(error);
-                }
-              }
-              stringify() {
-                if (this.error)
-                  throw this.error;
-                if (this.stringified)
-                  return this.result;
-                this.stringified = true;
-                this.sync();
-                let opts = this.result.opts;
-                let str = stringify;
-                if (opts.syntax)
-                  str = opts.syntax.stringify;
-                if (opts.stringifier)
-                  str = opts.stringifier;
-                if (str.stringify)
-                  str = str.stringify;
-                let map = new MapGenerator(str, this.result.root, this.result.opts);
-                let data = map.generate();
-                this.result.css = data[0];
-                this.result.map = data[1];
-                return this.result;
-              }
-              sync() {
-                if (this.error)
-                  throw this.error;
-                if (this.processed)
-                  return this.result;
-                this.processed = true;
-                if (this.processing) {
-                  throw this.getAsyncError();
-                }
-                for (let plugin of this.plugins) {
-                  let promise = this.runOnRoot(plugin);
-                  if (isPromise(promise)) {
-                    throw this.getAsyncError();
-                  }
-                }
-                this.prepareVisitors();
-                if (this.hasListener) {
-                  let root = this.result.root;
-                  while (!root[isClean]) {
-                    root[isClean] = true;
-                    this.walkSync(root);
-                  }
-                  if (this.listeners.OnceExit) {
-                    if (root.type === "document") {
-                      for (let subRoot of root.nodes) {
-                        this.visitSync(this.listeners.OnceExit, subRoot);
-                      }
-                    } else {
-                      this.visitSync(this.listeners.OnceExit, root);
-                    }
-                  }
-                }
-                return this.result;
-              }
-              then(onFulfilled, onRejected) {
-                if (process2.env.NODE_ENV !== "production") {
-                  if (!("from" in this.opts)) {
-                    warnOnce(
-                      "Without `from` option PostCSS could generate wrong source map and will not find Browserslist config. Set it to CSS file path or to `undefined` to prevent this warning."
-                    );
-                  }
-                }
-                return this.async().then(onFulfilled, onRejected);
-              }
-              toString() {
-                return this.css;
-              }
-              visitSync(visitors, node) {
-                for (let [plugin, visitor] of visitors) {
-                  this.result.lastPlugin = plugin;
-                  let promise;
-                  try {
-                    promise = visitor(node, this.helpers);
-                  } catch (e2) {
-                    throw this.handleError(e2, node.proxyOf);
-                  }
-                  if (node.type !== "root" && node.type !== "document" && !node.parent) {
-                    return true;
-                  }
-                  if (isPromise(promise)) {
-                    throw this.getAsyncError();
-                  }
-                }
-              }
-              visitTick(stack) {
-                let visit = stack[stack.length - 1];
-                let { node, visitors } = visit;
-                if (node.type !== "root" && node.type !== "document" && !node.parent) {
-                  stack.pop();
-                  return;
-                }
-                if (visitors.length > 0 && visit.visitorIndex < visitors.length) {
-                  let [plugin, visitor] = visitors[visit.visitorIndex];
-                  visit.visitorIndex += 1;
-                  if (visit.visitorIndex === visitors.length) {
-                    visit.visitors = [];
-                    visit.visitorIndex = 0;
-                  }
-                  this.result.lastPlugin = plugin;
-                  try {
-                    return visitor(node.toProxy(), this.helpers);
-                  } catch (e2) {
-                    throw this.handleError(e2, node);
-                  }
-                }
-                if (visit.iterator !== 0) {
-                  let iterator = visit.iterator;
-                  let child;
-                  while (child = node.nodes[node.indexes[iterator]]) {
-                    node.indexes[iterator] += 1;
-                    if (!child[isClean]) {
-                      child[isClean] = true;
-                      stack.push(toStack(child));
-                      return;
-                    }
-                  }
-                  visit.iterator = 0;
-                  delete node.indexes[iterator];
-                }
-                let events = visit.events;
-                while (visit.eventIndex < events.length) {
-                  let event = events[visit.eventIndex];
-                  visit.eventIndex += 1;
-                  if (event === CHILDREN) {
-                    if (node.nodes && node.nodes.length) {
-                      node[isClean] = true;
-                      visit.iterator = node.getIterator();
-                    }
-                    return;
-                  } else if (this.listeners[event]) {
-                    visit.visitors = this.listeners[event];
-                    return;
-                  }
-                }
-                stack.pop();
-              }
-              walkSync(node) {
-                node[isClean] = true;
-                let events = getEvents(node);
-                for (let event of events) {
-                  if (event === CHILDREN) {
-                    if (node.nodes) {
-                      node.each((child) => {
-                        if (!child[isClean])
-                          this.walkSync(child);
-                      });
-                    }
-                  } else {
-                    let visitors = this.listeners[event];
-                    if (visitors) {
-                      if (this.visitSync(visitors, node.toProxy()))
-                        return;
-                    }
-                  }
-                }
-              }
-              warnings() {
-                return this.sync().warnings();
-              }
-              get content() {
-                return this.stringify().content;
-              }
-              get css() {
-                return this.stringify().css;
-              }
-              get map() {
-                return this.stringify().map;
-              }
-              get messages() {
-                return this.sync().messages;
-              }
-              get opts() {
-                return this.result.opts;
-              }
-              get processor() {
-                return this.result.processor;
-              }
-              get root() {
-                return this.sync().root;
-              }
-              get [Symbol.toStringTag]() {
-                return "LazyResult";
-              }
-            }
-            LazyResult.registerPostcss = (dependant) => {
-              postcss2 = dependant;
-            };
-            module4.exports = LazyResult;
-            LazyResult.default = LazyResult;
-            Root.registerLazyResult(LazyResult);
-            Document.registerLazyResult(LazyResult);
-          }).call(this);
-        }).call(this, require2("_process"));
-      }, { "./container": 9, "./document": 12, "./map-generator": 17, "./parse": 20, "./result": 24, "./root": 25, "./stringify": 28, "./symbols": 29, "./warn-once": 31, "_process": 33 }], 16: [function(require2, module4, exports3) {
-        "use strict";
-        let list2 = {
-          comma(string) {
-            return list2.split(string, [","], true);
-          },
-          space(string) {
-            let spaces = [" ", "\n", "	"];
-            return list2.split(string, spaces);
-          },
-          split(string, separators, last) {
-            let array = [];
-            let current = "";
-            let split = false;
-            let func = 0;
-            let inQuote = false;
-            let prevQuote = "";
-            let escape2 = false;
-            for (let letter of string) {
-              if (escape2) {
-                escape2 = false;
-              } else if (letter === "\\") {
-                escape2 = true;
-              } else if (inQuote) {
-                if (letter === prevQuote) {
-                  inQuote = false;
-                }
-              } else if (letter === '"' || letter === "'") {
-                inQuote = true;
-                prevQuote = letter;
-              } else if (letter === "(") {
-                func += 1;
-              } else if (letter === ")") {
-                if (func > 0)
-                  func -= 1;
-              } else if (func === 0) {
-                if (separators.includes(letter))
-                  split = true;
-              }
-              if (split) {
-                if (current !== "")
-                  array.push(current.trim());
-                current = "";
-                split = false;
-              } else {
-                current += letter;
-              }
-            }
-            if (last || current !== "")
-              array.push(current.trim());
-            return array;
-          }
-        };
-        module4.exports = list2;
-        list2.default = list2;
-      }, {}], 17: [function(require2, module4, exports3) {
-        (function(Buffer2) {
-          (function() {
-            "use strict";
-            let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
-            let { dirname, relative, resolve, sep } = require2("path");
-            let { pathToFileURL } = require2("url");
-            let Input = require2("./input");
-            let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator);
-            let pathAvailable = Boolean(dirname && resolve && relative && sep);
-            class MapGenerator {
-              constructor(stringify, root, opts, cssString) {
-                this.stringify = stringify;
-                this.mapOpts = opts.map || {};
-                this.root = root;
-                this.opts = opts;
-                this.css = cssString;
-                this.originalCSS = cssString;
-                this.usesFileUrls = !this.mapOpts.from && this.mapOpts.absolute;
-                this.memoizedFileURLs = /* @__PURE__ */ new Map();
-                this.memoizedPaths = /* @__PURE__ */ new Map();
-                this.memoizedURLs = /* @__PURE__ */ new Map();
-              }
-              addAnnotation() {
-                let content;
-                if (this.isInline()) {
-                  content = "data:application/json;base64," + this.toBase64(this.map.toString());
-                } else if (typeof this.mapOpts.annotation === "string") {
-                  content = this.mapOpts.annotation;
-                } else if (typeof this.mapOpts.annotation === "function") {
-                  content = this.mapOpts.annotation(this.opts.to, this.root);
-                } else {
-                  content = this.outputFile() + ".map";
-                }
-                let eol = "\n";
-                if (this.css.includes("\r\n"))
-                  eol = "\r\n";
-                this.css += eol + "/*# sourceMappingURL=" + content + " */";
-              }
-              applyPrevMaps() {
-                for (let prev of this.previous()) {
-                  let from = this.toUrl(this.path(prev.file));
-                  let root = prev.root || dirname(prev.file);
-                  let map;
-                  if (this.mapOpts.sourcesContent === false) {
-                    map = new SourceMapConsumer(prev.text);
-                    if (map.sourcesContent) {
-                      map.sourcesContent = null;
-                    }
-                  } else {
-                    map = prev.consumer();
-                  }
-                  this.map.applySourceMap(map, from, this.toUrl(this.path(root)));
-                }
-              }
-              clearAnnotation() {
-                if (this.mapOpts.annotation === false)
-                  return;
-                if (this.root) {
-                  let node;
-                  for (let i = this.root.nodes.length - 1; i >= 0; i--) {
-                    node = this.root.nodes[i];
-                    if (node.type !== "comment")
-                      continue;
-                    if (node.text.indexOf("# sourceMappingURL=") === 0) {
-                      this.root.removeChild(i);
-                    }
-                  }
-                } else if (this.css) {
-                  this.css = this.css.replace(/\n*?\/\*#[\S\s]*?\*\/$/gm, "");
-                }
-              }
-              generate() {
-                this.clearAnnotation();
-                if (pathAvailable && sourceMapAvailable && this.isMap()) {
-                  return this.generateMap();
-                } else {
-                  let result = "";
-                  this.stringify(this.root, (i) => {
-                    result += i;
-                  });
-                  return [result];
-                }
-              }
-              generateMap() {
-                if (this.root) {
-                  this.generateString();
-                } else if (this.previous().length === 1) {
-                  let prev = this.previous()[0].consumer();
-                  prev.file = this.outputFile();
-                  this.map = SourceMapGenerator.fromSourceMap(prev, {
-                    ignoreInvalidMapping: true
-                  });
-                } else {
-                  this.map = new SourceMapGenerator({
-                    file: this.outputFile(),
-                    ignoreInvalidMapping: true
-                  });
-                  this.map.addMapping({
-                    generated: { column: 0, line: 1 },
-                    original: { column: 0, line: 1 },
-                    source: this.opts.from ? this.toUrl(this.path(this.opts.from)) : "<no source>"
-                  });
-                }
-                if (this.isSourcesContent())
-                  this.setSourcesContent();
-                if (this.root && this.previous().length > 0)
-                  this.applyPrevMaps();
-                if (this.isAnnotation())
-                  this.addAnnotation();
-                if (this.isInline()) {
-                  return [this.css];
-                } else {
-                  return [this.css, this.map];
-                }
-              }
-              generateString() {
-                this.css = "";
-                this.map = new SourceMapGenerator({
-                  file: this.outputFile(),
-                  ignoreInvalidMapping: true
-                });
-                let line = 1;
-                let column = 1;
-                let noSource = "<no source>";
-                let mapping = {
-                  generated: { column: 0, line: 0 },
-                  original: { column: 0, line: 0 },
-                  source: ""
-                };
-                let lines, last;
-                this.stringify(this.root, (str, node, type) => {
-                  this.css += str;
-                  if (node && type !== "end") {
-                    mapping.generated.line = line;
-                    mapping.generated.column = column - 1;
-                    if (node.source && node.source.start) {
-                      mapping.source = this.sourcePath(node);
-                      mapping.original.line = node.source.start.line;
-                      mapping.original.column = node.source.start.column - 1;
-                      this.map.addMapping(mapping);
-                    } else {
-                      mapping.source = noSource;
-                      mapping.original.line = 1;
-                      mapping.original.column = 0;
-                      this.map.addMapping(mapping);
-                    }
-                  }
-                  lines = str.match(/\n/g);
-                  if (lines) {
-                    line += lines.length;
-                    last = str.lastIndexOf("\n");
-                    column = str.length - last;
-                  } else {
-                    column += str.length;
-                  }
-                  if (node && type !== "start") {
-                    let p = node.parent || { raws: {} };
-                    let childless = node.type === "decl" || node.type === "atrule" && !node.nodes;
-                    if (!childless || node !== p.last || p.raws.semicolon) {
-                      if (node.source && node.source.end) {
-                        mapping.source = this.sourcePath(node);
-                        mapping.original.line = node.source.end.line;
-                        mapping.original.column = node.source.end.column - 1;
-                        mapping.generated.line = line;
-                        mapping.generated.column = column - 2;
-                        this.map.addMapping(mapping);
-                      } else {
-                        mapping.source = noSource;
-                        mapping.original.line = 1;
-                        mapping.original.column = 0;
-                        mapping.generated.line = line;
-                        mapping.generated.column = column - 1;
-                        this.map.addMapping(mapping);
-                      }
-                    }
-                  }
-                });
-              }
-              isAnnotation() {
-                if (this.isInline()) {
-                  return true;
-                }
-                if (typeof this.mapOpts.annotation !== "undefined") {
-                  return this.mapOpts.annotation;
-                }
-                if (this.previous().length) {
-                  return this.previous().some((i) => i.annotation);
-                }
-                return true;
-              }
-              isInline() {
-                if (typeof this.mapOpts.inline !== "undefined") {
-                  return this.mapOpts.inline;
-                }
-                let annotation = this.mapOpts.annotation;
-                if (typeof annotation !== "undefined" && annotation !== true) {
-                  return false;
-                }
-                if (this.previous().length) {
-                  return this.previous().some((i) => i.inline);
-                }
-                return true;
-              }
-              isMap() {
-                if (typeof this.opts.map !== "undefined") {
-                  return !!this.opts.map;
-                }
-                return this.previous().length > 0;
-              }
-              isSourcesContent() {
-                if (typeof this.mapOpts.sourcesContent !== "undefined") {
-                  return this.mapOpts.sourcesContent;
-                }
-                if (this.previous().length) {
-                  return this.previous().some((i) => i.withContent());
-                }
-                return true;
-              }
-              outputFile() {
-                if (this.opts.to) {
-                  return this.path(this.opts.to);
-                } else if (this.opts.from) {
-                  return this.path(this.opts.from);
-                } else {
-                  return "to.css";
-                }
-              }
-              path(file) {
-                if (this.mapOpts.absolute)
-                  return file;
-                if (file.charCodeAt(0) === 60)
-                  return file;
-                if (/^\w+:\/\//.test(file))
-                  return file;
-                let cached = this.memoizedPaths.get(file);
-                if (cached)
-                  return cached;
-                let from = this.opts.to ? dirname(this.opts.to) : ".";
-                if (typeof this.mapOpts.annotation === "string") {
-                  from = dirname(resolve(from, this.mapOpts.annotation));
-                }
-                let path = relative(from, file);
-                this.memoizedPaths.set(file, path);
-                return path;
-              }
-              previous() {
-                if (!this.previousMaps) {
-                  this.previousMaps = [];
-                  if (this.root) {
-                    this.root.walk((node) => {
-                      if (node.source && node.source.input.map) {
-                        let map = node.source.input.map;
-                        if (!this.previousMaps.includes(map)) {
-                          this.previousMaps.push(map);
-                        }
-                      }
-                    });
-                  } else {
-                    let input = new Input(this.originalCSS, this.opts);
-                    if (input.map)
-                      this.previousMaps.push(input.map);
-                  }
-                }
-                return this.previousMaps;
-              }
-              setSourcesContent() {
-                let already = {};
-                if (this.root) {
-                  this.root.walk((node) => {
-                    if (node.source) {
-                      let from = node.source.input.from;
-                      if (from && !already[from]) {
-                        already[from] = true;
-                        let fromUrl = this.usesFileUrls ? this.toFileUrl(from) : this.toUrl(this.path(from));
-                        this.map.setSourceContent(fromUrl, node.source.input.css);
-                      }
-                    }
-                  });
-                } else if (this.css) {
-                  let from = this.opts.from ? this.toUrl(this.path(this.opts.from)) : "<no source>";
-                  this.map.setSourceContent(from, this.css);
-                }
-              }
-              sourcePath(node) {
-                if (this.mapOpts.from) {
-                  return this.toUrl(this.mapOpts.from);
-                } else if (this.usesFileUrls) {
-                  return this.toFileUrl(node.source.input.from);
-                } else {
-                  return this.toUrl(this.path(node.source.input.from));
-                }
-              }
-              toBase64(str) {
-                if (Buffer2) {
-                  return Buffer2.from(str).toString("base64");
-                } else {
-                  return window.btoa(unescape(encodeURIComponent(str)));
-                }
-              }
-              toFileUrl(path) {
-                let cached = this.memoizedFileURLs.get(path);
-                if (cached)
-                  return cached;
-                if (pathToFileURL) {
-                  let fileURL = pathToFileURL(path).toString();
-                  this.memoizedFileURLs.set(path, fileURL);
-                  return fileURL;
-                } else {
-                  throw new Error(
-                    "`map.absolute` option is not available in this PostCSS build"
-                  );
-                }
-              }
-              toUrl(path) {
-                let cached = this.memoizedURLs.get(path);
-                if (cached)
-                  return cached;
-                if (sep === "\\") {
-                  path = path.replace(/\\/g, "/");
-                }
-                let url = encodeURI(path).replace(/[#?]/g, encodeURIComponent);
-                this.memoizedURLs.set(path, url);
-                return url;
-              }
-            }
-            module4.exports = MapGenerator;
-          }).call(this);
-        }).call(this, require2("buffer").Buffer);
-      }, { "./input": 14, "buffer": 3, "path": 2, "source-map-js": 2, "url": 2 }], 18: [function(require2, module4, exports3) {
-        (function(process2) {
-          (function() {
-            "use strict";
-            let MapGenerator = require2("./map-generator");
-            let stringify = require2("./stringify");
-            let warnOnce = require2("./warn-once");
-            let parse2 = require2("./parse");
-            const Result = require2("./result");
-            class NoWorkResult {
-              constructor(processor, css2, opts) {
-                css2 = css2.toString();
-                this.stringified = false;
-                this._processor = processor;
-                this._css = css2;
-                this._opts = opts;
-                this._map = void 0;
-                let root;
-                let str = stringify;
-                this.result = new Result(this._processor, root, this._opts);
-                this.result.css = css2;
-                let self2 = this;
-                Object.defineProperty(this.result, "root", {
-                  get() {
-                    return self2.root;
-                  }
-                });
-                let map = new MapGenerator(str, root, this._opts, css2);
-                if (map.isMap()) {
-                  let [generatedCSS, generatedMap] = map.generate();
-                  if (generatedCSS) {
-                    this.result.css = generatedCSS;
-                  }
-                  if (generatedMap) {
-                    this.result.map = generatedMap;
-                  }
-                } else {
-                  map.clearAnnotation();
-                  this.result.css = map.css;
-                }
-              }
-              async() {
-                if (this.error)
-                  return Promise.reject(this.error);
-                return Promise.resolve(this.result);
-              }
-              catch(onRejected) {
-                return this.async().catch(onRejected);
-              }
-              finally(onFinally) {
-                return this.async().then(onFinally, onFinally);
-              }
-              sync() {
-                if (this.error)
-                  throw this.error;
-                return this.result;
-              }
-              then(onFulfilled, onRejected) {
-                if (process2.env.NODE_ENV !== "production") {
-                  if (!("from" in this._opts)) {
-                    warnOnce(
-                      "Without `from` option PostCSS could generate wrong source map and will not find Browserslist config. Set it to CSS file path or to `undefined` to prevent this warning."
-                    );
-                  }
-                }
-                return this.async().then(onFulfilled, onRejected);
-              }
-              toString() {
-                return this._css;
-              }
-              warnings() {
-                return [];
-              }
-              get content() {
-                return this.result.css;
-              }
-              get css() {
-                return this.result.css;
-              }
-              get map() {
-                return this.result.map;
-              }
-              get messages() {
-                return [];
-              }
-              get opts() {
-                return this.result.opts;
-              }
-              get processor() {
-                return this.result.processor;
-              }
-              get root() {
-                if (this._root) {
-                  return this._root;
-                }
-                let root;
-                let parser2 = parse2;
-                try {
-                  root = parser2(this._css, this._opts);
-                } catch (error) {
-                  this.error = error;
-                }
-                if (this.error) {
-                  throw this.error;
-                } else {
-                  this._root = root;
-                  return root;
-                }
-              }
-              get [Symbol.toStringTag]() {
-                return "NoWorkResult";
-              }
-            }
-            module4.exports = NoWorkResult;
-            NoWorkResult.default = NoWorkResult;
-          }).call(this);
-        }).call(this, require2("_process"));
-      }, { "./map-generator": 17, "./parse": 20, "./result": 24, "./stringify": 28, "./warn-once": 31, "_process": 33 }], 19: [function(require2, module4, exports3) {
-        "use strict";
-        let { isClean, my } = require2("./symbols");
-        let CssSyntaxError = require2("./css-syntax-error");
-        let Stringifier = require2("./stringifier");
-        let stringify = require2("./stringify");
-        function cloneNode2(obj, parent) {
-          let cloned = new obj.constructor();
-          for (let i in obj) {
-            if (!Object.prototype.hasOwnProperty.call(obj, i)) {
-              continue;
-            }
-            if (i === "proxyCache")
-              continue;
-            let value = obj[i];
-            let type = typeof value;
-            if (i === "parent" && type === "object") {
-              if (parent)
-                cloned[i] = parent;
-            } else if (i === "source") {
-              cloned[i] = value;
-            } else if (Array.isArray(value)) {
-              cloned[i] = value.map((j) => cloneNode2(j, cloned));
-            } else {
-              if (type === "object" && value !== null)
-                value = cloneNode2(value);
-              cloned[i] = value;
-            }
-          }
-          return cloned;
-        }
-        class Node {
-          constructor(defaults = {}) {
-            this.raws = {};
-            this[isClean] = false;
-            this[my] = true;
-            for (let name in defaults) {
-              if (name === "nodes") {
-                this.nodes = [];
-                for (let node of defaults[name]) {
-                  if (typeof node.clone === "function") {
-                    this.append(node.clone());
-                  } else {
-                    this.append(node);
-                  }
-                }
-              } else {
-                this[name] = defaults[name];
-              }
-            }
-          }
-          addToError(error) {
-            error.postcssNode = this;
-            if (error.stack && this.source && /\n\s{4}at /.test(error.stack)) {
-              let s = this.source;
-              error.stack = error.stack.replace(
-                /\n\s{4}at /,
-                `$&${s.input.from}:${s.start.line}:${s.start.column}$&`
-              );
-            }
-            return error;
-          }
-          after(add) {
-            this.parent.insertAfter(this, add);
-            return this;
-          }
-          assign(overrides = {}) {
-            for (let name in overrides) {
-              this[name] = overrides[name];
-            }
-            return this;
-          }
-          before(add) {
-            this.parent.insertBefore(this, add);
-            return this;
-          }
-          cleanRaws(keepBetween) {
-            delete this.raws.before;
-            delete this.raws.after;
-            if (!keepBetween)
-              delete this.raws.between;
-          }
-          clone(overrides = {}) {
-            let cloned = cloneNode2(this);
-            for (let name in overrides) {
-              cloned[name] = overrides[name];
-            }
-            return cloned;
-          }
-          cloneAfter(overrides = {}) {
-            let cloned = this.clone(overrides);
-            this.parent.insertAfter(this, cloned);
-            return cloned;
-          }
-          cloneBefore(overrides = {}) {
-            let cloned = this.clone(overrides);
-            this.parent.insertBefore(this, cloned);
-            return cloned;
-          }
-          error(message, opts = {}) {
-            if (this.source) {
-              let { end, start } = this.rangeBy(opts);
-              return this.source.input.error(
-                message,
-                { column: start.column, line: start.line },
-                { column: end.column, line: end.line },
-                opts
-              );
-            }
-            return new CssSyntaxError(message);
-          }
-          getProxyProcessor() {
-            return {
-              get(node, prop) {
-                if (prop === "proxyOf") {
-                  return node;
-                } else if (prop === "root") {
-                  return () => node.root().toProxy();
-                } else {
-                  return node[prop];
-                }
-              },
-              set(node, prop, value) {
-                if (node[prop] === value)
-                  return true;
-                node[prop] = value;
-                if (prop === "prop" || prop === "value" || prop === "name" || prop === "params" || prop === "important" || /* c8 ignore next */
-                prop === "text") {
-                  node.markDirty();
-                }
-                return true;
-              }
-            };
-          }
-          markDirty() {
-            if (this[isClean]) {
-              this[isClean] = false;
-              let next = this;
-              while (next = next.parent) {
-                next[isClean] = false;
-              }
-            }
-          }
-          next() {
-            if (!this.parent)
-              return void 0;
-            let index = this.parent.index(this);
-            return this.parent.nodes[index + 1];
-          }
-          positionBy(opts, stringRepresentation) {
-            let pos = this.source.start;
-            if (opts.index) {
-              pos = this.positionInside(opts.index, stringRepresentation);
-            } else if (opts.word) {
-              stringRepresentation = this.toString();
-              let index = stringRepresentation.indexOf(opts.word);
-              if (index !== -1)
-                pos = this.positionInside(index, stringRepresentation);
-            }
-            return pos;
-          }
-          positionInside(index, stringRepresentation) {
-            let string = stringRepresentation || this.toString();
-            let column = this.source.start.column;
-            let line = this.source.start.line;
-            for (let i = 0; i < index; i++) {
-              if (string[i] === "\n") {
-                column = 1;
-                line += 1;
-              } else {
-                column += 1;
-              }
-            }
-            return { column, line };
-          }
-          prev() {
-            if (!this.parent)
-              return void 0;
-            let index = this.parent.index(this);
-            return this.parent.nodes[index - 1];
-          }
-          rangeBy(opts) {
-            let start = {
-              column: this.source.start.column,
-              line: this.source.start.line
-            };
-            let end = this.source.end ? {
-              column: this.source.end.column + 1,
-              line: this.source.end.line
-            } : {
-              column: start.column + 1,
-              line: start.line
-            };
-            if (opts.word) {
-              let stringRepresentation = this.toString();
-              let index = stringRepresentation.indexOf(opts.word);
-              if (index !== -1) {
-                start = this.positionInside(index, stringRepresentation);
-                end = this.positionInside(index + opts.word.length, stringRepresentation);
-              }
-            } else {
-              if (opts.start) {
-                start = {
-                  column: opts.start.column,
-                  line: opts.start.line
-                };
-              } else if (opts.index) {
-                start = this.positionInside(opts.index);
-              }
-              if (opts.end) {
-                end = {
-                  column: opts.end.column,
-                  line: opts.end.line
-                };
-              } else if (typeof opts.endIndex === "number") {
-                end = this.positionInside(opts.endIndex);
-              } else if (opts.index) {
-                end = this.positionInside(opts.index + 1);
-              }
-            }
-            if (end.line < start.line || end.line === start.line && end.column <= start.column) {
-              end = { column: start.column + 1, line: start.line };
-            }
-            return { end, start };
-          }
-          raw(prop, defaultType) {
-            let str = new Stringifier();
-            return str.raw(this, prop, defaultType);
-          }
-          remove() {
-            if (this.parent) {
-              this.parent.removeChild(this);
-            }
-            this.parent = void 0;
-            return this;
-          }
-          replaceWith(...nodes) {
-            if (this.parent) {
-              let bookmark = this;
-              let foundSelf = false;
-              for (let node of nodes) {
-                if (node === this) {
-                  foundSelf = true;
-                } else if (foundSelf) {
-                  this.parent.insertAfter(bookmark, node);
-                  bookmark = node;
-                } else {
-                  this.parent.insertBefore(bookmark, node);
-                }
-              }
-              if (!foundSelf) {
-                this.remove();
-              }
-            }
-            return this;
-          }
-          root() {
-            let result = this;
-            while (result.parent && result.parent.type !== "document") {
-              result = result.parent;
-            }
-            return result;
-          }
-          toJSON(_, inputs) {
-            let fixed = {};
-            let emitInputs = inputs == null;
-            inputs = inputs || /* @__PURE__ */ new Map();
-            let inputsNextIndex = 0;
-            for (let name in this) {
-              if (!Object.prototype.hasOwnProperty.call(this, name)) {
-                continue;
-              }
-              if (name === "parent" || name === "proxyCache")
-                continue;
-              let value = this[name];
-              if (Array.isArray(value)) {
-                fixed[name] = value.map((i) => {
-                  if (typeof i === "object" && i.toJSON) {
-                    return i.toJSON(null, inputs);
-                  } else {
-                    return i;
-                  }
-                });
-              } else if (typeof value === "object" && value.toJSON) {
-                fixed[name] = value.toJSON(null, inputs);
-              } else if (name === "source") {
-                let inputId = inputs.get(value.input);
-                if (inputId == null) {
-                  inputId = inputsNextIndex;
-                  inputs.set(value.input, inputsNextIndex);
-                  inputsNextIndex++;
-                }
-                fixed[name] = {
-                  end: value.end,
-                  inputId,
-                  start: value.start
-                };
-              } else {
-                fixed[name] = value;
-              }
-            }
-            if (emitInputs) {
-              fixed.inputs = [...inputs.keys()].map((input) => input.toJSON());
-            }
-            return fixed;
-          }
-          toProxy() {
-            if (!this.proxyCache) {
-              this.proxyCache = new Proxy(this, this.getProxyProcessor());
-            }
-            return this.proxyCache;
-          }
-          toString(stringifier = stringify) {
-            if (stringifier.stringify)
-              stringifier = stringifier.stringify;
-            let result = "";
-            stringifier(this, (i) => {
-              result += i;
-            });
-            return result;
-          }
-          warn(result, text, opts) {
-            let data = { node: this };
-            for (let i in opts)
-              data[i] = opts[i];
-            return result.warn(text, data);
-          }
-          get proxyOf() {
-            return this;
-          }
-        }
-        module4.exports = Node;
-        Node.default = Node;
-      }, { "./css-syntax-error": 10, "./stringifier": 27, "./stringify": 28, "./symbols": 29 }], 20: [function(require2, module4, exports3) {
-        (function(process2) {
-          (function() {
-            "use strict";
-            let Container = require2("./container");
-            let Parser = require2("./parser");
-            let Input = require2("./input");
-            function parse2(css2, opts) {
-              let input = new Input(css2, opts);
-              let parser2 = new Parser(input);
-              try {
-                parser2.parse();
-              } catch (e2) {
-                if (process2.env.NODE_ENV !== "production") {
-                  if (e2.name === "CssSyntaxError" && opts && opts.from) {
-                    if (/\.scss$/i.test(opts.from)) {
-                      e2.message += "\nYou tried to parse SCSS with the standard CSS parser; try again with the postcss-scss parser";
-                    } else if (/\.sass/i.test(opts.from)) {
-                      e2.message += "\nYou tried to parse Sass with the standard CSS parser; try again with the postcss-sass parser";
-                    } else if (/\.less$/i.test(opts.from)) {
-                      e2.message += "\nYou tried to parse Less with the standard CSS parser; try again with the postcss-less parser";
-                    }
-                  }
-                }
-                throw e2;
-              }
-              return parser2.root;
-            }
-            module4.exports = parse2;
-            parse2.default = parse2;
-            Container.registerParse(parse2);
-          }).call(this);
-        }).call(this, require2("_process"));
-      }, { "./container": 9, "./input": 14, "./parser": 21, "_process": 33 }], 21: [function(require2, module4, exports3) {
-        "use strict";
-        let Declaration = require2("./declaration");
-        let tokenizer = require2("./tokenize");
-        let Comment2 = require2("./comment");
-        let AtRule = require2("./at-rule");
-        let Root = require2("./root");
-        let Rule = require2("./rule");
-        const SAFE_COMMENT_NEIGHBOR = {
-          empty: true,
-          space: true
-        };
-        function findLastWithPosition(tokens) {
-          for (let i = tokens.length - 1; i >= 0; i--) {
-            let token = tokens[i];
-            let pos = token[3] || token[2];
-            if (pos)
-              return pos;
-          }
-        }
-        class Parser {
-          constructor(input) {
-            this.input = input;
-            this.root = new Root();
-            this.current = this.root;
-            this.spaces = "";
-            this.semicolon = false;
-            this.createTokenizer();
-            this.root.source = { input, start: { column: 1, line: 1, offset: 0 } };
-          }
-          atrule(token) {
-            let node = new AtRule();
-            node.name = token[1].slice(1);
-            if (node.name === "") {
-              this.unnamedAtrule(node, token);
-            }
-            this.init(node, token[2]);
-            let type;
-            let prev;
-            let shift;
-            let last = false;
-            let open = false;
-            let params = [];
-            let brackets = [];
-            while (!this.tokenizer.endOfFile()) {
-              token = this.tokenizer.nextToken();
-              type = token[0];
-              if (type === "(" || type === "[") {
-                brackets.push(type === "(" ? ")" : "]");
-              } else if (type === "{" && brackets.length > 0) {
-                brackets.push("}");
-              } else if (type === brackets[brackets.length - 1]) {
-                brackets.pop();
-              }
-              if (brackets.length === 0) {
-                if (type === ";") {
-                  node.source.end = this.getPosition(token[2]);
-                  node.source.end.offset++;
-                  this.semicolon = true;
-                  break;
-                } else if (type === "{") {
-                  open = true;
-                  break;
-                } else if (type === "}") {
-                  if (params.length > 0) {
-                    shift = params.length - 1;
-                    prev = params[shift];
-                    while (prev && prev[0] === "space") {
-                      prev = params[--shift];
-                    }
-                    if (prev) {
-                      node.source.end = this.getPosition(prev[3] || prev[2]);
-                      node.source.end.offset++;
-                    }
-                  }
-                  this.end(token);
-                  break;
-                } else {
-                  params.push(token);
-                }
-              } else {
-                params.push(token);
-              }
-              if (this.tokenizer.endOfFile()) {
-                last = true;
-                break;
-              }
-            }
-            node.raws.between = this.spacesAndCommentsFromEnd(params);
-            if (params.length) {
-              node.raws.afterName = this.spacesAndCommentsFromStart(params);
-              this.raw(node, "params", params);
-              if (last) {
-                token = params[params.length - 1];
-                node.source.end = this.getPosition(token[3] || token[2]);
-                node.source.end.offset++;
-                this.spaces = node.raws.between;
-                node.raws.between = "";
-              }
-            } else {
-              node.raws.afterName = "";
-              node.params = "";
-            }
-            if (open) {
-              node.nodes = [];
-              this.current = node;
-            }
-          }
-          checkMissedSemicolon(tokens) {
-            let colon = this.colon(tokens);
-            if (colon === false)
-              return;
-            let founded = 0;
-            let token;
-            for (let j = colon - 1; j >= 0; j--) {
-              token = tokens[j];
-              if (token[0] !== "space") {
-                founded += 1;
-                if (founded === 2)
-                  break;
-              }
-            }
-            throw this.input.error(
-              "Missed semicolon",
-              token[0] === "word" ? token[3] + 1 : token[2]
-            );
-          }
-          colon(tokens) {
-            let brackets = 0;
-            let token, type, prev;
-            for (let [i, element] of tokens.entries()) {
-              token = element;
-              type = token[0];
-              if (type === "(") {
-                brackets += 1;
-              }
-              if (type === ")") {
-                brackets -= 1;
-              }
-              if (brackets === 0 && type === ":") {
-                if (!prev) {
-                  this.doubleColon(token);
-                } else if (prev[0] === "word" && prev[1] === "progid") {
-                  continue;
-                } else {
-                  return i;
-                }
-              }
-              prev = token;
-            }
-            return false;
-          }
-          comment(token) {
-            let node = new Comment2();
-            this.init(node, token[2]);
-            node.source.end = this.getPosition(token[3] || token[2]);
-            node.source.end.offset++;
-            let text = token[1].slice(2, -2);
-            if (/^\s*$/.test(text)) {
-              node.text = "";
-              node.raws.left = text;
-              node.raws.right = "";
-            } else {
-              let match = text.match(/^(\s*)([^]*\S)(\s*)$/);
-              node.text = match[2];
-              node.raws.left = match[1];
-              node.raws.right = match[3];
-            }
-          }
-          createTokenizer() {
-            this.tokenizer = tokenizer(this.input);
-          }
-          decl(tokens, customProperty) {
-            let node = new Declaration();
-            this.init(node, tokens[0][2]);
-            let last = tokens[tokens.length - 1];
-            if (last[0] === ";") {
-              this.semicolon = true;
-              tokens.pop();
-            }
-            node.source.end = this.getPosition(
-              last[3] || last[2] || findLastWithPosition(tokens)
-            );
-            node.source.end.offset++;
-            while (tokens[0][0] !== "word") {
-              if (tokens.length === 1)
-                this.unknownWord(tokens);
-              node.raws.before += tokens.shift()[1];
-            }
-            node.source.start = this.getPosition(tokens[0][2]);
-            node.prop = "";
-            while (tokens.length) {
-              let type = tokens[0][0];
-              if (type === ":" || type === "space" || type === "comment") {
-                break;
-              }
-              node.prop += tokens.shift()[1];
-            }
-            node.raws.between = "";
-            let token;
-            while (tokens.length) {
-              token = tokens.shift();
-              if (token[0] === ":") {
-                node.raws.between += token[1];
-                break;
-              } else {
-                if (token[0] === "word" && /\w/.test(token[1])) {
-                  this.unknownWord([token]);
-                }
-                node.raws.between += token[1];
-              }
-            }
-            if (node.prop[0] === "_" || node.prop[0] === "*") {
-              node.raws.before += node.prop[0];
-              node.prop = node.prop.slice(1);
-            }
-            let firstSpaces = [];
-            let next;
-            while (tokens.length) {
-              next = tokens[0][0];
-              if (next !== "space" && next !== "comment")
-                break;
-              firstSpaces.push(tokens.shift());
-            }
-            this.precheckMissedSemicolon(tokens);
-            for (let i = tokens.length - 1; i >= 0; i--) {
-              token = tokens[i];
-              if (token[1].toLowerCase() === "!important") {
-                node.important = true;
-                let string = this.stringFrom(tokens, i);
-                string = this.spacesFromEnd(tokens) + string;
-                if (string !== " !important")
-                  node.raws.important = string;
-                break;
-              } else if (token[1].toLowerCase() === "important") {
-                let cache2 = tokens.slice(0);
-                let str = "";
-                for (let j = i; j > 0; j--) {
-                  let type = cache2[j][0];
-                  if (str.trim().indexOf("!") === 0 && type !== "space") {
-                    break;
-                  }
-                  str = cache2.pop()[1] + str;
-                }
-                if (str.trim().indexOf("!") === 0) {
-                  node.important = true;
-                  node.raws.important = str;
-                  tokens = cache2;
-                }
-              }
-              if (token[0] !== "space" && token[0] !== "comment") {
-                break;
-              }
-            }
-            let hasWord = tokens.some((i) => i[0] !== "space" && i[0] !== "comment");
-            if (hasWord) {
-              node.raws.between += firstSpaces.map((i) => i[1]).join("");
-              firstSpaces = [];
-            }
-            this.raw(node, "value", firstSpaces.concat(tokens), customProperty);
-            if (node.value.includes(":") && !customProperty) {
-              this.checkMissedSemicolon(tokens);
-            }
-          }
-          doubleColon(token) {
-            throw this.input.error(
-              "Double colon",
-              { offset: token[2] },
-              { offset: token[2] + token[1].length }
-            );
-          }
-          emptyRule(token) {
-            let node = new Rule();
-            this.init(node, token[2]);
-            node.selector = "";
-            node.raws.between = "";
-            this.current = node;
-          }
-          end(token) {
-            if (this.current.nodes && this.current.nodes.length) {
-              this.current.raws.semicolon = this.semicolon;
-            }
-            this.semicolon = false;
-            this.current.raws.after = (this.current.raws.after || "") + this.spaces;
-            this.spaces = "";
-            if (this.current.parent) {
-              this.current.source.end = this.getPosition(token[2]);
-              this.current.source.end.offset++;
-              this.current = this.current.parent;
-            } else {
-              this.unexpectedClose(token);
-            }
-          }
-          endFile() {
-            if (this.current.parent)
-              this.unclosedBlock();
-            if (this.current.nodes && this.current.nodes.length) {
-              this.current.raws.semicolon = this.semicolon;
-            }
-            this.current.raws.after = (this.current.raws.after || "") + this.spaces;
-            this.root.source.end = this.getPosition(this.tokenizer.position());
-          }
-          freeSemicolon(token) {
-            this.spaces += token[1];
-            if (this.current.nodes) {
-              let prev = this.current.nodes[this.current.nodes.length - 1];
-              if (prev && prev.type === "rule" && !prev.raws.ownSemicolon) {
-                prev.raws.ownSemicolon = this.spaces;
-                this.spaces = "";
-              }
-            }
-          }
-          // Helpers
-          getPosition(offset) {
-            let pos = this.input.fromOffset(offset);
-            return {
-              column: pos.col,
-              line: pos.line,
-              offset
-            };
-          }
-          init(node, offset) {
-            this.current.push(node);
-            node.source = {
-              input: this.input,
-              start: this.getPosition(offset)
-            };
-            node.raws.before = this.spaces;
-            this.spaces = "";
-            if (node.type !== "comment")
-              this.semicolon = false;
-          }
-          other(start) {
-            let end = false;
-            let type = null;
-            let colon = false;
-            let bracket = null;
-            let brackets = [];
-            let customProperty = start[1].startsWith("--");
-            let tokens = [];
-            let token = start;
-            while (token) {
-              type = token[0];
-              tokens.push(token);
-              if (type === "(" || type === "[") {
-                if (!bracket)
-                  bracket = token;
-                brackets.push(type === "(" ? ")" : "]");
-              } else if (customProperty && colon && type === "{") {
-                if (!bracket)
-                  bracket = token;
-                brackets.push("}");
-              } else if (brackets.length === 0) {
-                if (type === ";") {
-                  if (colon) {
-                    this.decl(tokens, customProperty);
-                    return;
-                  } else {
-                    break;
-                  }
-                } else if (type === "{") {
-                  this.rule(tokens);
-                  return;
-                } else if (type === "}") {
-                  this.tokenizer.back(tokens.pop());
-                  end = true;
-                  break;
-                } else if (type === ":") {
-                  colon = true;
-                }
-              } else if (type === brackets[brackets.length - 1]) {
-                brackets.pop();
-                if (brackets.length === 0)
-                  bracket = null;
-              }
-              token = this.tokenizer.nextToken();
-            }
-            if (this.tokenizer.endOfFile())
-              end = true;
-            if (brackets.length > 0)
-              this.unclosedBracket(bracket);
-            if (end && colon) {
-              if (!customProperty) {
-                while (tokens.length) {
-                  token = tokens[tokens.length - 1][0];
-                  if (token !== "space" && token !== "comment")
-                    break;
-                  this.tokenizer.back(tokens.pop());
-                }
-              }
-              this.decl(tokens, customProperty);
-            } else {
-              this.unknownWord(tokens);
-            }
-          }
-          parse() {
-            let token;
-            while (!this.tokenizer.endOfFile()) {
-              token = this.tokenizer.nextToken();
-              switch (token[0]) {
-                case "space":
-                  this.spaces += token[1];
-                  break;
-                case ";":
-                  this.freeSemicolon(token);
-                  break;
-                case "}":
-                  this.end(token);
-                  break;
-                case "comment":
-                  this.comment(token);
-                  break;
-                case "at-word":
-                  this.atrule(token);
-                  break;
-                case "{":
-                  this.emptyRule(token);
-                  break;
-                default:
-                  this.other(token);
-                  break;
-              }
-            }
-            this.endFile();
-          }
-          precheckMissedSemicolon() {
-          }
-          raw(node, prop, tokens, customProperty) {
-            let token, type;
-            let length = tokens.length;
-            let value = "";
-            let clean = true;
-            let next, prev;
-            for (let i = 0; i < length; i += 1) {
-              token = tokens[i];
-              type = token[0];
-              if (type === "space" && i === length - 1 && !customProperty) {
-                clean = false;
-              } else if (type === "comment") {
-                prev = tokens[i - 1] ? tokens[i - 1][0] : "empty";
-                next = tokens[i + 1] ? tokens[i + 1][0] : "empty";
-                if (!SAFE_COMMENT_NEIGHBOR[prev] && !SAFE_COMMENT_NEIGHBOR[next]) {
-                  if (value.slice(-1) === ",") {
-                    clean = false;
-                  } else {
-                    value += token[1];
-                  }
-                } else {
-                  clean = false;
-                }
-              } else {
-                value += token[1];
-              }
-            }
-            if (!clean) {
-              let raw = tokens.reduce((all, i) => all + i[1], "");
-              node.raws[prop] = { raw, value };
-            }
-            node[prop] = value;
-          }
-          rule(tokens) {
-            tokens.pop();
-            let node = new Rule();
-            this.init(node, tokens[0][2]);
-            node.raws.between = this.spacesAndCommentsFromEnd(tokens);
-            this.raw(node, "selector", tokens);
-            this.current = node;
-          }
-          spacesAndCommentsFromEnd(tokens) {
-            let lastTokenType;
-            let spaces = "";
-            while (tokens.length) {
-              lastTokenType = tokens[tokens.length - 1][0];
-              if (lastTokenType !== "space" && lastTokenType !== "comment")
-                break;
-              spaces = tokens.pop()[1] + spaces;
-            }
-            return spaces;
-          }
-          // Errors
-          spacesAndCommentsFromStart(tokens) {
-            let next;
-            let spaces = "";
-            while (tokens.length) {
-              next = tokens[0][0];
-              if (next !== "space" && next !== "comment")
-                break;
-              spaces += tokens.shift()[1];
-            }
-            return spaces;
-          }
-          spacesFromEnd(tokens) {
-            let lastTokenType;
-            let spaces = "";
-            while (tokens.length) {
-              lastTokenType = tokens[tokens.length - 1][0];
-              if (lastTokenType !== "space")
-                break;
-              spaces = tokens.pop()[1] + spaces;
-            }
-            return spaces;
-          }
-          stringFrom(tokens, from) {
-            let result = "";
-            for (let i = from; i < tokens.length; i++) {
-              result += tokens[i][1];
-            }
-            tokens.splice(from, tokens.length - from);
-            return result;
-          }
-          unclosedBlock() {
-            let pos = this.current.source.start;
-            throw this.input.error("Unclosed block", pos.line, pos.column);
-          }
-          unclosedBracket(bracket) {
-            throw this.input.error(
-              "Unclosed bracket",
-              { offset: bracket[2] },
-              { offset: bracket[2] + 1 }
-            );
-          }
-          unexpectedClose(token) {
-            throw this.input.error(
-              "Unexpected }",
-              { offset: token[2] },
-              { offset: token[2] + 1 }
-            );
-          }
-          unknownWord(tokens) {
-            throw this.input.error(
-              "Unknown word",
-              { offset: tokens[0][2] },
-              { offset: tokens[0][2] + tokens[0][1].length }
-            );
-          }
-          unnamedAtrule(node, token) {
-            throw this.input.error(
-              "At-rule without name",
-              { offset: token[2] },
-              { offset: token[2] + token[1].length }
-            );
-          }
-        }
-        module4.exports = Parser;
-      }, { "./at-rule": 7, "./comment": 8, "./declaration": 11, "./root": 25, "./rule": 26, "./tokenize": 30 }], 22: [function(require2, module4, exports3) {
-        (function(Buffer2) {
-          (function() {
-            "use strict";
-            let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
-            let { existsSync, readFileSync } = require2("fs");
-            let { dirname, join } = require2("path");
-            function fromBase64(str) {
-              if (Buffer2) {
-                return Buffer2.from(str, "base64").toString();
-              } else {
-                return window.atob(str);
-              }
-            }
-            class PreviousMap {
-              constructor(css2, opts) {
-                if (opts.map === false)
-                  return;
-                this.loadAnnotation(css2);
-                this.inline = this.startWith(this.annotation, "data:");
-                let prev = opts.map ? opts.map.prev : void 0;
-                let text = this.loadMap(opts.from, prev);
-                if (!this.mapFile && opts.from) {
-                  this.mapFile = opts.from;
-                }
-                if (this.mapFile)
-                  this.root = dirname(this.mapFile);
-                if (text)
-                  this.text = text;
-              }
-              consumer() {
-                if (!this.consumerCache) {
-                  this.consumerCache = new SourceMapConsumer(this.text);
-                }
-                return this.consumerCache;
-              }
-              decodeInline(text) {
-                let baseCharsetUri = /^data:application\/json;charset=utf-?8;base64,/;
-                let baseUri = /^data:application\/json;base64,/;
-                let charsetUri = /^data:application\/json;charset=utf-?8,/;
-                let uri = /^data:application\/json,/;
-                if (charsetUri.test(text) || uri.test(text)) {
-                  return decodeURIComponent(text.substr(RegExp.lastMatch.length));
-                }
-                if (baseCharsetUri.test(text) || baseUri.test(text)) {
-                  return fromBase64(text.substr(RegExp.lastMatch.length));
-                }
-                let encoding = text.match(/data:application\/json;([^,]+),/)[1];
-                throw new Error("Unsupported source map encoding " + encoding);
-              }
-              getAnnotationURL(sourceMapString) {
-                return sourceMapString.replace(/^\/\*\s*# sourceMappingURL=/, "").trim();
-              }
-              isMap(map) {
-                if (typeof map !== "object")
-                  return false;
-                return typeof map.mappings === "string" || typeof map._mappings === "string" || Array.isArray(map.sections);
-              }
-              loadAnnotation(css2) {
-                let comments = css2.match(/\/\*\s*# sourceMappingURL=/gm);
-                if (!comments)
-                  return;
-                let start = css2.lastIndexOf(comments.pop());
-                let end = css2.indexOf("*/", start);
-                if (start > -1 && end > -1) {
-                  this.annotation = this.getAnnotationURL(css2.substring(start, end));
-                }
-              }
-              loadFile(path) {
-                this.root = dirname(path);
-                if (existsSync(path)) {
-                  this.mapFile = path;
-                  return readFileSync(path, "utf-8").toString().trim();
-                }
-              }
-              loadMap(file, prev) {
-                if (prev === false)
-                  return false;
-                if (prev) {
-                  if (typeof prev === "string") {
-                    return prev;
-                  } else if (typeof prev === "function") {
-                    let prevPath = prev(file);
-                    if (prevPath) {
-                      let map = this.loadFile(prevPath);
-                      if (!map) {
-                        throw new Error(
-                          "Unable to load previous source map: " + prevPath.toString()
-                        );
-                      }
-                      return map;
-                    }
-                  } else if (prev instanceof SourceMapConsumer) {
-                    return SourceMapGenerator.fromSourceMap(prev).toString();
-                  } else if (prev instanceof SourceMapGenerator) {
-                    return prev.toString();
-                  } else if (this.isMap(prev)) {
-                    return JSON.stringify(prev);
-                  } else {
-                    throw new Error(
-                      "Unsupported previous source map format: " + prev.toString()
-                    );
-                  }
-                } else if (this.inline) {
-                  return this.decodeInline(this.annotation);
-                } else if (this.annotation) {
-                  let map = this.annotation;
-                  if (file)
-                    map = join(dirname(file), map);
-                  return this.loadFile(map);
-                }
-              }
-              startWith(string, start) {
-                if (!string)
-                  return false;
-                return string.substr(0, start.length) === start;
-              }
-              withContent() {
-                return !!(this.consumer().sourcesContent && this.consumer().sourcesContent.length > 0);
-              }
-            }
-            module4.exports = PreviousMap;
-            PreviousMap.default = PreviousMap;
-          }).call(this);
-        }).call(this, require2("buffer").Buffer);
-      }, { "buffer": 3, "fs": 2, "path": 2, "source-map-js": 2 }], 23: [function(require2, module4, exports3) {
-        (function(process2) {
-          (function() {
-            "use strict";
-            let NoWorkResult = require2("./no-work-result");
-            let LazyResult = require2("./lazy-result");
-            let Document = require2("./document");
-            let Root = require2("./root");
-            class Processor {
-              constructor(plugins = []) {
-                this.version = "8.4.40";
-                this.plugins = this.normalize(plugins);
-              }
-              normalize(plugins) {
-                let normalized = [];
-                for (let i of plugins) {
-                  if (i.postcss === true) {
-                    i = i();
-                  } else if (i.postcss) {
-                    i = i.postcss;
-                  }
-                  if (typeof i === "object" && Array.isArray(i.plugins)) {
-                    normalized = normalized.concat(i.plugins);
-                  } else if (typeof i === "object" && i.postcssPlugin) {
-                    normalized.push(i);
-                  } else if (typeof i === "function") {
-                    normalized.push(i);
-                  } else if (typeof i === "object" && (i.parse || i.stringify)) {
-                    if (process2.env.NODE_ENV !== "production") {
-                      throw new Error(
-                        "PostCSS syntaxes cannot be used as plugins. Instead, please use one of the syntax/parser/stringifier options as outlined in your PostCSS runner documentation."
-                      );
-                    }
-                  } else {
-                    throw new Error(i + " is not a PostCSS plugin");
-                  }
-                }
-                return normalized;
-              }
-              process(css2, opts = {}) {
-                if (!this.plugins.length && !opts.parser && !opts.stringifier && !opts.syntax) {
-                  return new NoWorkResult(this, css2, opts);
-                } else {
-                  return new LazyResult(this, css2, opts);
-                }
-              }
-              use(plugin) {
-                this.plugins = this.plugins.concat(this.normalize([plugin]));
-                return this;
-              }
-            }
-            module4.exports = Processor;
-            Processor.default = Processor;
-            Root.registerProcessor(Processor);
-            Document.registerProcessor(Processor);
-          }).call(this);
-        }).call(this, require2("_process"));
-      }, { "./document": 12, "./lazy-result": 15, "./no-work-result": 18, "./root": 25, "_process": 33 }], 24: [function(require2, module4, exports3) {
-        "use strict";
-        let Warning = require2("./warning");
-        class Result {
-          constructor(processor, root, opts) {
-            this.processor = processor;
-            this.messages = [];
-            this.root = root;
-            this.opts = opts;
-            this.css = void 0;
-            this.map = void 0;
-          }
-          toString() {
-            return this.css;
-          }
-          warn(text, opts = {}) {
-            if (!opts.plugin) {
-              if (this.lastPlugin && this.lastPlugin.postcssPlugin) {
-                opts.plugin = this.lastPlugin.postcssPlugin;
-              }
-            }
-            let warning = new Warning(text, opts);
-            this.messages.push(warning);
-            return warning;
-          }
-          warnings() {
-            return this.messages.filter((i) => i.type === "warning");
-          }
-          get content() {
-            return this.css;
-          }
-        }
-        module4.exports = Result;
-        Result.default = Result;
-      }, { "./warning": 32 }], 25: [function(require2, module4, exports3) {
-        "use strict";
-        let Container = require2("./container");
-        let LazyResult, Processor;
-        class Root extends Container {
-          constructor(defaults) {
-            super(defaults);
-            this.type = "root";
-            if (!this.nodes)
-              this.nodes = [];
-          }
-          normalize(child, sample, type) {
-            let nodes = super.normalize(child);
-            if (sample) {
-              if (type === "prepend") {
-                if (this.nodes.length > 1) {
-                  sample.raws.before = this.nodes[1].raws.before;
-                } else {
-                  delete sample.raws.before;
-                }
-              } else if (this.first !== sample) {
-                for (let node of nodes) {
-                  node.raws.before = sample.raws.before;
-                }
-              }
-            }
-            return nodes;
-          }
-          removeChild(child, ignore) {
-            let index = this.index(child);
-            if (!ignore && index === 0 && this.nodes.length > 1) {
-              this.nodes[1].raws.before = this.nodes[index].raws.before;
-            }
-            return super.removeChild(child);
-          }
-          toResult(opts = {}) {
-            let lazy = new LazyResult(new Processor(), this, opts);
-            return lazy.stringify();
-          }
-        }
-        Root.registerLazyResult = (dependant) => {
-          LazyResult = dependant;
-        };
-        Root.registerProcessor = (dependant) => {
-          Processor = dependant;
-        };
-        module4.exports = Root;
-        Root.default = Root;
-        Container.registerRoot(Root);
-      }, { "./container": 9 }], 26: [function(require2, module4, exports3) {
-        "use strict";
-        let Container = require2("./container");
-        let list2 = require2("./list");
-        class Rule extends Container {
-          constructor(defaults) {
-            super(defaults);
-            this.type = "rule";
-            if (!this.nodes)
-              this.nodes = [];
-          }
-          get selectors() {
-            return list2.comma(this.selector);
-          }
-          set selectors(values) {
-            let match = this.selector ? this.selector.match(/,\s*/) : null;
-            let sep = match ? match[0] : "," + this.raw("between", "beforeOpen");
-            this.selector = values.join(sep);
-          }
-        }
-        module4.exports = Rule;
-        Rule.default = Rule;
-        Container.registerRule(Rule);
-      }, { "./container": 9, "./list": 16 }], 27: [function(require2, module4, exports3) {
-        "use strict";
-        const DEFAULT_RAW = {
-          after: "\n",
-          beforeClose: "\n",
-          beforeComment: "\n",
-          beforeDecl: "\n",
-          beforeOpen: " ",
-          beforeRule: "\n",
-          colon: ": ",
-          commentLeft: " ",
-          commentRight: " ",
-          emptyBody: "",
-          indent: "    ",
-          semicolon: false
-        };
-        function capitalize(str) {
-          return str[0].toUpperCase() + str.slice(1);
-        }
-        class Stringifier {
-          constructor(builder) {
-            this.builder = builder;
-          }
-          atrule(node, semicolon) {
-            let name = "@" + node.name;
-            let params = node.params ? this.rawValue(node, "params") : "";
-            if (typeof node.raws.afterName !== "undefined") {
-              name += node.raws.afterName;
-            } else if (params) {
-              name += " ";
-            }
-            if (node.nodes) {
-              this.block(node, name + params);
-            } else {
-              let end = (node.raws.between || "") + (semicolon ? ";" : "");
-              this.builder(name + params + end, node);
-            }
-          }
-          beforeAfter(node, detect) {
-            let value;
-            if (node.type === "decl") {
-              value = this.raw(node, null, "beforeDecl");
-            } else if (node.type === "comment") {
-              value = this.raw(node, null, "beforeComment");
-            } else if (detect === "before") {
-              value = this.raw(node, null, "beforeRule");
-            } else {
-              value = this.raw(node, null, "beforeClose");
-            }
-            let buf = node.parent;
-            let depth = 0;
-            while (buf && buf.type !== "root") {
-              depth += 1;
-              buf = buf.parent;
-            }
-            if (value.includes("\n")) {
-              let indent = this.raw(node, null, "indent");
-              if (indent.length) {
-                for (let step = 0; step < depth; step++)
-                  value += indent;
-              }
-            }
-            return value;
-          }
-          block(node, start) {
-            let between = this.raw(node, "between", "beforeOpen");
-            this.builder(start + between + "{", node, "start");
-            let after;
-            if (node.nodes && node.nodes.length) {
-              this.body(node);
-              after = this.raw(node, "after");
-            } else {
-              after = this.raw(node, "after", "emptyBody");
-            }
-            if (after)
-              this.builder(after);
-            this.builder("}", node, "end");
-          }
-          body(node) {
-            let last = node.nodes.length - 1;
-            while (last > 0) {
-              if (node.nodes[last].type !== "comment")
-                break;
-              last -= 1;
-            }
-            let semicolon = this.raw(node, "semicolon");
-            for (let i = 0; i < node.nodes.length; i++) {
-              let child = node.nodes[i];
-              let before = this.raw(child, "before");
-              if (before)
-                this.builder(before);
-              this.stringify(child, last !== i || semicolon);
-            }
-          }
-          comment(node) {
-            let left = this.raw(node, "left", "commentLeft");
-            let right = this.raw(node, "right", "commentRight");
-            this.builder("/*" + left + node.text + right + "*/", node);
-          }
-          decl(node, semicolon) {
-            let between = this.raw(node, "between", "colon");
-            let string = node.prop + between + this.rawValue(node, "value");
-            if (node.important) {
-              string += node.raws.important || " !important";
-            }
-            if (semicolon)
-              string += ";";
-            this.builder(string, node);
-          }
-          document(node) {
-            this.body(node);
-          }
-          raw(node, own, detect) {
-            let value;
-            if (!detect)
-              detect = own;
-            if (own) {
-              value = node.raws[own];
-              if (typeof value !== "undefined")
-                return value;
-            }
-            let parent = node.parent;
-            if (detect === "before") {
-              if (!parent || parent.type === "root" && parent.first === node) {
-                return "";
-              }
-              if (parent && parent.type === "document") {
-                return "";
-              }
-            }
-            if (!parent)
-              return DEFAULT_RAW[detect];
-            let root = node.root();
-            if (!root.rawCache)
-              root.rawCache = {};
-            if (typeof root.rawCache[detect] !== "undefined") {
-              return root.rawCache[detect];
-            }
-            if (detect === "before" || detect === "after") {
-              return this.beforeAfter(node, detect);
-            } else {
-              let method = "raw" + capitalize(detect);
-              if (this[method]) {
-                value = this[method](root, node);
-              } else {
-                root.walk((i) => {
-                  value = i.raws[own];
-                  if (typeof value !== "undefined")
-                    return false;
-                });
-              }
-            }
-            if (typeof value === "undefined")
-              value = DEFAULT_RAW[detect];
-            root.rawCache[detect] = value;
-            return value;
-          }
-          rawBeforeClose(root) {
-            let value;
-            root.walk((i) => {
-              if (i.nodes && i.nodes.length > 0) {
-                if (typeof i.raws.after !== "undefined") {
-                  value = i.raws.after;
-                  if (value.includes("\n")) {
-                    value = value.replace(/[^\n]+$/, "");
-                  }
-                  return false;
-                }
-              }
-            });
-            if (value)
-              value = value.replace(/\S/g, "");
-            return value;
-          }
-          rawBeforeComment(root, node) {
-            let value;
-            root.walkComments((i) => {
-              if (typeof i.raws.before !== "undefined") {
-                value = i.raws.before;
-                if (value.includes("\n")) {
-                  value = value.replace(/[^\n]+$/, "");
-                }
-                return false;
-              }
-            });
-            if (typeof value === "undefined") {
-              value = this.raw(node, null, "beforeDecl");
-            } else if (value) {
-              value = value.replace(/\S/g, "");
-            }
-            return value;
-          }
-          rawBeforeDecl(root, node) {
-            let value;
-            root.walkDecls((i) => {
-              if (typeof i.raws.before !== "undefined") {
-                value = i.raws.before;
-                if (value.includes("\n")) {
-                  value = value.replace(/[^\n]+$/, "");
-                }
-                return false;
-              }
-            });
-            if (typeof value === "undefined") {
-              value = this.raw(node, null, "beforeRule");
-            } else if (value) {
-              value = value.replace(/\S/g, "");
-            }
-            return value;
-          }
-          rawBeforeOpen(root) {
-            let value;
-            root.walk((i) => {
-              if (i.type !== "decl") {
-                value = i.raws.between;
-                if (typeof value !== "undefined")
-                  return false;
-              }
-            });
-            return value;
-          }
-          rawBeforeRule(root) {
-            let value;
-            root.walk((i) => {
-              if (i.nodes && (i.parent !== root || root.first !== i)) {
-                if (typeof i.raws.before !== "undefined") {
-                  value = i.raws.before;
-                  if (value.includes("\n")) {
-                    value = value.replace(/[^\n]+$/, "");
-                  }
-                  return false;
-                }
-              }
-            });
-            if (value)
-              value = value.replace(/\S/g, "");
-            return value;
-          }
-          rawColon(root) {
-            let value;
-            root.walkDecls((i) => {
-              if (typeof i.raws.between !== "undefined") {
-                value = i.raws.between.replace(/[^\s:]/g, "");
-                return false;
-              }
-            });
-            return value;
-          }
-          rawEmptyBody(root) {
-            let value;
-            root.walk((i) => {
-              if (i.nodes && i.nodes.length === 0) {
-                value = i.raws.after;
-                if (typeof value !== "undefined")
-                  return false;
-              }
-            });
-            return value;
-          }
-          rawIndent(root) {
-            if (root.raws.indent)
-              return root.raws.indent;
-            let value;
-            root.walk((i) => {
-              let p = i.parent;
-              if (p && p !== root && p.parent && p.parent === root) {
-                if (typeof i.raws.before !== "undefined") {
-                  let parts = i.raws.before.split("\n");
-                  value = parts[parts.length - 1];
-                  value = value.replace(/\S/g, "");
-                  return false;
-                }
-              }
-            });
-            return value;
-          }
-          rawSemicolon(root) {
-            let value;
-            root.walk((i) => {
-              if (i.nodes && i.nodes.length && i.last.type === "decl") {
-                value = i.raws.semicolon;
-                if (typeof value !== "undefined")
-                  return false;
-              }
-            });
-            return value;
-          }
-          rawValue(node, prop) {
-            let value = node[prop];
-            let raw = node.raws[prop];
-            if (raw && raw.value === value) {
-              return raw.raw;
-            }
-            return value;
-          }
-          root(node) {
-            this.body(node);
-            if (node.raws.after)
-              this.builder(node.raws.after);
-          }
-          rule(node) {
-            this.block(node, this.rawValue(node, "selector"));
-            if (node.raws.ownSemicolon) {
-              this.builder(node.raws.ownSemicolon, node, "end");
-            }
-          }
-          stringify(node, semicolon) {
-            if (!this[node.type]) {
-              throw new Error(
-                "Unknown AST node type " + node.type + ". Maybe you need to change PostCSS stringifier."
-              );
-            }
-            this[node.type](node, semicolon);
-          }
-        }
-        module4.exports = Stringifier;
-        Stringifier.default = Stringifier;
-      }, {}], 28: [function(require2, module4, exports3) {
-        "use strict";
-        let Stringifier = require2("./stringifier");
-        function stringify(node, builder) {
-          let str = new Stringifier(builder);
-          str.stringify(node);
-        }
-        module4.exports = stringify;
-        stringify.default = stringify;
-      }, { "./stringifier": 27 }], 29: [function(require2, module4, exports3) {
-        "use strict";
-        module4.exports.isClean = Symbol("isClean");
-        module4.exports.my = Symbol("my");
-      }, {}], 30: [function(require2, module4, exports3) {
-        "use strict";
-        const SINGLE_QUOTE = "'".charCodeAt(0);
-        const DOUBLE_QUOTE = '"'.charCodeAt(0);
-        const BACKSLASH = "\\".charCodeAt(0);
-        const SLASH = "/".charCodeAt(0);
-        const NEWLINE = "\n".charCodeAt(0);
-        const SPACE = " ".charCodeAt(0);
-        const FEED = "\f".charCodeAt(0);
-        const TAB = "	".charCodeAt(0);
-        const CR = "\r".charCodeAt(0);
-        const OPEN_SQUARE = "[".charCodeAt(0);
-        const CLOSE_SQUARE = "]".charCodeAt(0);
-        const OPEN_PARENTHESES = "(".charCodeAt(0);
-        const CLOSE_PARENTHESES = ")".charCodeAt(0);
-        const OPEN_CURLY = "{".charCodeAt(0);
-        const CLOSE_CURLY = "}".charCodeAt(0);
-        const SEMICOLON = ";".charCodeAt(0);
-        const ASTERISK = "*".charCodeAt(0);
-        const COLON = ":".charCodeAt(0);
-        const AT = "@".charCodeAt(0);
-        const RE_AT_END = /[\t\n\f\r "#'()/;[\\\]{}]/g;
-        const RE_WORD_END = /[\t\n\f\r !"#'():;@[\\\]{}]|\/(?=\*)/g;
-        const RE_BAD_BRACKET = /.[\r\n"'(/\\]/;
-        const RE_HEX_ESCAPE = /[\da-f]/i;
-        module4.exports = function tokenizer(input, options2 = {}) {
-          let css2 = input.css.valueOf();
-          let ignore = options2.ignoreErrors;
-          let code, next, quote, content, escape2;
-          let escaped, escapePos, prev, n, currentToken;
-          let length = css2.length;
-          let pos = 0;
-          let buffer = [];
-          let returned = [];
-          function position() {
-            return pos;
-          }
-          function unclosed(what) {
-            throw input.error("Unclosed " + what, pos);
-          }
-          function endOfFile() {
-            return returned.length === 0 && pos >= length;
-          }
-          function nextToken(opts) {
-            if (returned.length)
-              return returned.pop();
-            if (pos >= length)
-              return;
-            let ignoreUnclosed = opts ? opts.ignoreUnclosed : false;
-            code = css2.charCodeAt(pos);
-            switch (code) {
-              case NEWLINE:
-              case SPACE:
-              case TAB:
-              case CR:
-              case FEED: {
-                next = pos;
-                do {
-                  next += 1;
-                  code = css2.charCodeAt(next);
-                } while (code === SPACE || code === NEWLINE || code === TAB || code === CR || code === FEED);
-                currentToken = ["space", css2.slice(pos, next)];
-                pos = next - 1;
-                break;
-              }
-              case OPEN_SQUARE:
-              case CLOSE_SQUARE:
-              case OPEN_CURLY:
-              case CLOSE_CURLY:
-              case COLON:
-              case SEMICOLON:
-              case CLOSE_PARENTHESES: {
-                let controlChar = String.fromCharCode(code);
-                currentToken = [controlChar, controlChar, pos];
-                break;
-              }
-              case OPEN_PARENTHESES: {
-                prev = buffer.length ? buffer.pop()[1] : "";
-                n = css2.charCodeAt(pos + 1);
-                if (prev === "url" && n !== SINGLE_QUOTE && n !== DOUBLE_QUOTE && n !== SPACE && n !== NEWLINE && n !== TAB && n !== FEED && n !== CR) {
-                  next = pos;
-                  do {
-                    escaped = false;
-                    next = css2.indexOf(")", next + 1);
-                    if (next === -1) {
-                      if (ignore || ignoreUnclosed) {
-                        next = pos;
-                        break;
-                      } else {
-                        unclosed("bracket");
-                      }
-                    }
-                    escapePos = next;
-                    while (css2.charCodeAt(escapePos - 1) === BACKSLASH) {
-                      escapePos -= 1;
-                      escaped = !escaped;
-                    }
-                  } while (escaped);
-                  currentToken = ["brackets", css2.slice(pos, next + 1), pos, next];
-                  pos = next;
-                } else {
-                  next = css2.indexOf(")", pos + 1);
-                  content = css2.slice(pos, next + 1);
-                  if (next === -1 || RE_BAD_BRACKET.test(content)) {
-                    currentToken = ["(", "(", pos];
-                  } else {
-                    currentToken = ["brackets", content, pos, next];
-                    pos = next;
-                  }
-                }
-                break;
-              }
-              case SINGLE_QUOTE:
-              case DOUBLE_QUOTE: {
-                quote = code === SINGLE_QUOTE ? "'" : '"';
-                next = pos;
-                do {
-                  escaped = false;
-                  next = css2.indexOf(quote, next + 1);
-                  if (next === -1) {
-                    if (ignore || ignoreUnclosed) {
-                      next = pos + 1;
-                      break;
-                    } else {
-                      unclosed("string");
-                    }
-                  }
-                  escapePos = next;
-                  while (css2.charCodeAt(escapePos - 1) === BACKSLASH) {
-                    escapePos -= 1;
-                    escaped = !escaped;
-                  }
-                } while (escaped);
-                currentToken = ["string", css2.slice(pos, next + 1), pos, next];
-                pos = next;
-                break;
-              }
-              case AT: {
-                RE_AT_END.lastIndex = pos + 1;
-                RE_AT_END.test(css2);
-                if (RE_AT_END.lastIndex === 0) {
-                  next = css2.length - 1;
-                } else {
-                  next = RE_AT_END.lastIndex - 2;
-                }
-                currentToken = ["at-word", css2.slice(pos, next + 1), pos, next];
-                pos = next;
-                break;
-              }
-              case BACKSLASH: {
-                next = pos;
-                escape2 = true;
-                while (css2.charCodeAt(next + 1) === BACKSLASH) {
-                  next += 1;
-                  escape2 = !escape2;
-                }
-                code = css2.charCodeAt(next + 1);
-                if (escape2 && code !== SLASH && code !== SPACE && code !== NEWLINE && code !== TAB && code !== CR && code !== FEED) {
-                  next += 1;
-                  if (RE_HEX_ESCAPE.test(css2.charAt(next))) {
-                    while (RE_HEX_ESCAPE.test(css2.charAt(next + 1))) {
-                      next += 1;
-                    }
-                    if (css2.charCodeAt(next + 1) === SPACE) {
-                      next += 1;
-                    }
-                  }
-                }
-                currentToken = ["word", css2.slice(pos, next + 1), pos, next];
-                pos = next;
-                break;
-              }
-              default: {
-                if (code === SLASH && css2.charCodeAt(pos + 1) === ASTERISK) {
-                  next = css2.indexOf("*/", pos + 2) + 1;
-                  if (next === 0) {
-                    if (ignore || ignoreUnclosed) {
-                      next = css2.length;
-                    } else {
-                      unclosed("comment");
-                    }
-                  }
-                  currentToken = ["comment", css2.slice(pos, next + 1), pos, next];
-                  pos = next;
-                } else {
-                  RE_WORD_END.lastIndex = pos + 1;
-                  RE_WORD_END.test(css2);
-                  if (RE_WORD_END.lastIndex === 0) {
-                    next = css2.length - 1;
-                  } else {
-                    next = RE_WORD_END.lastIndex - 2;
-                  }
-                  currentToken = ["word", css2.slice(pos, next + 1), pos, next];
-                  buffer.push(currentToken);
-                  pos = next;
-                }
-                break;
-              }
-            }
-            pos++;
-            return currentToken;
-          }
-          function back(token) {
-            returned.push(token);
-          }
-          return {
-            back,
-            endOfFile,
-            nextToken,
-            position
-          };
-        };
-      }, {}], 31: [function(require2, module4, exports3) {
-        "use strict";
-        let printed = {};
-        module4.exports = function warnOnce(message) {
-          if (printed[message])
-            return;
-          printed[message] = true;
-          if (typeof console !== "undefined" && console.warn) {
-            console.warn(message);
-          }
-        };
-      }, {}], 32: [function(require2, module4, exports3) {
-        "use strict";
-        class Warning {
-          constructor(text, opts = {}) {
-            this.type = "warning";
-            this.text = text;
-            if (opts.node && opts.node.source) {
-              let range = opts.node.rangeBy(opts);
-              this.line = range.start.line;
-              this.column = range.start.column;
-              this.endLine = range.end.line;
-              this.endColumn = range.end.column;
-            }
-            for (let opt in opts)
-              this[opt] = opts[opt];
-          }
-          toString() {
-            if (this.node) {
-              return this.node.error(this.text, {
-                index: this.index,
-                plugin: this.plugin,
-                word: this.word
-              }).message;
-            }
-            if (this.plugin) {
-              return this.plugin + ": " + this.text;
-            }
-            return this.text;
-          }
-        }
-        module4.exports = Warning;
-        Warning.default = Warning;
-      }, {}], 33: [function(require2, module4, exports3) {
-        var process2 = module4.exports = {};
-        var cachedSetTimeout;
-        var cachedClearTimeout;
-        function defaultSetTimout() {
-          throw new Error("setTimeout has not been defined");
-        }
-        function defaultClearTimeout() {
-          throw new Error("clearTimeout has not been defined");
-        }
-        (function() {
-          try {
-            if (typeof setTimeout === "function") {
-              cachedSetTimeout = setTimeout;
-            } else {
-              cachedSetTimeout = defaultSetTimout;
-            }
-          } catch (e2) {
-            cachedSetTimeout = defaultSetTimout;
-          }
-          try {
-            if (typeof clearTimeout === "function") {
-              cachedClearTimeout = clearTimeout;
-            } else {
-              cachedClearTimeout = defaultClearTimeout;
-            }
-          } catch (e2) {
-            cachedClearTimeout = defaultClearTimeout;
-          }
-        })();
-        function runTimeout(fun) {
-          if (cachedSetTimeout === setTimeout) {
-            return setTimeout(fun, 0);
-          }
-          if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-            cachedSetTimeout = setTimeout;
-            return setTimeout(fun, 0);
-          }
-          try {
-            return cachedSetTimeout(fun, 0);
-          } catch (e2) {
-            try {
-              return cachedSetTimeout.call(null, fun, 0);
-            } catch (e3) {
-              return cachedSetTimeout.call(this, fun, 0);
-            }
-          }
-        }
-        function runClearTimeout(marker) {
-          if (cachedClearTimeout === clearTimeout) {
-            return clearTimeout(marker);
-          }
-          if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-            cachedClearTimeout = clearTimeout;
-            return clearTimeout(marker);
-          }
-          try {
-            return cachedClearTimeout(marker);
-          } catch (e2) {
-            try {
-              return cachedClearTimeout.call(null, marker);
-            } catch (e3) {
-              return cachedClearTimeout.call(this, marker);
-            }
-          }
-        }
-        var queue = [];
-        var draining = false;
-        var currentQueue;
-        var queueIndex = -1;
-        function cleanUpNextTick() {
-          if (!draining || !currentQueue) {
-            return;
-          }
-          draining = false;
-          if (currentQueue.length) {
-            queue = currentQueue.concat(queue);
-          } else {
-            queueIndex = -1;
-          }
-          if (queue.length) {
-            drainQueue();
-          }
-        }
-        function drainQueue() {
-          if (draining) {
-            return;
-          }
-          var timeout = runTimeout(cleanUpNextTick);
-          draining = true;
-          var len = queue.length;
-          while (len) {
-            currentQueue = queue;
-            queue = [];
-            while (++queueIndex < len) {
-              if (currentQueue) {
-                currentQueue[queueIndex].run();
-              }
-            }
-            queueIndex = -1;
-            len = queue.length;
-          }
-          currentQueue = null;
-          draining = false;
-          runClearTimeout(timeout);
-        }
-        process2.nextTick = function(fun) {
-          var args = new Array(arguments.length - 1);
-          if (arguments.length > 1) {
-            for (var i = 1; i < arguments.length; i++) {
-              args[i - 1] = arguments[i];
-            }
-          }
-          queue.push(new Item(fun, args));
-          if (queue.length === 1 && !draining) {
-            runTimeout(drainQueue);
-          }
-        };
-        function Item(fun, array) {
-          this.fun = fun;
-          this.array = array;
-        }
-        Item.prototype.run = function() {
-          this.fun.apply(null, this.array);
-        };
-        process2.title = "browser";
-        process2.browser = true;
-        process2.env = {};
-        process2.argv = [];
-        process2.version = "";
-        process2.versions = {};
-        function noop() {
-        }
-        process2.on = noop;
-        process2.addListener = noop;
-        process2.once = noop;
-        process2.off = noop;
-        process2.removeListener = noop;
-        process2.removeAllListeners = noop;
-        process2.emit = noop;
-        process2.prependListener = noop;
-        process2.prependOnceListener = noop;
-        process2.listeners = function(name) {
-          return [];
-        };
-        process2.binding = function(name) {
-          throw new Error("process.binding is not supported");
-        };
-        process2.cwd = function() {
-          return "/";
-        };
-        process2.chdir = function(dir) {
-          throw new Error("process.chdir is not supported");
-        };
-        process2.umask = function() {
-          return 0;
-        };
-      }, {}], "postcss": [function(require2, module4, exports3) {
-        (function(process2) {
-          (function() {
-            "use strict";
-            let CssSyntaxError = require2("./css-syntax-error");
-            let Declaration = require2("./declaration");
-            let LazyResult = require2("./lazy-result");
-            let Container = require2("./container");
-            let Processor = require2("./processor");
-            let stringify = require2("./stringify");
-            let fromJSON = require2("./fromJSON");
-            let Document = require2("./document");
-            let Warning = require2("./warning");
-            let Comment2 = require2("./comment");
-            let AtRule = require2("./at-rule");
-            let Result = require2("./result.js");
-            let Input = require2("./input");
-            let parse2 = require2("./parse");
-            let list2 = require2("./list");
-            let Rule = require2("./rule");
-            let Root = require2("./root");
-            let Node = require2("./node");
-            function postcss2(...plugins) {
-              if (plugins.length === 1 && Array.isArray(plugins[0])) {
-                plugins = plugins[0];
-              }
-              return new Processor(plugins);
-            }
-            postcss2.plugin = function plugin(name, initializer) {
-              let warningPrinted = false;
-              function creator(...args) {
-                if (console && console.warn && !warningPrinted) {
-                  warningPrinted = true;
-                  console.warn(
-                    name + ": postcss.plugin was deprecated. Migration guide:\nhttps://evilmartians.com/chronicles/postcss-8-plugin-migration"
-                  );
-                  if (process2.env.LANG && process2.env.LANG.startsWith("cn")) {
-                    console.warn(
-                      name + ": \u91CC\u9762 postcss.plugin \u88AB\u5F03\u7528. \u8FC1\u79FB\u6307\u5357:\nhttps://www.w3ctech.com/topic/2226"
-                    );
-                  }
-                }
-                let transformer = initializer(...args);
-                transformer.postcssPlugin = name;
-                transformer.postcssVersion = new Processor().version;
-                return transformer;
-              }
-              let cache2;
-              Object.defineProperty(creator, "postcss", {
-                get() {
-                  if (!cache2)
-                    cache2 = creator();
-                  return cache2;
-                }
-              });
-              creator.process = function(css2, processOpts, pluginOpts) {
-                return postcss2([creator(pluginOpts)]).process(css2, processOpts);
-              };
-              return creator;
-            };
-            postcss2.stringify = stringify;
-            postcss2.parse = parse2;
-            postcss2.fromJSON = fromJSON;
-            postcss2.list = list2;
-            postcss2.comment = (defaults) => new Comment2(defaults);
-            postcss2.atRule = (defaults) => new AtRule(defaults);
-            postcss2.decl = (defaults) => new Declaration(defaults);
-            postcss2.rule = (defaults) => new Rule(defaults);
-            postcss2.root = (defaults) => new Root(defaults);
-            postcss2.document = (defaults) => new Document(defaults);
-            postcss2.CssSyntaxError = CssSyntaxError;
-            postcss2.Declaration = Declaration;
-            postcss2.Container = Container;
-            postcss2.Processor = Processor;
-            postcss2.Document = Document;
-            postcss2.Comment = Comment2;
-            postcss2.Warning = Warning;
-            postcss2.AtRule = AtRule;
-            postcss2.Result = Result;
-            postcss2.Input = Input;
-            postcss2.Rule = Rule;
-            postcss2.Root = Root;
-            postcss2.Node = Node;
-            LazyResult.registerPostcss(postcss2);
-            module4.exports = postcss2;
-            postcss2.default = postcss2;
-          }).call(this);
-        }).call(this, require2("_process"));
-      }, { "./at-rule": 7, "./comment": 8, "./container": 9, "./css-syntax-error": 10, "./declaration": 11, "./document": 12, "./fromJSON": 13, "./input": 14, "./lazy-result": 15, "./list": 16, "./node": 19, "./parse": 20, "./processor": 23, "./result.js": 24, "./root": 25, "./rule": 26, "./stringify": 28, "./warning": 32, "_process": 33 }] }, {}, [])("postcss");
-    });
   }
 });
 
@@ -56826,38 +50961,5595 @@ var require_lib = __commonJS({
   }
 });
 
+// src/shared/postcss/postcss.js
+var require_postcss = __commonJS({
+  "src/shared/postcss/postcss.js"(exports, module2) {
+    (function(f) {
+      if (typeof exports === "object" && typeof module2 !== "undefined") {
+        module2.exports = f();
+      } else if (typeof define === "function" && define.amd) {
+        define([], f);
+      } else {
+        var g;
+        if (typeof window !== "undefined") {
+          g = window;
+        } else if (typeof global !== "undefined") {
+          g = global;
+        } else if (typeof self !== "undefined") {
+          g = self;
+        } else {
+          g = this;
+        }
+        g.postcss = f();
+      }
+    })(function() {
+      var define2, module3, exports2;
+      return function() {
+        function r(e2, n, t) {
+          function o(i2, f) {
+            if (!n[i2]) {
+              if (!e2[i2]) {
+                var c = "function" == typeof require && require;
+                if (!f && c)
+                  return c(i2, true);
+                if (u)
+                  return u(i2, true);
+                var a = new Error("Cannot find module '" + i2 + "'");
+                throw a.code = "MODULE_NOT_FOUND", a;
+              }
+              var p = n[i2] = { exports: {} };
+              e2[i2][0].call(p.exports, function(r2) {
+                var n2 = e2[i2][1][r2];
+                return o(n2 || r2);
+              }, p, p.exports, r, e2, n, t);
+            }
+            return n[i2].exports;
+          }
+          for (var u = "function" == typeof require && require, i = 0; i < t.length; i++)
+            o(t[i]);
+          return o;
+        }
+        return r;
+      }()({ 1: [function(require2, module4, exports3) {
+        "use strict";
+        exports3.byteLength = byteLength;
+        exports3.toByteArray = toByteArray;
+        exports3.fromByteArray = fromByteArray;
+        var lookup = [];
+        var revLookup = [];
+        var Arr = typeof Uint8Array !== "undefined" ? Uint8Array : Array;
+        var code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for (var i = 0, len = code.length; i < len; ++i) {
+          lookup[i] = code[i];
+          revLookup[code.charCodeAt(i)] = i;
+        }
+        revLookup["-".charCodeAt(0)] = 62;
+        revLookup["_".charCodeAt(0)] = 63;
+        function getLens(b64) {
+          var len2 = b64.length;
+          if (len2 % 4 > 0) {
+            throw new Error("Invalid string. Length must be a multiple of 4");
+          }
+          var validLen = b64.indexOf("=");
+          if (validLen === -1)
+            validLen = len2;
+          var placeHoldersLen = validLen === len2 ? 0 : 4 - validLen % 4;
+          return [validLen, placeHoldersLen];
+        }
+        function byteLength(b64) {
+          var lens = getLens(b64);
+          var validLen = lens[0];
+          var placeHoldersLen = lens[1];
+          return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
+        }
+        function _byteLength(b64, validLen, placeHoldersLen) {
+          return (validLen + placeHoldersLen) * 3 / 4 - placeHoldersLen;
+        }
+        function toByteArray(b64) {
+          var tmp;
+          var lens = getLens(b64);
+          var validLen = lens[0];
+          var placeHoldersLen = lens[1];
+          var arr = new Arr(_byteLength(b64, validLen, placeHoldersLen));
+          var curByte = 0;
+          var len2 = placeHoldersLen > 0 ? validLen - 4 : validLen;
+          var i2;
+          for (i2 = 0; i2 < len2; i2 += 4) {
+            tmp = revLookup[b64.charCodeAt(i2)] << 18 | revLookup[b64.charCodeAt(i2 + 1)] << 12 | revLookup[b64.charCodeAt(i2 + 2)] << 6 | revLookup[b64.charCodeAt(i2 + 3)];
+            arr[curByte++] = tmp >> 16 & 255;
+            arr[curByte++] = tmp >> 8 & 255;
+            arr[curByte++] = tmp & 255;
+          }
+          if (placeHoldersLen === 2) {
+            tmp = revLookup[b64.charCodeAt(i2)] << 2 | revLookup[b64.charCodeAt(i2 + 1)] >> 4;
+            arr[curByte++] = tmp & 255;
+          }
+          if (placeHoldersLen === 1) {
+            tmp = revLookup[b64.charCodeAt(i2)] << 10 | revLookup[b64.charCodeAt(i2 + 1)] << 4 | revLookup[b64.charCodeAt(i2 + 2)] >> 2;
+            arr[curByte++] = tmp >> 8 & 255;
+            arr[curByte++] = tmp & 255;
+          }
+          return arr;
+        }
+        function tripletToBase64(num) {
+          return lookup[num >> 18 & 63] + lookup[num >> 12 & 63] + lookup[num >> 6 & 63] + lookup[num & 63];
+        }
+        function encodeChunk(uint8, start, end) {
+          var tmp;
+          var output = [];
+          for (var i2 = start; i2 < end; i2 += 3) {
+            tmp = (uint8[i2] << 16 & 16711680) + (uint8[i2 + 1] << 8 & 65280) + (uint8[i2 + 2] & 255);
+            output.push(tripletToBase64(tmp));
+          }
+          return output.join("");
+        }
+        function fromByteArray(uint8) {
+          var tmp;
+          var len2 = uint8.length;
+          var extraBytes = len2 % 3;
+          var parts = [];
+          var maxChunkLength = 16383;
+          for (var i2 = 0, len22 = len2 - extraBytes; i2 < len22; i2 += maxChunkLength) {
+            parts.push(encodeChunk(uint8, i2, i2 + maxChunkLength > len22 ? len22 : i2 + maxChunkLength));
+          }
+          if (extraBytes === 1) {
+            tmp = uint8[len2 - 1];
+            parts.push(
+              lookup[tmp >> 2] + lookup[tmp << 4 & 63] + "=="
+            );
+          } else if (extraBytes === 2) {
+            tmp = (uint8[len2 - 2] << 8) + uint8[len2 - 1];
+            parts.push(
+              lookup[tmp >> 10] + lookup[tmp >> 4 & 63] + lookup[tmp << 2 & 63] + "="
+            );
+          }
+          return parts.join("");
+        }
+      }, {}], 2: [function(require2, module4, exports3) {
+      }, {}], 3: [function(require2, module4, exports3) {
+        (function(Buffer2) {
+          (function() {
+            "use strict";
+            var base64 = require2("base64-js");
+            var ieee754 = require2("ieee754");
+            exports3.Buffer = Buffer3;
+            exports3.SlowBuffer = SlowBuffer;
+            exports3.INSPECT_MAX_BYTES = 50;
+            var K_MAX_LENGTH = 2147483647;
+            exports3.kMaxLength = K_MAX_LENGTH;
+            Buffer3.TYPED_ARRAY_SUPPORT = typedArraySupport();
+            if (!Buffer3.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
+              console.error(
+                "This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support."
+              );
+            }
+            function typedArraySupport() {
+              try {
+                var arr = new Uint8Array(1);
+                arr.__proto__ = { __proto__: Uint8Array.prototype, foo: function() {
+                  return 42;
+                } };
+                return arr.foo() === 42;
+              } catch (e2) {
+                return false;
+              }
+            }
+            Object.defineProperty(Buffer3.prototype, "parent", {
+              enumerable: true,
+              get: function() {
+                if (!Buffer3.isBuffer(this))
+                  return void 0;
+                return this.buffer;
+              }
+            });
+            Object.defineProperty(Buffer3.prototype, "offset", {
+              enumerable: true,
+              get: function() {
+                if (!Buffer3.isBuffer(this))
+                  return void 0;
+                return this.byteOffset;
+              }
+            });
+            function createBuffer(length) {
+              if (length > K_MAX_LENGTH) {
+                throw new RangeError('The value "' + length + '" is invalid for option "size"');
+              }
+              var buf = new Uint8Array(length);
+              buf.__proto__ = Buffer3.prototype;
+              return buf;
+            }
+            function Buffer3(arg, encodingOrOffset, length) {
+              if (typeof arg === "number") {
+                if (typeof encodingOrOffset === "string") {
+                  throw new TypeError(
+                    'The "string" argument must be of type string. Received type number'
+                  );
+                }
+                return allocUnsafe(arg);
+              }
+              return from(arg, encodingOrOffset, length);
+            }
+            if (typeof Symbol !== "undefined" && Symbol.species != null && Buffer3[Symbol.species] === Buffer3) {
+              Object.defineProperty(Buffer3, Symbol.species, {
+                value: null,
+                configurable: true,
+                enumerable: false,
+                writable: false
+              });
+            }
+            Buffer3.poolSize = 8192;
+            function from(value, encodingOrOffset, length) {
+              if (typeof value === "string") {
+                return fromString(value, encodingOrOffset);
+              }
+              if (ArrayBuffer.isView(value)) {
+                return fromArrayLike(value);
+              }
+              if (value == null) {
+                throw TypeError(
+                  "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
+                );
+              }
+              if (isInstance(value, ArrayBuffer) || value && isInstance(value.buffer, ArrayBuffer)) {
+                return fromArrayBuffer(value, encodingOrOffset, length);
+              }
+              if (typeof value === "number") {
+                throw new TypeError(
+                  'The "value" argument must not be of type number. Received type number'
+                );
+              }
+              var valueOf = value.valueOf && value.valueOf();
+              if (valueOf != null && valueOf !== value) {
+                return Buffer3.from(valueOf, encodingOrOffset, length);
+              }
+              var b = fromObject(value);
+              if (b)
+                return b;
+              if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value[Symbol.toPrimitive] === "function") {
+                return Buffer3.from(
+                  value[Symbol.toPrimitive]("string"),
+                  encodingOrOffset,
+                  length
+                );
+              }
+              throw new TypeError(
+                "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
+              );
+            }
+            Buffer3.from = function(value, encodingOrOffset, length) {
+              return from(value, encodingOrOffset, length);
+            };
+            Buffer3.prototype.__proto__ = Uint8Array.prototype;
+            Buffer3.__proto__ = Uint8Array;
+            function assertSize(size) {
+              if (typeof size !== "number") {
+                throw new TypeError('"size" argument must be of type number');
+              } else if (size < 0) {
+                throw new RangeError('The value "' + size + '" is invalid for option "size"');
+              }
+            }
+            function alloc(size, fill, encoding) {
+              assertSize(size);
+              if (size <= 0) {
+                return createBuffer(size);
+              }
+              if (fill !== void 0) {
+                return typeof encoding === "string" ? createBuffer(size).fill(fill, encoding) : createBuffer(size).fill(fill);
+              }
+              return createBuffer(size);
+            }
+            Buffer3.alloc = function(size, fill, encoding) {
+              return alloc(size, fill, encoding);
+            };
+            function allocUnsafe(size) {
+              assertSize(size);
+              return createBuffer(size < 0 ? 0 : checked(size) | 0);
+            }
+            Buffer3.allocUnsafe = function(size) {
+              return allocUnsafe(size);
+            };
+            Buffer3.allocUnsafeSlow = function(size) {
+              return allocUnsafe(size);
+            };
+            function fromString(string, encoding) {
+              if (typeof encoding !== "string" || encoding === "") {
+                encoding = "utf8";
+              }
+              if (!Buffer3.isEncoding(encoding)) {
+                throw new TypeError("Unknown encoding: " + encoding);
+              }
+              var length = byteLength(string, encoding) | 0;
+              var buf = createBuffer(length);
+              var actual = buf.write(string, encoding);
+              if (actual !== length) {
+                buf = buf.slice(0, actual);
+              }
+              return buf;
+            }
+            function fromArrayLike(array) {
+              var length = array.length < 0 ? 0 : checked(array.length) | 0;
+              var buf = createBuffer(length);
+              for (var i = 0; i < length; i += 1) {
+                buf[i] = array[i] & 255;
+              }
+              return buf;
+            }
+            function fromArrayBuffer(array, byteOffset, length) {
+              if (byteOffset < 0 || array.byteLength < byteOffset) {
+                throw new RangeError('"offset" is outside of buffer bounds');
+              }
+              if (array.byteLength < byteOffset + (length || 0)) {
+                throw new RangeError('"length" is outside of buffer bounds');
+              }
+              var buf;
+              if (byteOffset === void 0 && length === void 0) {
+                buf = new Uint8Array(array);
+              } else if (length === void 0) {
+                buf = new Uint8Array(array, byteOffset);
+              } else {
+                buf = new Uint8Array(array, byteOffset, length);
+              }
+              buf.__proto__ = Buffer3.prototype;
+              return buf;
+            }
+            function fromObject(obj) {
+              if (Buffer3.isBuffer(obj)) {
+                var len = checked(obj.length) | 0;
+                var buf = createBuffer(len);
+                if (buf.length === 0) {
+                  return buf;
+                }
+                obj.copy(buf, 0, 0, len);
+                return buf;
+              }
+              if (obj.length !== void 0) {
+                if (typeof obj.length !== "number" || numberIsNaN(obj.length)) {
+                  return createBuffer(0);
+                }
+                return fromArrayLike(obj);
+              }
+              if (obj.type === "Buffer" && Array.isArray(obj.data)) {
+                return fromArrayLike(obj.data);
+              }
+            }
+            function checked(length) {
+              if (length >= K_MAX_LENGTH) {
+                throw new RangeError("Attempt to allocate Buffer larger than maximum size: 0x" + K_MAX_LENGTH.toString(16) + " bytes");
+              }
+              return length | 0;
+            }
+            function SlowBuffer(length) {
+              if (+length != length) {
+                length = 0;
+              }
+              return Buffer3.alloc(+length);
+            }
+            Buffer3.isBuffer = function isBuffer(b) {
+              return b != null && b._isBuffer === true && b !== Buffer3.prototype;
+            };
+            Buffer3.compare = function compare(a, b) {
+              if (isInstance(a, Uint8Array))
+                a = Buffer3.from(a, a.offset, a.byteLength);
+              if (isInstance(b, Uint8Array))
+                b = Buffer3.from(b, b.offset, b.byteLength);
+              if (!Buffer3.isBuffer(a) || !Buffer3.isBuffer(b)) {
+                throw new TypeError(
+                  'The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array'
+                );
+              }
+              if (a === b)
+                return 0;
+              var x = a.length;
+              var y = b.length;
+              for (var i = 0, len = Math.min(x, y); i < len; ++i) {
+                if (a[i] !== b[i]) {
+                  x = a[i];
+                  y = b[i];
+                  break;
+                }
+              }
+              if (x < y)
+                return -1;
+              if (y < x)
+                return 1;
+              return 0;
+            };
+            Buffer3.isEncoding = function isEncoding(encoding) {
+              switch (String(encoding).toLowerCase()) {
+                case "hex":
+                case "utf8":
+                case "utf-8":
+                case "ascii":
+                case "latin1":
+                case "binary":
+                case "base64":
+                case "ucs2":
+                case "ucs-2":
+                case "utf16le":
+                case "utf-16le":
+                  return true;
+                default:
+                  return false;
+              }
+            };
+            Buffer3.concat = function concat2(list2, length) {
+              if (!Array.isArray(list2)) {
+                throw new TypeError('"list" argument must be an Array of Buffers');
+              }
+              if (list2.length === 0) {
+                return Buffer3.alloc(0);
+              }
+              var i;
+              if (length === void 0) {
+                length = 0;
+                for (i = 0; i < list2.length; ++i) {
+                  length += list2[i].length;
+                }
+              }
+              var buffer = Buffer3.allocUnsafe(length);
+              var pos = 0;
+              for (i = 0; i < list2.length; ++i) {
+                var buf = list2[i];
+                if (isInstance(buf, Uint8Array)) {
+                  buf = Buffer3.from(buf);
+                }
+                if (!Buffer3.isBuffer(buf)) {
+                  throw new TypeError('"list" argument must be an Array of Buffers');
+                }
+                buf.copy(buffer, pos);
+                pos += buf.length;
+              }
+              return buffer;
+            };
+            function byteLength(string, encoding) {
+              if (Buffer3.isBuffer(string)) {
+                return string.length;
+              }
+              if (ArrayBuffer.isView(string) || isInstance(string, ArrayBuffer)) {
+                return string.byteLength;
+              }
+              if (typeof string !== "string") {
+                throw new TypeError(
+                  'The "string" argument must be one of type string, Buffer, or ArrayBuffer. Received type ' + typeof string
+                );
+              }
+              var len = string.length;
+              var mustMatch = arguments.length > 2 && arguments[2] === true;
+              if (!mustMatch && len === 0)
+                return 0;
+              var loweredCase = false;
+              for (; ; ) {
+                switch (encoding) {
+                  case "ascii":
+                  case "latin1":
+                  case "binary":
+                    return len;
+                  case "utf8":
+                  case "utf-8":
+                    return utf8ToBytes(string).length;
+                  case "ucs2":
+                  case "ucs-2":
+                  case "utf16le":
+                  case "utf-16le":
+                    return len * 2;
+                  case "hex":
+                    return len >>> 1;
+                  case "base64":
+                    return base64ToBytes(string).length;
+                  default:
+                    if (loweredCase) {
+                      return mustMatch ? -1 : utf8ToBytes(string).length;
+                    }
+                    encoding = ("" + encoding).toLowerCase();
+                    loweredCase = true;
+                }
+              }
+            }
+            Buffer3.byteLength = byteLength;
+            function slowToString(encoding, start, end) {
+              var loweredCase = false;
+              if (start === void 0 || start < 0) {
+                start = 0;
+              }
+              if (start > this.length) {
+                return "";
+              }
+              if (end === void 0 || end > this.length) {
+                end = this.length;
+              }
+              if (end <= 0) {
+                return "";
+              }
+              end >>>= 0;
+              start >>>= 0;
+              if (end <= start) {
+                return "";
+              }
+              if (!encoding)
+                encoding = "utf8";
+              while (true) {
+                switch (encoding) {
+                  case "hex":
+                    return hexSlice(this, start, end);
+                  case "utf8":
+                  case "utf-8":
+                    return utf8Slice(this, start, end);
+                  case "ascii":
+                    return asciiSlice(this, start, end);
+                  case "latin1":
+                  case "binary":
+                    return latin1Slice(this, start, end);
+                  case "base64":
+                    return base64Slice(this, start, end);
+                  case "ucs2":
+                  case "ucs-2":
+                  case "utf16le":
+                  case "utf-16le":
+                    return utf16leSlice(this, start, end);
+                  default:
+                    if (loweredCase)
+                      throw new TypeError("Unknown encoding: " + encoding);
+                    encoding = (encoding + "").toLowerCase();
+                    loweredCase = true;
+                }
+              }
+            }
+            Buffer3.prototype._isBuffer = true;
+            function swap(b, n, m) {
+              var i = b[n];
+              b[n] = b[m];
+              b[m] = i;
+            }
+            Buffer3.prototype.swap16 = function swap16() {
+              var len = this.length;
+              if (len % 2 !== 0) {
+                throw new RangeError("Buffer size must be a multiple of 16-bits");
+              }
+              for (var i = 0; i < len; i += 2) {
+                swap(this, i, i + 1);
+              }
+              return this;
+            };
+            Buffer3.prototype.swap32 = function swap32() {
+              var len = this.length;
+              if (len % 4 !== 0) {
+                throw new RangeError("Buffer size must be a multiple of 32-bits");
+              }
+              for (var i = 0; i < len; i += 4) {
+                swap(this, i, i + 3);
+                swap(this, i + 1, i + 2);
+              }
+              return this;
+            };
+            Buffer3.prototype.swap64 = function swap64() {
+              var len = this.length;
+              if (len % 8 !== 0) {
+                throw new RangeError("Buffer size must be a multiple of 64-bits");
+              }
+              for (var i = 0; i < len; i += 8) {
+                swap(this, i, i + 7);
+                swap(this, i + 1, i + 6);
+                swap(this, i + 2, i + 5);
+                swap(this, i + 3, i + 4);
+              }
+              return this;
+            };
+            Buffer3.prototype.toString = function toString() {
+              var length = this.length;
+              if (length === 0)
+                return "";
+              if (arguments.length === 0)
+                return utf8Slice(this, 0, length);
+              return slowToString.apply(this, arguments);
+            };
+            Buffer3.prototype.toLocaleString = Buffer3.prototype.toString;
+            Buffer3.prototype.equals = function equals(b) {
+              if (!Buffer3.isBuffer(b))
+                throw new TypeError("Argument must be a Buffer");
+              if (this === b)
+                return true;
+              return Buffer3.compare(this, b) === 0;
+            };
+            Buffer3.prototype.inspect = function inspect() {
+              var str = "";
+              var max = exports3.INSPECT_MAX_BYTES;
+              str = this.toString("hex", 0, max).replace(/(.{2})/g, "$1 ").trim();
+              if (this.length > max)
+                str += " ... ";
+              return "<Buffer " + str + ">";
+            };
+            Buffer3.prototype.compare = function compare(target, start, end, thisStart, thisEnd) {
+              if (isInstance(target, Uint8Array)) {
+                target = Buffer3.from(target, target.offset, target.byteLength);
+              }
+              if (!Buffer3.isBuffer(target)) {
+                throw new TypeError(
+                  'The "target" argument must be one of type Buffer or Uint8Array. Received type ' + typeof target
+                );
+              }
+              if (start === void 0) {
+                start = 0;
+              }
+              if (end === void 0) {
+                end = target ? target.length : 0;
+              }
+              if (thisStart === void 0) {
+                thisStart = 0;
+              }
+              if (thisEnd === void 0) {
+                thisEnd = this.length;
+              }
+              if (start < 0 || end > target.length || thisStart < 0 || thisEnd > this.length) {
+                throw new RangeError("out of range index");
+              }
+              if (thisStart >= thisEnd && start >= end) {
+                return 0;
+              }
+              if (thisStart >= thisEnd) {
+                return -1;
+              }
+              if (start >= end) {
+                return 1;
+              }
+              start >>>= 0;
+              end >>>= 0;
+              thisStart >>>= 0;
+              thisEnd >>>= 0;
+              if (this === target)
+                return 0;
+              var x = thisEnd - thisStart;
+              var y = end - start;
+              var len = Math.min(x, y);
+              var thisCopy = this.slice(thisStart, thisEnd);
+              var targetCopy = target.slice(start, end);
+              for (var i = 0; i < len; ++i) {
+                if (thisCopy[i] !== targetCopy[i]) {
+                  x = thisCopy[i];
+                  y = targetCopy[i];
+                  break;
+                }
+              }
+              if (x < y)
+                return -1;
+              if (y < x)
+                return 1;
+              return 0;
+            };
+            function bidirectionalIndexOf(buffer, val, byteOffset, encoding, dir) {
+              if (buffer.length === 0)
+                return -1;
+              if (typeof byteOffset === "string") {
+                encoding = byteOffset;
+                byteOffset = 0;
+              } else if (byteOffset > 2147483647) {
+                byteOffset = 2147483647;
+              } else if (byteOffset < -2147483648) {
+                byteOffset = -2147483648;
+              }
+              byteOffset = +byteOffset;
+              if (numberIsNaN(byteOffset)) {
+                byteOffset = dir ? 0 : buffer.length - 1;
+              }
+              if (byteOffset < 0)
+                byteOffset = buffer.length + byteOffset;
+              if (byteOffset >= buffer.length) {
+                if (dir)
+                  return -1;
+                else
+                  byteOffset = buffer.length - 1;
+              } else if (byteOffset < 0) {
+                if (dir)
+                  byteOffset = 0;
+                else
+                  return -1;
+              }
+              if (typeof val === "string") {
+                val = Buffer3.from(val, encoding);
+              }
+              if (Buffer3.isBuffer(val)) {
+                if (val.length === 0) {
+                  return -1;
+                }
+                return arrayIndexOf(buffer, val, byteOffset, encoding, dir);
+              } else if (typeof val === "number") {
+                val = val & 255;
+                if (typeof Uint8Array.prototype.indexOf === "function") {
+                  if (dir) {
+                    return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset);
+                  } else {
+                    return Uint8Array.prototype.lastIndexOf.call(buffer, val, byteOffset);
+                  }
+                }
+                return arrayIndexOf(buffer, [val], byteOffset, encoding, dir);
+              }
+              throw new TypeError("val must be string, number or Buffer");
+            }
+            function arrayIndexOf(arr, val, byteOffset, encoding, dir) {
+              var indexSize = 1;
+              var arrLength = arr.length;
+              var valLength = val.length;
+              if (encoding !== void 0) {
+                encoding = String(encoding).toLowerCase();
+                if (encoding === "ucs2" || encoding === "ucs-2" || encoding === "utf16le" || encoding === "utf-16le") {
+                  if (arr.length < 2 || val.length < 2) {
+                    return -1;
+                  }
+                  indexSize = 2;
+                  arrLength /= 2;
+                  valLength /= 2;
+                  byteOffset /= 2;
+                }
+              }
+              function read(buf, i2) {
+                if (indexSize === 1) {
+                  return buf[i2];
+                } else {
+                  return buf.readUInt16BE(i2 * indexSize);
+                }
+              }
+              var i;
+              if (dir) {
+                var foundIndex = -1;
+                for (i = byteOffset; i < arrLength; i++) {
+                  if (read(arr, i) === read(val, foundIndex === -1 ? 0 : i - foundIndex)) {
+                    if (foundIndex === -1)
+                      foundIndex = i;
+                    if (i - foundIndex + 1 === valLength)
+                      return foundIndex * indexSize;
+                  } else {
+                    if (foundIndex !== -1)
+                      i -= i - foundIndex;
+                    foundIndex = -1;
+                  }
+                }
+              } else {
+                if (byteOffset + valLength > arrLength)
+                  byteOffset = arrLength - valLength;
+                for (i = byteOffset; i >= 0; i--) {
+                  var found = true;
+                  for (var j = 0; j < valLength; j++) {
+                    if (read(arr, i + j) !== read(val, j)) {
+                      found = false;
+                      break;
+                    }
+                  }
+                  if (found)
+                    return i;
+                }
+              }
+              return -1;
+            }
+            Buffer3.prototype.includes = function includes(val, byteOffset, encoding) {
+              return this.indexOf(val, byteOffset, encoding) !== -1;
+            };
+            Buffer3.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
+              return bidirectionalIndexOf(this, val, byteOffset, encoding, true);
+            };
+            Buffer3.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
+              return bidirectionalIndexOf(this, val, byteOffset, encoding, false);
+            };
+            function hexWrite(buf, string, offset, length) {
+              offset = Number(offset) || 0;
+              var remaining = buf.length - offset;
+              if (!length) {
+                length = remaining;
+              } else {
+                length = Number(length);
+                if (length > remaining) {
+                  length = remaining;
+                }
+              }
+              var strLen = string.length;
+              if (length > strLen / 2) {
+                length = strLen / 2;
+              }
+              for (var i = 0; i < length; ++i) {
+                var parsed = parseInt(string.substr(i * 2, 2), 16);
+                if (numberIsNaN(parsed))
+                  return i;
+                buf[offset + i] = parsed;
+              }
+              return i;
+            }
+            function utf8Write(buf, string, offset, length) {
+              return blitBuffer(utf8ToBytes(string, buf.length - offset), buf, offset, length);
+            }
+            function asciiWrite(buf, string, offset, length) {
+              return blitBuffer(asciiToBytes(string), buf, offset, length);
+            }
+            function latin1Write(buf, string, offset, length) {
+              return asciiWrite(buf, string, offset, length);
+            }
+            function base64Write(buf, string, offset, length) {
+              return blitBuffer(base64ToBytes(string), buf, offset, length);
+            }
+            function ucs2Write(buf, string, offset, length) {
+              return blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length);
+            }
+            Buffer3.prototype.write = function write(string, offset, length, encoding) {
+              if (offset === void 0) {
+                encoding = "utf8";
+                length = this.length;
+                offset = 0;
+              } else if (length === void 0 && typeof offset === "string") {
+                encoding = offset;
+                length = this.length;
+                offset = 0;
+              } else if (isFinite(offset)) {
+                offset = offset >>> 0;
+                if (isFinite(length)) {
+                  length = length >>> 0;
+                  if (encoding === void 0)
+                    encoding = "utf8";
+                } else {
+                  encoding = length;
+                  length = void 0;
+                }
+              } else {
+                throw new Error(
+                  "Buffer.write(string, encoding, offset[, length]) is no longer supported"
+                );
+              }
+              var remaining = this.length - offset;
+              if (length === void 0 || length > remaining)
+                length = remaining;
+              if (string.length > 0 && (length < 0 || offset < 0) || offset > this.length) {
+                throw new RangeError("Attempt to write outside buffer bounds");
+              }
+              if (!encoding)
+                encoding = "utf8";
+              var loweredCase = false;
+              for (; ; ) {
+                switch (encoding) {
+                  case "hex":
+                    return hexWrite(this, string, offset, length);
+                  case "utf8":
+                  case "utf-8":
+                    return utf8Write(this, string, offset, length);
+                  case "ascii":
+                    return asciiWrite(this, string, offset, length);
+                  case "latin1":
+                  case "binary":
+                    return latin1Write(this, string, offset, length);
+                  case "base64":
+                    return base64Write(this, string, offset, length);
+                  case "ucs2":
+                  case "ucs-2":
+                  case "utf16le":
+                  case "utf-16le":
+                    return ucs2Write(this, string, offset, length);
+                  default:
+                    if (loweredCase)
+                      throw new TypeError("Unknown encoding: " + encoding);
+                    encoding = ("" + encoding).toLowerCase();
+                    loweredCase = true;
+                }
+              }
+            };
+            Buffer3.prototype.toJSON = function toJSON() {
+              return {
+                type: "Buffer",
+                data: Array.prototype.slice.call(this._arr || this, 0)
+              };
+            };
+            function base64Slice(buf, start, end) {
+              if (start === 0 && end === buf.length) {
+                return base64.fromByteArray(buf);
+              } else {
+                return base64.fromByteArray(buf.slice(start, end));
+              }
+            }
+            function utf8Slice(buf, start, end) {
+              end = Math.min(buf.length, end);
+              var res = [];
+              var i = start;
+              while (i < end) {
+                var firstByte = buf[i];
+                var codePoint = null;
+                var bytesPerSequence = firstByte > 239 ? 4 : firstByte > 223 ? 3 : firstByte > 191 ? 2 : 1;
+                if (i + bytesPerSequence <= end) {
+                  var secondByte, thirdByte, fourthByte, tempCodePoint;
+                  switch (bytesPerSequence) {
+                    case 1:
+                      if (firstByte < 128) {
+                        codePoint = firstByte;
+                      }
+                      break;
+                    case 2:
+                      secondByte = buf[i + 1];
+                      if ((secondByte & 192) === 128) {
+                        tempCodePoint = (firstByte & 31) << 6 | secondByte & 63;
+                        if (tempCodePoint > 127) {
+                          codePoint = tempCodePoint;
+                        }
+                      }
+                      break;
+                    case 3:
+                      secondByte = buf[i + 1];
+                      thirdByte = buf[i + 2];
+                      if ((secondByte & 192) === 128 && (thirdByte & 192) === 128) {
+                        tempCodePoint = (firstByte & 15) << 12 | (secondByte & 63) << 6 | thirdByte & 63;
+                        if (tempCodePoint > 2047 && (tempCodePoint < 55296 || tempCodePoint > 57343)) {
+                          codePoint = tempCodePoint;
+                        }
+                      }
+                      break;
+                    case 4:
+                      secondByte = buf[i + 1];
+                      thirdByte = buf[i + 2];
+                      fourthByte = buf[i + 3];
+                      if ((secondByte & 192) === 128 && (thirdByte & 192) === 128 && (fourthByte & 192) === 128) {
+                        tempCodePoint = (firstByte & 15) << 18 | (secondByte & 63) << 12 | (thirdByte & 63) << 6 | fourthByte & 63;
+                        if (tempCodePoint > 65535 && tempCodePoint < 1114112) {
+                          codePoint = tempCodePoint;
+                        }
+                      }
+                  }
+                }
+                if (codePoint === null) {
+                  codePoint = 65533;
+                  bytesPerSequence = 1;
+                } else if (codePoint > 65535) {
+                  codePoint -= 65536;
+                  res.push(codePoint >>> 10 & 1023 | 55296);
+                  codePoint = 56320 | codePoint & 1023;
+                }
+                res.push(codePoint);
+                i += bytesPerSequence;
+              }
+              return decodeCodePointsArray(res);
+            }
+            var MAX_ARGUMENTS_LENGTH = 4096;
+            function decodeCodePointsArray(codePoints) {
+              var len = codePoints.length;
+              if (len <= MAX_ARGUMENTS_LENGTH) {
+                return String.fromCharCode.apply(String, codePoints);
+              }
+              var res = "";
+              var i = 0;
+              while (i < len) {
+                res += String.fromCharCode.apply(
+                  String,
+                  codePoints.slice(i, i += MAX_ARGUMENTS_LENGTH)
+                );
+              }
+              return res;
+            }
+            function asciiSlice(buf, start, end) {
+              var ret = "";
+              end = Math.min(buf.length, end);
+              for (var i = start; i < end; ++i) {
+                ret += String.fromCharCode(buf[i] & 127);
+              }
+              return ret;
+            }
+            function latin1Slice(buf, start, end) {
+              var ret = "";
+              end = Math.min(buf.length, end);
+              for (var i = start; i < end; ++i) {
+                ret += String.fromCharCode(buf[i]);
+              }
+              return ret;
+            }
+            function hexSlice(buf, start, end) {
+              var len = buf.length;
+              if (!start || start < 0)
+                start = 0;
+              if (!end || end < 0 || end > len)
+                end = len;
+              var out = "";
+              for (var i = start; i < end; ++i) {
+                out += toHex(buf[i]);
+              }
+              return out;
+            }
+            function utf16leSlice(buf, start, end) {
+              var bytes = buf.slice(start, end);
+              var res = "";
+              for (var i = 0; i < bytes.length; i += 2) {
+                res += String.fromCharCode(bytes[i] + bytes[i + 1] * 256);
+              }
+              return res;
+            }
+            Buffer3.prototype.slice = function slice(start, end) {
+              var len = this.length;
+              start = ~~start;
+              end = end === void 0 ? len : ~~end;
+              if (start < 0) {
+                start += len;
+                if (start < 0)
+                  start = 0;
+              } else if (start > len) {
+                start = len;
+              }
+              if (end < 0) {
+                end += len;
+                if (end < 0)
+                  end = 0;
+              } else if (end > len) {
+                end = len;
+              }
+              if (end < start)
+                end = start;
+              var newBuf = this.subarray(start, end);
+              newBuf.__proto__ = Buffer3.prototype;
+              return newBuf;
+            };
+            function checkOffset(offset, ext, length) {
+              if (offset % 1 !== 0 || offset < 0)
+                throw new RangeError("offset is not uint");
+              if (offset + ext > length)
+                throw new RangeError("Trying to access beyond buffer length");
+            }
+            Buffer3.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert)
+                checkOffset(offset, byteLength2, this.length);
+              var val = this[offset];
+              var mul = 1;
+              var i = 0;
+              while (++i < byteLength2 && (mul *= 256)) {
+                val += this[offset + i] * mul;
+              }
+              return val;
+            };
+            Buffer3.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert) {
+                checkOffset(offset, byteLength2, this.length);
+              }
+              var val = this[offset + --byteLength2];
+              var mul = 1;
+              while (byteLength2 > 0 && (mul *= 256)) {
+                val += this[offset + --byteLength2] * mul;
+              }
+              return val;
+            };
+            Buffer3.prototype.readUInt8 = function readUInt8(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 1, this.length);
+              return this[offset];
+            };
+            Buffer3.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 2, this.length);
+              return this[offset] | this[offset + 1] << 8;
+            };
+            Buffer3.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 2, this.length);
+              return this[offset] << 8 | this[offset + 1];
+            };
+            Buffer3.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return (this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16) + this[offset + 3] * 16777216;
+            };
+            Buffer3.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return this[offset] * 16777216 + (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
+            };
+            Buffer3.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert)
+                checkOffset(offset, byteLength2, this.length);
+              var val = this[offset];
+              var mul = 1;
+              var i = 0;
+              while (++i < byteLength2 && (mul *= 256)) {
+                val += this[offset + i] * mul;
+              }
+              mul *= 128;
+              if (val >= mul)
+                val -= Math.pow(2, 8 * byteLength2);
+              return val;
+            };
+            Buffer3.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert)
+                checkOffset(offset, byteLength2, this.length);
+              var i = byteLength2;
+              var mul = 1;
+              var val = this[offset + --i];
+              while (i > 0 && (mul *= 256)) {
+                val += this[offset + --i] * mul;
+              }
+              mul *= 128;
+              if (val >= mul)
+                val -= Math.pow(2, 8 * byteLength2);
+              return val;
+            };
+            Buffer3.prototype.readInt8 = function readInt8(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 1, this.length);
+              if (!(this[offset] & 128))
+                return this[offset];
+              return (255 - this[offset] + 1) * -1;
+            };
+            Buffer3.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 2, this.length);
+              var val = this[offset] | this[offset + 1] << 8;
+              return val & 32768 ? val | 4294901760 : val;
+            };
+            Buffer3.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 2, this.length);
+              var val = this[offset + 1] | this[offset] << 8;
+              return val & 32768 ? val | 4294901760 : val;
+            };
+            Buffer3.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16 | this[offset + 3] << 24;
+            };
+            Buffer3.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return this[offset] << 24 | this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3];
+            };
+            Buffer3.prototype.readFloatLE = function readFloatLE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return ieee754.read(this, offset, true, 23, 4);
+            };
+            Buffer3.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 4, this.length);
+              return ieee754.read(this, offset, false, 23, 4);
+            };
+            Buffer3.prototype.readDoubleLE = function readDoubleLE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 8, this.length);
+              return ieee754.read(this, offset, true, 52, 8);
+            };
+            Buffer3.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkOffset(offset, 8, this.length);
+              return ieee754.read(this, offset, false, 52, 8);
+            };
+            function checkInt(buf, value, offset, ext, max, min) {
+              if (!Buffer3.isBuffer(buf))
+                throw new TypeError('"buffer" argument must be a Buffer instance');
+              if (value > max || value < min)
+                throw new RangeError('"value" argument is out of bounds');
+              if (offset + ext > buf.length)
+                throw new RangeError("Index out of range");
+            }
+            Buffer3.prototype.writeUIntLE = function writeUIntLE(value, offset, byteLength2, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert) {
+                var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
+                checkInt(this, value, offset, byteLength2, maxBytes, 0);
+              }
+              var mul = 1;
+              var i = 0;
+              this[offset] = value & 255;
+              while (++i < byteLength2 && (mul *= 256)) {
+                this[offset + i] = value / mul & 255;
+              }
+              return offset + byteLength2;
+            };
+            Buffer3.prototype.writeUIntBE = function writeUIntBE(value, offset, byteLength2, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              byteLength2 = byteLength2 >>> 0;
+              if (!noAssert) {
+                var maxBytes = Math.pow(2, 8 * byteLength2) - 1;
+                checkInt(this, value, offset, byteLength2, maxBytes, 0);
+              }
+              var i = byteLength2 - 1;
+              var mul = 1;
+              this[offset + i] = value & 255;
+              while (--i >= 0 && (mul *= 256)) {
+                this[offset + i] = value / mul & 255;
+              }
+              return offset + byteLength2;
+            };
+            Buffer3.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 1, 255, 0);
+              this[offset] = value & 255;
+              return offset + 1;
+            };
+            Buffer3.prototype.writeUInt16LE = function writeUInt16LE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 2, 65535, 0);
+              this[offset] = value & 255;
+              this[offset + 1] = value >>> 8;
+              return offset + 2;
+            };
+            Buffer3.prototype.writeUInt16BE = function writeUInt16BE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 2, 65535, 0);
+              this[offset] = value >>> 8;
+              this[offset + 1] = value & 255;
+              return offset + 2;
+            };
+            Buffer3.prototype.writeUInt32LE = function writeUInt32LE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 4, 4294967295, 0);
+              this[offset + 3] = value >>> 24;
+              this[offset + 2] = value >>> 16;
+              this[offset + 1] = value >>> 8;
+              this[offset] = value & 255;
+              return offset + 4;
+            };
+            Buffer3.prototype.writeUInt32BE = function writeUInt32BE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 4, 4294967295, 0);
+              this[offset] = value >>> 24;
+              this[offset + 1] = value >>> 16;
+              this[offset + 2] = value >>> 8;
+              this[offset + 3] = value & 255;
+              return offset + 4;
+            };
+            Buffer3.prototype.writeIntLE = function writeIntLE(value, offset, byteLength2, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert) {
+                var limit = Math.pow(2, 8 * byteLength2 - 1);
+                checkInt(this, value, offset, byteLength2, limit - 1, -limit);
+              }
+              var i = 0;
+              var mul = 1;
+              var sub = 0;
+              this[offset] = value & 255;
+              while (++i < byteLength2 && (mul *= 256)) {
+                if (value < 0 && sub === 0 && this[offset + i - 1] !== 0) {
+                  sub = 1;
+                }
+                this[offset + i] = (value / mul >> 0) - sub & 255;
+              }
+              return offset + byteLength2;
+            };
+            Buffer3.prototype.writeIntBE = function writeIntBE(value, offset, byteLength2, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert) {
+                var limit = Math.pow(2, 8 * byteLength2 - 1);
+                checkInt(this, value, offset, byteLength2, limit - 1, -limit);
+              }
+              var i = byteLength2 - 1;
+              var mul = 1;
+              var sub = 0;
+              this[offset + i] = value & 255;
+              while (--i >= 0 && (mul *= 256)) {
+                if (value < 0 && sub === 0 && this[offset + i + 1] !== 0) {
+                  sub = 1;
+                }
+                this[offset + i] = (value / mul >> 0) - sub & 255;
+              }
+              return offset + byteLength2;
+            };
+            Buffer3.prototype.writeInt8 = function writeInt8(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 1, 127, -128);
+              if (value < 0)
+                value = 255 + value + 1;
+              this[offset] = value & 255;
+              return offset + 1;
+            };
+            Buffer3.prototype.writeInt16LE = function writeInt16LE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 2, 32767, -32768);
+              this[offset] = value & 255;
+              this[offset + 1] = value >>> 8;
+              return offset + 2;
+            };
+            Buffer3.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 2, 32767, -32768);
+              this[offset] = value >>> 8;
+              this[offset + 1] = value & 255;
+              return offset + 2;
+            };
+            Buffer3.prototype.writeInt32LE = function writeInt32LE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 4, 2147483647, -2147483648);
+              this[offset] = value & 255;
+              this[offset + 1] = value >>> 8;
+              this[offset + 2] = value >>> 16;
+              this[offset + 3] = value >>> 24;
+              return offset + 4;
+            };
+            Buffer3.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert)
+                checkInt(this, value, offset, 4, 2147483647, -2147483648);
+              if (value < 0)
+                value = 4294967295 + value + 1;
+              this[offset] = value >>> 24;
+              this[offset + 1] = value >>> 16;
+              this[offset + 2] = value >>> 8;
+              this[offset + 3] = value & 255;
+              return offset + 4;
+            };
+            function checkIEEE754(buf, value, offset, ext, max, min) {
+              if (offset + ext > buf.length)
+                throw new RangeError("Index out of range");
+              if (offset < 0)
+                throw new RangeError("Index out of range");
+            }
+            function writeFloat(buf, value, offset, littleEndian, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert) {
+                checkIEEE754(buf, value, offset, 4, 34028234663852886e22, -34028234663852886e22);
+              }
+              ieee754.write(buf, value, offset, littleEndian, 23, 4);
+              return offset + 4;
+            }
+            Buffer3.prototype.writeFloatLE = function writeFloatLE(value, offset, noAssert) {
+              return writeFloat(this, value, offset, true, noAssert);
+            };
+            Buffer3.prototype.writeFloatBE = function writeFloatBE(value, offset, noAssert) {
+              return writeFloat(this, value, offset, false, noAssert);
+            };
+            function writeDouble(buf, value, offset, littleEndian, noAssert) {
+              value = +value;
+              offset = offset >>> 0;
+              if (!noAssert) {
+                checkIEEE754(buf, value, offset, 8, 17976931348623157e292, -17976931348623157e292);
+              }
+              ieee754.write(buf, value, offset, littleEndian, 52, 8);
+              return offset + 8;
+            }
+            Buffer3.prototype.writeDoubleLE = function writeDoubleLE(value, offset, noAssert) {
+              return writeDouble(this, value, offset, true, noAssert);
+            };
+            Buffer3.prototype.writeDoubleBE = function writeDoubleBE(value, offset, noAssert) {
+              return writeDouble(this, value, offset, false, noAssert);
+            };
+            Buffer3.prototype.copy = function copy(target, targetStart, start, end) {
+              if (!Buffer3.isBuffer(target))
+                throw new TypeError("argument should be a Buffer");
+              if (!start)
+                start = 0;
+              if (!end && end !== 0)
+                end = this.length;
+              if (targetStart >= target.length)
+                targetStart = target.length;
+              if (!targetStart)
+                targetStart = 0;
+              if (end > 0 && end < start)
+                end = start;
+              if (end === start)
+                return 0;
+              if (target.length === 0 || this.length === 0)
+                return 0;
+              if (targetStart < 0) {
+                throw new RangeError("targetStart out of bounds");
+              }
+              if (start < 0 || start >= this.length)
+                throw new RangeError("Index out of range");
+              if (end < 0)
+                throw new RangeError("sourceEnd out of bounds");
+              if (end > this.length)
+                end = this.length;
+              if (target.length - targetStart < end - start) {
+                end = target.length - targetStart + start;
+              }
+              var len = end - start;
+              if (this === target && typeof Uint8Array.prototype.copyWithin === "function") {
+                this.copyWithin(targetStart, start, end);
+              } else if (this === target && start < targetStart && targetStart < end) {
+                for (var i = len - 1; i >= 0; --i) {
+                  target[i + targetStart] = this[i + start];
+                }
+              } else {
+                Uint8Array.prototype.set.call(
+                  target,
+                  this.subarray(start, end),
+                  targetStart
+                );
+              }
+              return len;
+            };
+            Buffer3.prototype.fill = function fill(val, start, end, encoding) {
+              if (typeof val === "string") {
+                if (typeof start === "string") {
+                  encoding = start;
+                  start = 0;
+                  end = this.length;
+                } else if (typeof end === "string") {
+                  encoding = end;
+                  end = this.length;
+                }
+                if (encoding !== void 0 && typeof encoding !== "string") {
+                  throw new TypeError("encoding must be a string");
+                }
+                if (typeof encoding === "string" && !Buffer3.isEncoding(encoding)) {
+                  throw new TypeError("Unknown encoding: " + encoding);
+                }
+                if (val.length === 1) {
+                  var code = val.charCodeAt(0);
+                  if (encoding === "utf8" && code < 128 || encoding === "latin1") {
+                    val = code;
+                  }
+                }
+              } else if (typeof val === "number") {
+                val = val & 255;
+              }
+              if (start < 0 || this.length < start || this.length < end) {
+                throw new RangeError("Out of range index");
+              }
+              if (end <= start) {
+                return this;
+              }
+              start = start >>> 0;
+              end = end === void 0 ? this.length : end >>> 0;
+              if (!val)
+                val = 0;
+              var i;
+              if (typeof val === "number") {
+                for (i = start; i < end; ++i) {
+                  this[i] = val;
+                }
+              } else {
+                var bytes = Buffer3.isBuffer(val) ? val : Buffer3.from(val, encoding);
+                var len = bytes.length;
+                if (len === 0) {
+                  throw new TypeError('The value "' + val + '" is invalid for argument "value"');
+                }
+                for (i = 0; i < end - start; ++i) {
+                  this[i + start] = bytes[i % len];
+                }
+              }
+              return this;
+            };
+            var INVALID_BASE64_RE = /[^+/0-9A-Za-z-_]/g;
+            function base64clean(str) {
+              str = str.split("=")[0];
+              str = str.trim().replace(INVALID_BASE64_RE, "");
+              if (str.length < 2)
+                return "";
+              while (str.length % 4 !== 0) {
+                str = str + "=";
+              }
+              return str;
+            }
+            function toHex(n) {
+              if (n < 16)
+                return "0" + n.toString(16);
+              return n.toString(16);
+            }
+            function utf8ToBytes(string, units) {
+              units = units || Infinity;
+              var codePoint;
+              var length = string.length;
+              var leadSurrogate = null;
+              var bytes = [];
+              for (var i = 0; i < length; ++i) {
+                codePoint = string.charCodeAt(i);
+                if (codePoint > 55295 && codePoint < 57344) {
+                  if (!leadSurrogate) {
+                    if (codePoint > 56319) {
+                      if ((units -= 3) > -1)
+                        bytes.push(239, 191, 189);
+                      continue;
+                    } else if (i + 1 === length) {
+                      if ((units -= 3) > -1)
+                        bytes.push(239, 191, 189);
+                      continue;
+                    }
+                    leadSurrogate = codePoint;
+                    continue;
+                  }
+                  if (codePoint < 56320) {
+                    if ((units -= 3) > -1)
+                      bytes.push(239, 191, 189);
+                    leadSurrogate = codePoint;
+                    continue;
+                  }
+                  codePoint = (leadSurrogate - 55296 << 10 | codePoint - 56320) + 65536;
+                } else if (leadSurrogate) {
+                  if ((units -= 3) > -1)
+                    bytes.push(239, 191, 189);
+                }
+                leadSurrogate = null;
+                if (codePoint < 128) {
+                  if ((units -= 1) < 0)
+                    break;
+                  bytes.push(codePoint);
+                } else if (codePoint < 2048) {
+                  if ((units -= 2) < 0)
+                    break;
+                  bytes.push(
+                    codePoint >> 6 | 192,
+                    codePoint & 63 | 128
+                  );
+                } else if (codePoint < 65536) {
+                  if ((units -= 3) < 0)
+                    break;
+                  bytes.push(
+                    codePoint >> 12 | 224,
+                    codePoint >> 6 & 63 | 128,
+                    codePoint & 63 | 128
+                  );
+                } else if (codePoint < 1114112) {
+                  if ((units -= 4) < 0)
+                    break;
+                  bytes.push(
+                    codePoint >> 18 | 240,
+                    codePoint >> 12 & 63 | 128,
+                    codePoint >> 6 & 63 | 128,
+                    codePoint & 63 | 128
+                  );
+                } else {
+                  throw new Error("Invalid code point");
+                }
+              }
+              return bytes;
+            }
+            function asciiToBytes(str) {
+              var byteArray = [];
+              for (var i = 0; i < str.length; ++i) {
+                byteArray.push(str.charCodeAt(i) & 255);
+              }
+              return byteArray;
+            }
+            function utf16leToBytes(str, units) {
+              var c, hi, lo;
+              var byteArray = [];
+              for (var i = 0; i < str.length; ++i) {
+                if ((units -= 2) < 0)
+                  break;
+                c = str.charCodeAt(i);
+                hi = c >> 8;
+                lo = c % 256;
+                byteArray.push(lo);
+                byteArray.push(hi);
+              }
+              return byteArray;
+            }
+            function base64ToBytes(str) {
+              return base64.toByteArray(base64clean(str));
+            }
+            function blitBuffer(src, dst, offset, length) {
+              for (var i = 0; i < length; ++i) {
+                if (i + offset >= dst.length || i >= src.length)
+                  break;
+                dst[i + offset] = src[i];
+              }
+              return i;
+            }
+            function isInstance(obj, type) {
+              return obj instanceof type || obj != null && obj.constructor != null && obj.constructor.name != null && obj.constructor.name === type.name;
+            }
+            function numberIsNaN(obj) {
+              return obj !== obj;
+            }
+          }).call(this);
+        }).call(this, require2("buffer").Buffer);
+      }, { "base64-js": 1, "buffer": 3, "ieee754": 4 }], 4: [function(require2, module4, exports3) {
+        exports3.read = function(buffer, offset, isLE, mLen, nBytes) {
+          var e2, m;
+          var eLen = nBytes * 8 - mLen - 1;
+          var eMax = (1 << eLen) - 1;
+          var eBias = eMax >> 1;
+          var nBits = -7;
+          var i = isLE ? nBytes - 1 : 0;
+          var d = isLE ? -1 : 1;
+          var s = buffer[offset + i];
+          i += d;
+          e2 = s & (1 << -nBits) - 1;
+          s >>= -nBits;
+          nBits += eLen;
+          for (; nBits > 0; e2 = e2 * 256 + buffer[offset + i], i += d, nBits -= 8) {
+          }
+          m = e2 & (1 << -nBits) - 1;
+          e2 >>= -nBits;
+          nBits += mLen;
+          for (; nBits > 0; m = m * 256 + buffer[offset + i], i += d, nBits -= 8) {
+          }
+          if (e2 === 0) {
+            e2 = 1 - eBias;
+          } else if (e2 === eMax) {
+            return m ? NaN : (s ? -1 : 1) * Infinity;
+          } else {
+            m = m + Math.pow(2, mLen);
+            e2 = e2 - eBias;
+          }
+          return (s ? -1 : 1) * m * Math.pow(2, e2 - mLen);
+        };
+        exports3.write = function(buffer, value, offset, isLE, mLen, nBytes) {
+          var e2, m, c;
+          var eLen = nBytes * 8 - mLen - 1;
+          var eMax = (1 << eLen) - 1;
+          var eBias = eMax >> 1;
+          var rt = mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0;
+          var i = isLE ? 0 : nBytes - 1;
+          var d = isLE ? 1 : -1;
+          var s = value < 0 || value === 0 && 1 / value < 0 ? 1 : 0;
+          value = Math.abs(value);
+          if (isNaN(value) || value === Infinity) {
+            m = isNaN(value) ? 1 : 0;
+            e2 = eMax;
+          } else {
+            e2 = Math.floor(Math.log(value) / Math.LN2);
+            if (value * (c = Math.pow(2, -e2)) < 1) {
+              e2--;
+              c *= 2;
+            }
+            if (e2 + eBias >= 1) {
+              value += rt / c;
+            } else {
+              value += rt * Math.pow(2, 1 - eBias);
+            }
+            if (value * c >= 2) {
+              e2++;
+              c /= 2;
+            }
+            if (e2 + eBias >= eMax) {
+              m = 0;
+              e2 = eMax;
+            } else if (e2 + eBias >= 1) {
+              m = (value * c - 1) * Math.pow(2, mLen);
+              e2 = e2 + eBias;
+            } else {
+              m = value * Math.pow(2, eBias - 1) * Math.pow(2, mLen);
+              e2 = 0;
+            }
+          }
+          for (; mLen >= 8; buffer[offset + i] = m & 255, i += d, m /= 256, mLen -= 8) {
+          }
+          e2 = e2 << mLen | m;
+          eLen += mLen;
+          for (; eLen > 0; buffer[offset + i] = e2 & 255, i += d, e2 /= 256, eLen -= 8) {
+          }
+          buffer[offset + i - d] |= s * 128;
+        };
+      }, {}], 5: [function(require2, module4, exports3) {
+        let urlAlphabet = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
+        let customAlphabet = (alphabet, defaultSize = 21) => {
+          return (size = defaultSize) => {
+            let id = "";
+            let i = size;
+            while (i--) {
+              id += alphabet[Math.random() * alphabet.length | 0];
+            }
+            return id;
+          };
+        };
+        let nanoid = (size = 21) => {
+          let id = "";
+          let i = size;
+          while (i--) {
+            id += urlAlphabet[Math.random() * 64 | 0];
+          }
+          return id;
+        };
+        module4.exports = { nanoid, customAlphabet };
+      }, {}], 6: [function(require2, module4, exports3) {
+        var x = String;
+        var create = function() {
+          return { isColorSupported: false, reset: x, bold: x, dim: x, italic: x, underline: x, inverse: x, hidden: x, strikethrough: x, black: x, red: x, green: x, yellow: x, blue: x, magenta: x, cyan: x, white: x, gray: x, bgBlack: x, bgRed: x, bgGreen: x, bgYellow: x, bgBlue: x, bgMagenta: x, bgCyan: x, bgWhite: x };
+        };
+        module4.exports = create();
+        module4.exports.createColors = create;
+      }, {}], 7: [function(require2, module4, exports3) {
+        "use strict";
+        let Container = require2("./container");
+        class AtRule extends Container {
+          constructor(defaults) {
+            super(defaults);
+            this.type = "atrule";
+          }
+          append(...children) {
+            if (!this.proxyOf.nodes)
+              this.nodes = [];
+            return super.append(...children);
+          }
+          prepend(...children) {
+            if (!this.proxyOf.nodes)
+              this.nodes = [];
+            return super.prepend(...children);
+          }
+        }
+        module4.exports = AtRule;
+        AtRule.default = AtRule;
+        Container.registerAtRule(AtRule);
+      }, { "./container": 9 }], 8: [function(require2, module4, exports3) {
+        "use strict";
+        let Node = require2("./node");
+        class Comment2 extends Node {
+          constructor(defaults) {
+            super(defaults);
+            this.type = "comment";
+          }
+        }
+        module4.exports = Comment2;
+        Comment2.default = Comment2;
+      }, { "./node": 19 }], 9: [function(require2, module4, exports3) {
+        "use strict";
+        let { isClean, my } = require2("./symbols");
+        let Declaration = require2("./declaration");
+        let Comment2 = require2("./comment");
+        let Node = require2("./node");
+        let parse2, Rule, AtRule, Root;
+        function cleanSource(nodes) {
+          return nodes.map((i) => {
+            if (i.nodes)
+              i.nodes = cleanSource(i.nodes);
+            delete i.source;
+            return i;
+          });
+        }
+        function markTreeDirty(node) {
+          node[isClean] = false;
+          if (node.proxyOf.nodes) {
+            for (let i of node.proxyOf.nodes) {
+              markTreeDirty(i);
+            }
+          }
+        }
+        class Container extends Node {
+          append(...children) {
+            for (let child of children) {
+              let nodes = this.normalize(child, this.last);
+              for (let node of nodes)
+                this.proxyOf.nodes.push(node);
+            }
+            this.markDirty();
+            return this;
+          }
+          cleanRaws(keepBetween) {
+            super.cleanRaws(keepBetween);
+            if (this.nodes) {
+              for (let node of this.nodes)
+                node.cleanRaws(keepBetween);
+            }
+          }
+          each(callback) {
+            if (!this.proxyOf.nodes)
+              return void 0;
+            let iterator = this.getIterator();
+            let index, result;
+            while (this.indexes[iterator] < this.proxyOf.nodes.length) {
+              index = this.indexes[iterator];
+              result = callback(this.proxyOf.nodes[index], index);
+              if (result === false)
+                break;
+              this.indexes[iterator] += 1;
+            }
+            delete this.indexes[iterator];
+            return result;
+          }
+          every(condition) {
+            return this.nodes.every(condition);
+          }
+          getIterator() {
+            if (!this.lastEach)
+              this.lastEach = 0;
+            if (!this.indexes)
+              this.indexes = {};
+            this.lastEach += 1;
+            let iterator = this.lastEach;
+            this.indexes[iterator] = 0;
+            return iterator;
+          }
+          getProxyProcessor() {
+            return {
+              get(node, prop) {
+                if (prop === "proxyOf") {
+                  return node;
+                } else if (!node[prop]) {
+                  return node[prop];
+                } else if (prop === "each" || typeof prop === "string" && prop.startsWith("walk")) {
+                  return (...args) => {
+                    return node[prop](
+                      ...args.map((i) => {
+                        if (typeof i === "function") {
+                          return (child, index) => i(child.toProxy(), index);
+                        } else {
+                          return i;
+                        }
+                      })
+                    );
+                  };
+                } else if (prop === "every" || prop === "some") {
+                  return (cb) => {
+                    return node[prop](
+                      (child, ...other) => cb(child.toProxy(), ...other)
+                    );
+                  };
+                } else if (prop === "root") {
+                  return () => node.root().toProxy();
+                } else if (prop === "nodes") {
+                  return node.nodes.map((i) => i.toProxy());
+                } else if (prop === "first" || prop === "last") {
+                  return node[prop].toProxy();
+                } else {
+                  return node[prop];
+                }
+              },
+              set(node, prop, value) {
+                if (node[prop] === value)
+                  return true;
+                node[prop] = value;
+                if (prop === "name" || prop === "params" || prop === "selector") {
+                  node.markDirty();
+                }
+                return true;
+              }
+            };
+          }
+          index(child) {
+            if (typeof child === "number")
+              return child;
+            if (child.proxyOf)
+              child = child.proxyOf;
+            return this.proxyOf.nodes.indexOf(child);
+          }
+          insertAfter(exist, add) {
+            let existIndex = this.index(exist);
+            let nodes = this.normalize(add, this.proxyOf.nodes[existIndex]).reverse();
+            existIndex = this.index(exist);
+            for (let node of nodes)
+              this.proxyOf.nodes.splice(existIndex + 1, 0, node);
+            let index;
+            for (let id in this.indexes) {
+              index = this.indexes[id];
+              if (existIndex < index) {
+                this.indexes[id] = index + nodes.length;
+              }
+            }
+            this.markDirty();
+            return this;
+          }
+          insertBefore(exist, add) {
+            let existIndex = this.index(exist);
+            let type = existIndex === 0 ? "prepend" : false;
+            let nodes = this.normalize(
+              add,
+              this.proxyOf.nodes[existIndex],
+              type
+            ).reverse();
+            existIndex = this.index(exist);
+            for (let node of nodes)
+              this.proxyOf.nodes.splice(existIndex, 0, node);
+            let index;
+            for (let id in this.indexes) {
+              index = this.indexes[id];
+              if (existIndex <= index) {
+                this.indexes[id] = index + nodes.length;
+              }
+            }
+            this.markDirty();
+            return this;
+          }
+          normalize(nodes, sample) {
+            if (typeof nodes === "string") {
+              nodes = cleanSource(parse2(nodes).nodes);
+            } else if (typeof nodes === "undefined") {
+              nodes = [];
+            } else if (Array.isArray(nodes)) {
+              nodes = nodes.slice(0);
+              for (let i of nodes) {
+                if (i.parent)
+                  i.parent.removeChild(i, "ignore");
+              }
+            } else if (nodes.type === "root" && this.type !== "document") {
+              nodes = nodes.nodes.slice(0);
+              for (let i of nodes) {
+                if (i.parent)
+                  i.parent.removeChild(i, "ignore");
+              }
+            } else if (nodes.type) {
+              nodes = [nodes];
+            } else if (nodes.prop) {
+              if (typeof nodes.value === "undefined") {
+                throw new Error("Value field is missed in node creation");
+              } else if (typeof nodes.value !== "string") {
+                nodes.value = String(nodes.value);
+              }
+              nodes = [new Declaration(nodes)];
+            } else if (nodes.selector) {
+              nodes = [new Rule(nodes)];
+            } else if (nodes.name) {
+              nodes = [new AtRule(nodes)];
+            } else if (nodes.text) {
+              nodes = [new Comment2(nodes)];
+            } else {
+              throw new Error("Unknown node type in node creation");
+            }
+            let processed = nodes.map((i) => {
+              if (!i[my])
+                Container.rebuild(i);
+              i = i.proxyOf;
+              if (i.parent)
+                i.parent.removeChild(i);
+              if (i[isClean])
+                markTreeDirty(i);
+              if (typeof i.raws.before === "undefined") {
+                if (sample && typeof sample.raws.before !== "undefined") {
+                  i.raws.before = sample.raws.before.replace(/\S/g, "");
+                }
+              }
+              i.parent = this.proxyOf;
+              return i;
+            });
+            return processed;
+          }
+          prepend(...children) {
+            children = children.reverse();
+            for (let child of children) {
+              let nodes = this.normalize(child, this.first, "prepend").reverse();
+              for (let node of nodes)
+                this.proxyOf.nodes.unshift(node);
+              for (let id in this.indexes) {
+                this.indexes[id] = this.indexes[id] + nodes.length;
+              }
+            }
+            this.markDirty();
+            return this;
+          }
+          push(child) {
+            child.parent = this;
+            this.proxyOf.nodes.push(child);
+            return this;
+          }
+          removeAll() {
+            for (let node of this.proxyOf.nodes)
+              node.parent = void 0;
+            this.proxyOf.nodes = [];
+            this.markDirty();
+            return this;
+          }
+          removeChild(child) {
+            child = this.index(child);
+            this.proxyOf.nodes[child].parent = void 0;
+            this.proxyOf.nodes.splice(child, 1);
+            let index;
+            for (let id in this.indexes) {
+              index = this.indexes[id];
+              if (index >= child) {
+                this.indexes[id] = index - 1;
+              }
+            }
+            this.markDirty();
+            return this;
+          }
+          replaceValues(pattern, opts, callback) {
+            if (!callback) {
+              callback = opts;
+              opts = {};
+            }
+            this.walkDecls((decl) => {
+              if (opts.props && !opts.props.includes(decl.prop))
+                return;
+              if (opts.fast && !decl.value.includes(opts.fast))
+                return;
+              decl.value = decl.value.replace(pattern, callback);
+            });
+            this.markDirty();
+            return this;
+          }
+          some(condition) {
+            return this.nodes.some(condition);
+          }
+          walk(callback) {
+            return this.each((child, i) => {
+              let result;
+              try {
+                result = callback(child, i);
+              } catch (e2) {
+                throw child.addToError(e2);
+              }
+              if (result !== false && child.walk) {
+                result = child.walk(callback);
+              }
+              return result;
+            });
+          }
+          walkAtRules(name, callback) {
+            if (!callback) {
+              callback = name;
+              return this.walk((child, i) => {
+                if (child.type === "atrule") {
+                  return callback(child, i);
+                }
+              });
+            }
+            if (name instanceof RegExp) {
+              return this.walk((child, i) => {
+                if (child.type === "atrule" && name.test(child.name)) {
+                  return callback(child, i);
+                }
+              });
+            }
+            return this.walk((child, i) => {
+              if (child.type === "atrule" && child.name === name) {
+                return callback(child, i);
+              }
+            });
+          }
+          walkComments(callback) {
+            return this.walk((child, i) => {
+              if (child.type === "comment") {
+                return callback(child, i);
+              }
+            });
+          }
+          walkDecls(prop, callback) {
+            if (!callback) {
+              callback = prop;
+              return this.walk((child, i) => {
+                if (child.type === "decl") {
+                  return callback(child, i);
+                }
+              });
+            }
+            if (prop instanceof RegExp) {
+              return this.walk((child, i) => {
+                if (child.type === "decl" && prop.test(child.prop)) {
+                  return callback(child, i);
+                }
+              });
+            }
+            return this.walk((child, i) => {
+              if (child.type === "decl" && child.prop === prop) {
+                return callback(child, i);
+              }
+            });
+          }
+          walkRules(selector, callback) {
+            if (!callback) {
+              callback = selector;
+              return this.walk((child, i) => {
+                if (child.type === "rule") {
+                  return callback(child, i);
+                }
+              });
+            }
+            if (selector instanceof RegExp) {
+              return this.walk((child, i) => {
+                if (child.type === "rule" && selector.test(child.selector)) {
+                  return callback(child, i);
+                }
+              });
+            }
+            return this.walk((child, i) => {
+              if (child.type === "rule" && child.selector === selector) {
+                return callback(child, i);
+              }
+            });
+          }
+          get first() {
+            if (!this.proxyOf.nodes)
+              return void 0;
+            return this.proxyOf.nodes[0];
+          }
+          get last() {
+            if (!this.proxyOf.nodes)
+              return void 0;
+            return this.proxyOf.nodes[this.proxyOf.nodes.length - 1];
+          }
+        }
+        Container.registerParse = (dependant) => {
+          parse2 = dependant;
+        };
+        Container.registerRule = (dependant) => {
+          Rule = dependant;
+        };
+        Container.registerAtRule = (dependant) => {
+          AtRule = dependant;
+        };
+        Container.registerRoot = (dependant) => {
+          Root = dependant;
+        };
+        module4.exports = Container;
+        Container.default = Container;
+        Container.rebuild = (node) => {
+          if (node.type === "atrule") {
+            Object.setPrototypeOf(node, AtRule.prototype);
+          } else if (node.type === "rule") {
+            Object.setPrototypeOf(node, Rule.prototype);
+          } else if (node.type === "decl") {
+            Object.setPrototypeOf(node, Declaration.prototype);
+          } else if (node.type === "comment") {
+            Object.setPrototypeOf(node, Comment2.prototype);
+          } else if (node.type === "root") {
+            Object.setPrototypeOf(node, Root.prototype);
+          }
+          node[my] = true;
+          if (node.nodes) {
+            node.nodes.forEach((child) => {
+              Container.rebuild(child);
+            });
+          }
+        };
+      }, { "./comment": 8, "./declaration": 11, "./node": 19, "./symbols": 29 }], 10: [function(require2, module4, exports3) {
+        "use strict";
+        let pico = require2("picocolors");
+        let terminalHighlight = require2("./terminal-highlight");
+        class CssSyntaxError extends Error {
+          constructor(message, line, column, source, file, plugin) {
+            super(message);
+            this.name = "CssSyntaxError";
+            this.reason = message;
+            if (file) {
+              this.file = file;
+            }
+            if (source) {
+              this.source = source;
+            }
+            if (plugin) {
+              this.plugin = plugin;
+            }
+            if (typeof line !== "undefined" && typeof column !== "undefined") {
+              if (typeof line === "number") {
+                this.line = line;
+                this.column = column;
+              } else {
+                this.line = line.line;
+                this.column = line.column;
+                this.endLine = column.line;
+                this.endColumn = column.column;
+              }
+            }
+            this.setMessage();
+            if (Error.captureStackTrace) {
+              Error.captureStackTrace(this, CssSyntaxError);
+            }
+          }
+          setMessage() {
+            this.message = this.plugin ? this.plugin + ": " : "";
+            this.message += this.file ? this.file : "<css input>";
+            if (typeof this.line !== "undefined") {
+              this.message += ":" + this.line + ":" + this.column;
+            }
+            this.message += ": " + this.reason;
+          }
+          showSourceCode(color) {
+            if (!this.source)
+              return "";
+            let css2 = this.source;
+            if (color == null)
+              color = pico.isColorSupported;
+            if (terminalHighlight) {
+              if (color)
+                css2 = terminalHighlight(css2);
+            }
+            let lines = css2.split(/\r?\n/);
+            let start = Math.max(this.line - 3, 0);
+            let end = Math.min(this.line + 2, lines.length);
+            let maxWidth = String(end).length;
+            let mark2, aside;
+            if (color) {
+              let { bold, gray, red } = pico.createColors(true);
+              mark2 = (text) => bold(red(text));
+              aside = (text) => gray(text);
+            } else {
+              mark2 = aside = (str) => str;
+            }
+            return lines.slice(start, end).map((line, index) => {
+              let number = start + 1 + index;
+              let gutter = " " + (" " + number).slice(-maxWidth) + " | ";
+              if (number === this.line) {
+                let spacing = aside(gutter.replace(/\d/g, " ")) + line.slice(0, this.column - 1).replace(/[^\t]/g, " ");
+                return mark2(">") + aside(gutter) + line + "\n " + spacing + mark2("^");
+              }
+              return " " + aside(gutter) + line;
+            }).join("\n");
+          }
+          toString() {
+            let code = this.showSourceCode();
+            if (code) {
+              code = "\n\n" + code + "\n";
+            }
+            return this.name + ": " + this.message + code;
+          }
+        }
+        module4.exports = CssSyntaxError;
+        CssSyntaxError.default = CssSyntaxError;
+      }, { "./terminal-highlight": 2, "picocolors": 6 }], 11: [function(require2, module4, exports3) {
+        "use strict";
+        let Node = require2("./node");
+        class Declaration extends Node {
+          constructor(defaults) {
+            if (defaults && typeof defaults.value !== "undefined" && typeof defaults.value !== "string") {
+              defaults = { ...defaults, value: String(defaults.value) };
+            }
+            super(defaults);
+            this.type = "decl";
+          }
+          get variable() {
+            return this.prop.startsWith("--") || this.prop[0] === "$";
+          }
+        }
+        module4.exports = Declaration;
+        Declaration.default = Declaration;
+      }, { "./node": 19 }], 12: [function(require2, module4, exports3) {
+        "use strict";
+        let Container = require2("./container");
+        let LazyResult, Processor;
+        class Document extends Container {
+          constructor(defaults) {
+            super({ type: "document", ...defaults });
+            if (!this.nodes) {
+              this.nodes = [];
+            }
+          }
+          toResult(opts = {}) {
+            let lazy = new LazyResult(new Processor(), this, opts);
+            return lazy.stringify();
+          }
+        }
+        Document.registerLazyResult = (dependant) => {
+          LazyResult = dependant;
+        };
+        Document.registerProcessor = (dependant) => {
+          Processor = dependant;
+        };
+        module4.exports = Document;
+        Document.default = Document;
+      }, { "./container": 9 }], 13: [function(require2, module4, exports3) {
+        "use strict";
+        let Declaration = require2("./declaration");
+        let PreviousMap = require2("./previous-map");
+        let Comment2 = require2("./comment");
+        let AtRule = require2("./at-rule");
+        let Input = require2("./input");
+        let Root = require2("./root");
+        let Rule = require2("./rule");
+        function fromJSON(json, inputs) {
+          if (Array.isArray(json))
+            return json.map((n) => fromJSON(n));
+          let { inputs: ownInputs, ...defaults } = json;
+          if (ownInputs) {
+            inputs = [];
+            for (let input of ownInputs) {
+              let inputHydrated = { ...input, __proto__: Input.prototype };
+              if (inputHydrated.map) {
+                inputHydrated.map = {
+                  ...inputHydrated.map,
+                  __proto__: PreviousMap.prototype
+                };
+              }
+              inputs.push(inputHydrated);
+            }
+          }
+          if (defaults.nodes) {
+            defaults.nodes = json.nodes.map((n) => fromJSON(n, inputs));
+          }
+          if (defaults.source) {
+            let { inputId, ...source } = defaults.source;
+            defaults.source = source;
+            if (inputId != null) {
+              defaults.source.input = inputs[inputId];
+            }
+          }
+          if (defaults.type === "root") {
+            return new Root(defaults);
+          } else if (defaults.type === "decl") {
+            return new Declaration(defaults);
+          } else if (defaults.type === "rule") {
+            return new Rule(defaults);
+          } else if (defaults.type === "comment") {
+            return new Comment2(defaults);
+          } else if (defaults.type === "atrule") {
+            return new AtRule(defaults);
+          } else {
+            throw new Error("Unknown node type: " + json.type);
+          }
+        }
+        module4.exports = fromJSON;
+        fromJSON.default = fromJSON;
+      }, { "./at-rule": 7, "./comment": 8, "./declaration": 11, "./input": 14, "./previous-map": 22, "./root": 25, "./rule": 26 }], 14: [function(require2, module4, exports3) {
+        "use strict";
+        let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
+        let { fileURLToPath, pathToFileURL } = require2("url");
+        let { isAbsolute, resolve } = require2("path");
+        let { nanoid } = require2("nanoid/non-secure");
+        let terminalHighlight = require2("./terminal-highlight");
+        let CssSyntaxError = require2("./css-syntax-error");
+        let PreviousMap = require2("./previous-map");
+        let fromOffsetCache = Symbol("fromOffsetCache");
+        let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator);
+        let pathAvailable = Boolean(resolve && isAbsolute);
+        class Input {
+          constructor(css2, opts = {}) {
+            if (css2 === null || typeof css2 === "undefined" || typeof css2 === "object" && !css2.toString) {
+              throw new Error(`PostCSS received ${css2} instead of CSS string`);
+            }
+            this.css = css2.toString();
+            if (this.css[0] === "\uFEFF" || this.css[0] === "\uFFFE") {
+              this.hasBOM = true;
+              this.css = this.css.slice(1);
+            } else {
+              this.hasBOM = false;
+            }
+            if (opts.from) {
+              if (!pathAvailable || /^\w+:\/\//.test(opts.from) || isAbsolute(opts.from)) {
+                this.file = opts.from;
+              } else {
+                this.file = resolve(opts.from);
+              }
+            }
+            if (pathAvailable && sourceMapAvailable) {
+              let map = new PreviousMap(this.css, opts);
+              if (map.text) {
+                this.map = map;
+                let file = map.consumer().file;
+                if (!this.file && file)
+                  this.file = this.mapResolve(file);
+              }
+            }
+            if (!this.file) {
+              this.id = "<input css " + nanoid(6) + ">";
+            }
+            if (this.map)
+              this.map.file = this.from;
+          }
+          error(message, line, column, opts = {}) {
+            let result, endLine, endColumn;
+            if (line && typeof line === "object") {
+              let start = line;
+              let end = column;
+              if (typeof start.offset === "number") {
+                let pos = this.fromOffset(start.offset);
+                line = pos.line;
+                column = pos.col;
+              } else {
+                line = start.line;
+                column = start.column;
+              }
+              if (typeof end.offset === "number") {
+                let pos = this.fromOffset(end.offset);
+                endLine = pos.line;
+                endColumn = pos.col;
+              } else {
+                endLine = end.line;
+                endColumn = end.column;
+              }
+            } else if (!column) {
+              let pos = this.fromOffset(line);
+              line = pos.line;
+              column = pos.col;
+            }
+            let origin = this.origin(line, column, endLine, endColumn);
+            if (origin) {
+              result = new CssSyntaxError(
+                message,
+                origin.endLine === void 0 ? origin.line : { column: origin.column, line: origin.line },
+                origin.endLine === void 0 ? origin.column : { column: origin.endColumn, line: origin.endLine },
+                origin.source,
+                origin.file,
+                opts.plugin
+              );
+            } else {
+              result = new CssSyntaxError(
+                message,
+                endLine === void 0 ? line : { column, line },
+                endLine === void 0 ? column : { column: endColumn, line: endLine },
+                this.css,
+                this.file,
+                opts.plugin
+              );
+            }
+            result.input = { column, endColumn, endLine, line, source: this.css };
+            if (this.file) {
+              if (pathToFileURL) {
+                result.input.url = pathToFileURL(this.file).toString();
+              }
+              result.input.file = this.file;
+            }
+            return result;
+          }
+          fromOffset(offset) {
+            let lastLine, lineToIndex;
+            if (!this[fromOffsetCache]) {
+              let lines = this.css.split("\n");
+              lineToIndex = new Array(lines.length);
+              let prevIndex = 0;
+              for (let i = 0, l = lines.length; i < l; i++) {
+                lineToIndex[i] = prevIndex;
+                prevIndex += lines[i].length + 1;
+              }
+              this[fromOffsetCache] = lineToIndex;
+            } else {
+              lineToIndex = this[fromOffsetCache];
+            }
+            lastLine = lineToIndex[lineToIndex.length - 1];
+            let min = 0;
+            if (offset >= lastLine) {
+              min = lineToIndex.length - 1;
+            } else {
+              let max = lineToIndex.length - 2;
+              let mid;
+              while (min < max) {
+                mid = min + (max - min >> 1);
+                if (offset < lineToIndex[mid]) {
+                  max = mid - 1;
+                } else if (offset >= lineToIndex[mid + 1]) {
+                  min = mid + 1;
+                } else {
+                  min = mid;
+                  break;
+                }
+              }
+            }
+            return {
+              col: offset - lineToIndex[min] + 1,
+              line: min + 1
+            };
+          }
+          mapResolve(file) {
+            if (/^\w+:\/\//.test(file)) {
+              return file;
+            }
+            return resolve(this.map.consumer().sourceRoot || this.map.root || ".", file);
+          }
+          origin(line, column, endLine, endColumn) {
+            if (!this.map)
+              return false;
+            let consumer = this.map.consumer();
+            let from = consumer.originalPositionFor({ column, line });
+            if (!from.source)
+              return false;
+            let to;
+            if (typeof endLine === "number") {
+              to = consumer.originalPositionFor({ column: endColumn, line: endLine });
+            }
+            let fromUrl;
+            if (isAbsolute(from.source)) {
+              fromUrl = pathToFileURL(from.source);
+            } else {
+              fromUrl = new URL(
+                from.source,
+                this.map.consumer().sourceRoot || pathToFileURL(this.map.mapFile)
+              );
+            }
+            let result = {
+              column: from.column,
+              endColumn: to && to.column,
+              endLine: to && to.line,
+              line: from.line,
+              url: fromUrl.toString()
+            };
+            if (fromUrl.protocol === "file:") {
+              if (fileURLToPath) {
+                result.file = fileURLToPath(fromUrl);
+              } else {
+                throw new Error(`file: protocol is not available in this PostCSS build`);
+              }
+            }
+            let source = consumer.sourceContentFor(from.source);
+            if (source)
+              result.source = source;
+            return result;
+          }
+          toJSON() {
+            let json = {};
+            for (let name of ["hasBOM", "css", "file", "id"]) {
+              if (this[name] != null) {
+                json[name] = this[name];
+              }
+            }
+            if (this.map) {
+              json.map = { ...this.map };
+              if (json.map.consumerCache) {
+                json.map.consumerCache = void 0;
+              }
+            }
+            return json;
+          }
+          get from() {
+            return this.file || this.id;
+          }
+        }
+        module4.exports = Input;
+        Input.default = Input;
+        if (terminalHighlight && terminalHighlight.registerInput) {
+          terminalHighlight.registerInput(Input);
+        }
+      }, { "./css-syntax-error": 10, "./previous-map": 22, "./terminal-highlight": 2, "nanoid/non-secure": 5, "path": 2, "source-map-js": 2, "url": 2 }], 15: [function(require2, module4, exports3) {
+        (function(process2) {
+          (function() {
+            "use strict";
+            let { isClean, my } = require2("./symbols");
+            let MapGenerator = require2("./map-generator");
+            let stringify = require2("./stringify");
+            let Container = require2("./container");
+            let Document = require2("./document");
+            let warnOnce = require2("./warn-once");
+            let Result = require2("./result");
+            let parse2 = require2("./parse");
+            let Root = require2("./root");
+            const TYPE_TO_CLASS_NAME = {
+              atrule: "AtRule",
+              comment: "Comment",
+              decl: "Declaration",
+              document: "Document",
+              root: "Root",
+              rule: "Rule"
+            };
+            const PLUGIN_PROPS = {
+              AtRule: true,
+              AtRuleExit: true,
+              Comment: true,
+              CommentExit: true,
+              Declaration: true,
+              DeclarationExit: true,
+              Document: true,
+              DocumentExit: true,
+              Once: true,
+              OnceExit: true,
+              postcssPlugin: true,
+              prepare: true,
+              Root: true,
+              RootExit: true,
+              Rule: true,
+              RuleExit: true
+            };
+            const NOT_VISITORS = {
+              Once: true,
+              postcssPlugin: true,
+              prepare: true
+            };
+            const CHILDREN = 0;
+            function isPromise(obj) {
+              return typeof obj === "object" && typeof obj.then === "function";
+            }
+            function getEvents(node) {
+              let key = false;
+              let type = TYPE_TO_CLASS_NAME[node.type];
+              if (node.type === "decl") {
+                key = node.prop.toLowerCase();
+              } else if (node.type === "atrule") {
+                key = node.name.toLowerCase();
+              }
+              if (key && node.append) {
+                return [
+                  type,
+                  type + "-" + key,
+                  CHILDREN,
+                  type + "Exit",
+                  type + "Exit-" + key
+                ];
+              } else if (key) {
+                return [type, type + "-" + key, type + "Exit", type + "Exit-" + key];
+              } else if (node.append) {
+                return [type, CHILDREN, type + "Exit"];
+              } else {
+                return [type, type + "Exit"];
+              }
+            }
+            function toStack(node) {
+              let events;
+              if (node.type === "document") {
+                events = ["Document", CHILDREN, "DocumentExit"];
+              } else if (node.type === "root") {
+                events = ["Root", CHILDREN, "RootExit"];
+              } else {
+                events = getEvents(node);
+              }
+              return {
+                eventIndex: 0,
+                events,
+                iterator: 0,
+                node,
+                visitorIndex: 0,
+                visitors: []
+              };
+            }
+            function cleanMarks(node) {
+              node[isClean] = false;
+              if (node.nodes)
+                node.nodes.forEach((i) => cleanMarks(i));
+              return node;
+            }
+            let postcss2 = {};
+            class LazyResult {
+              constructor(processor, css2, opts) {
+                this.stringified = false;
+                this.processed = false;
+                let root;
+                if (typeof css2 === "object" && css2 !== null && (css2.type === "root" || css2.type === "document")) {
+                  root = cleanMarks(css2);
+                } else if (css2 instanceof LazyResult || css2 instanceof Result) {
+                  root = cleanMarks(css2.root);
+                  if (css2.map) {
+                    if (typeof opts.map === "undefined")
+                      opts.map = {};
+                    if (!opts.map.inline)
+                      opts.map.inline = false;
+                    opts.map.prev = css2.map;
+                  }
+                } else {
+                  let parser2 = parse2;
+                  if (opts.syntax)
+                    parser2 = opts.syntax.parse;
+                  if (opts.parser)
+                    parser2 = opts.parser;
+                  if (parser2.parse)
+                    parser2 = parser2.parse;
+                  try {
+                    root = parser2(css2, opts);
+                  } catch (error) {
+                    this.processed = true;
+                    this.error = error;
+                  }
+                  if (root && !root[my]) {
+                    Container.rebuild(root);
+                  }
+                }
+                this.result = new Result(processor, root, opts);
+                this.helpers = { ...postcss2, postcss: postcss2, result: this.result };
+                this.plugins = this.processor.plugins.map((plugin) => {
+                  if (typeof plugin === "object" && plugin.prepare) {
+                    return { ...plugin, ...plugin.prepare(this.result) };
+                  } else {
+                    return plugin;
+                  }
+                });
+              }
+              async() {
+                if (this.error)
+                  return Promise.reject(this.error);
+                if (this.processed)
+                  return Promise.resolve(this.result);
+                if (!this.processing) {
+                  this.processing = this.runAsync();
+                }
+                return this.processing;
+              }
+              catch(onRejected) {
+                return this.async().catch(onRejected);
+              }
+              finally(onFinally) {
+                return this.async().then(onFinally, onFinally);
+              }
+              getAsyncError() {
+                throw new Error("Use process(css).then(cb) to work with async plugins");
+              }
+              handleError(error, node) {
+                let plugin = this.result.lastPlugin;
+                try {
+                  if (node)
+                    node.addToError(error);
+                  this.error = error;
+                  if (error.name === "CssSyntaxError" && !error.plugin) {
+                    error.plugin = plugin.postcssPlugin;
+                    error.setMessage();
+                  } else if (plugin.postcssVersion) {
+                    if (process2.env.NODE_ENV !== "production") {
+                      let pluginName = plugin.postcssPlugin;
+                      let pluginVer = plugin.postcssVersion;
+                      let runtimeVer = this.result.processor.version;
+                      let a = pluginVer.split(".");
+                      let b = runtimeVer.split(".");
+                      if (a[0] !== b[0] || parseInt(a[1]) > parseInt(b[1])) {
+                        console.error(
+                          "Unknown error from PostCSS plugin. Your current PostCSS version is " + runtimeVer + ", but " + pluginName + " uses " + pluginVer + ". Perhaps this is the source of the error below."
+                        );
+                      }
+                    }
+                  }
+                } catch (err) {
+                  if (console && console.error)
+                    console.error(err);
+                }
+                return error;
+              }
+              prepareVisitors() {
+                this.listeners = {};
+                let add = (plugin, type, cb) => {
+                  if (!this.listeners[type])
+                    this.listeners[type] = [];
+                  this.listeners[type].push([plugin, cb]);
+                };
+                for (let plugin of this.plugins) {
+                  if (typeof plugin === "object") {
+                    for (let event in plugin) {
+                      if (!PLUGIN_PROPS[event] && /^[A-Z]/.test(event)) {
+                        throw new Error(
+                          `Unknown event ${event} in ${plugin.postcssPlugin}. Try to update PostCSS (${this.processor.version} now).`
+                        );
+                      }
+                      if (!NOT_VISITORS[event]) {
+                        if (typeof plugin[event] === "object") {
+                          for (let filter in plugin[event]) {
+                            if (filter === "*") {
+                              add(plugin, event, plugin[event][filter]);
+                            } else {
+                              add(
+                                plugin,
+                                event + "-" + filter.toLowerCase(),
+                                plugin[event][filter]
+                              );
+                            }
+                          }
+                        } else if (typeof plugin[event] === "function") {
+                          add(plugin, event, plugin[event]);
+                        }
+                      }
+                    }
+                  }
+                }
+                this.hasListener = Object.keys(this.listeners).length > 0;
+              }
+              async runAsync() {
+                this.plugin = 0;
+                for (let i = 0; i < this.plugins.length; i++) {
+                  let plugin = this.plugins[i];
+                  let promise = this.runOnRoot(plugin);
+                  if (isPromise(promise)) {
+                    try {
+                      await promise;
+                    } catch (error) {
+                      throw this.handleError(error);
+                    }
+                  }
+                }
+                this.prepareVisitors();
+                if (this.hasListener) {
+                  let root = this.result.root;
+                  while (!root[isClean]) {
+                    root[isClean] = true;
+                    let stack = [toStack(root)];
+                    while (stack.length > 0) {
+                      let promise = this.visitTick(stack);
+                      if (isPromise(promise)) {
+                        try {
+                          await promise;
+                        } catch (e2) {
+                          let node = stack[stack.length - 1].node;
+                          throw this.handleError(e2, node);
+                        }
+                      }
+                    }
+                  }
+                  if (this.listeners.OnceExit) {
+                    for (let [plugin, visitor] of this.listeners.OnceExit) {
+                      this.result.lastPlugin = plugin;
+                      try {
+                        if (root.type === "document") {
+                          let roots = root.nodes.map(
+                            (subRoot) => visitor(subRoot, this.helpers)
+                          );
+                          await Promise.all(roots);
+                        } else {
+                          await visitor(root, this.helpers);
+                        }
+                      } catch (e2) {
+                        throw this.handleError(e2);
+                      }
+                    }
+                  }
+                }
+                this.processed = true;
+                return this.stringify();
+              }
+              runOnRoot(plugin) {
+                this.result.lastPlugin = plugin;
+                try {
+                  if (typeof plugin === "object" && plugin.Once) {
+                    if (this.result.root.type === "document") {
+                      let roots = this.result.root.nodes.map(
+                        (root) => plugin.Once(root, this.helpers)
+                      );
+                      if (isPromise(roots[0])) {
+                        return Promise.all(roots);
+                      }
+                      return roots;
+                    }
+                    return plugin.Once(this.result.root, this.helpers);
+                  } else if (typeof plugin === "function") {
+                    return plugin(this.result.root, this.result);
+                  }
+                } catch (error) {
+                  throw this.handleError(error);
+                }
+              }
+              stringify() {
+                if (this.error)
+                  throw this.error;
+                if (this.stringified)
+                  return this.result;
+                this.stringified = true;
+                this.sync();
+                let opts = this.result.opts;
+                let str = stringify;
+                if (opts.syntax)
+                  str = opts.syntax.stringify;
+                if (opts.stringifier)
+                  str = opts.stringifier;
+                if (str.stringify)
+                  str = str.stringify;
+                let map = new MapGenerator(str, this.result.root, this.result.opts);
+                let data = map.generate();
+                this.result.css = data[0];
+                this.result.map = data[1];
+                return this.result;
+              }
+              sync() {
+                if (this.error)
+                  throw this.error;
+                if (this.processed)
+                  return this.result;
+                this.processed = true;
+                if (this.processing) {
+                  throw this.getAsyncError();
+                }
+                for (let plugin of this.plugins) {
+                  let promise = this.runOnRoot(plugin);
+                  if (isPromise(promise)) {
+                    throw this.getAsyncError();
+                  }
+                }
+                this.prepareVisitors();
+                if (this.hasListener) {
+                  let root = this.result.root;
+                  while (!root[isClean]) {
+                    root[isClean] = true;
+                    this.walkSync(root);
+                  }
+                  if (this.listeners.OnceExit) {
+                    if (root.type === "document") {
+                      for (let subRoot of root.nodes) {
+                        this.visitSync(this.listeners.OnceExit, subRoot);
+                      }
+                    } else {
+                      this.visitSync(this.listeners.OnceExit, root);
+                    }
+                  }
+                }
+                return this.result;
+              }
+              then(onFulfilled, onRejected) {
+                if (process2.env.NODE_ENV !== "production") {
+                  if (!("from" in this.opts)) {
+                    warnOnce(
+                      "Without `from` option PostCSS could generate wrong source map and will not find Browserslist config. Set it to CSS file path or to `undefined` to prevent this warning."
+                    );
+                  }
+                }
+                return this.async().then(onFulfilled, onRejected);
+              }
+              toString() {
+                return this.css;
+              }
+              visitSync(visitors, node) {
+                for (let [plugin, visitor] of visitors) {
+                  this.result.lastPlugin = plugin;
+                  let promise;
+                  try {
+                    promise = visitor(node, this.helpers);
+                  } catch (e2) {
+                    throw this.handleError(e2, node.proxyOf);
+                  }
+                  if (node.type !== "root" && node.type !== "document" && !node.parent) {
+                    return true;
+                  }
+                  if (isPromise(promise)) {
+                    throw this.getAsyncError();
+                  }
+                }
+              }
+              visitTick(stack) {
+                let visit = stack[stack.length - 1];
+                let { node, visitors } = visit;
+                if (node.type !== "root" && node.type !== "document" && !node.parent) {
+                  stack.pop();
+                  return;
+                }
+                if (visitors.length > 0 && visit.visitorIndex < visitors.length) {
+                  let [plugin, visitor] = visitors[visit.visitorIndex];
+                  visit.visitorIndex += 1;
+                  if (visit.visitorIndex === visitors.length) {
+                    visit.visitors = [];
+                    visit.visitorIndex = 0;
+                  }
+                  this.result.lastPlugin = plugin;
+                  try {
+                    return visitor(node.toProxy(), this.helpers);
+                  } catch (e2) {
+                    throw this.handleError(e2, node);
+                  }
+                }
+                if (visit.iterator !== 0) {
+                  let iterator = visit.iterator;
+                  let child;
+                  while (child = node.nodes[node.indexes[iterator]]) {
+                    node.indexes[iterator] += 1;
+                    if (!child[isClean]) {
+                      child[isClean] = true;
+                      stack.push(toStack(child));
+                      return;
+                    }
+                  }
+                  visit.iterator = 0;
+                  delete node.indexes[iterator];
+                }
+                let events = visit.events;
+                while (visit.eventIndex < events.length) {
+                  let event = events[visit.eventIndex];
+                  visit.eventIndex += 1;
+                  if (event === CHILDREN) {
+                    if (node.nodes && node.nodes.length) {
+                      node[isClean] = true;
+                      visit.iterator = node.getIterator();
+                    }
+                    return;
+                  } else if (this.listeners[event]) {
+                    visit.visitors = this.listeners[event];
+                    return;
+                  }
+                }
+                stack.pop();
+              }
+              walkSync(node) {
+                node[isClean] = true;
+                let events = getEvents(node);
+                for (let event of events) {
+                  if (event === CHILDREN) {
+                    if (node.nodes) {
+                      node.each((child) => {
+                        if (!child[isClean])
+                          this.walkSync(child);
+                      });
+                    }
+                  } else {
+                    let visitors = this.listeners[event];
+                    if (visitors) {
+                      if (this.visitSync(visitors, node.toProxy()))
+                        return;
+                    }
+                  }
+                }
+              }
+              warnings() {
+                return this.sync().warnings();
+              }
+              get content() {
+                return this.stringify().content;
+              }
+              get css() {
+                return this.stringify().css;
+              }
+              get map() {
+                return this.stringify().map;
+              }
+              get messages() {
+                return this.sync().messages;
+              }
+              get opts() {
+                return this.result.opts;
+              }
+              get processor() {
+                return this.result.processor;
+              }
+              get root() {
+                return this.sync().root;
+              }
+              get [Symbol.toStringTag]() {
+                return "LazyResult";
+              }
+            }
+            LazyResult.registerPostcss = (dependant) => {
+              postcss2 = dependant;
+            };
+            module4.exports = LazyResult;
+            LazyResult.default = LazyResult;
+            Root.registerLazyResult(LazyResult);
+            Document.registerLazyResult(LazyResult);
+          }).call(this);
+        }).call(this, require2("_process"));
+      }, { "./container": 9, "./document": 12, "./map-generator": 17, "./parse": 20, "./result": 24, "./root": 25, "./stringify": 28, "./symbols": 29, "./warn-once": 31, "_process": 33 }], 16: [function(require2, module4, exports3) {
+        "use strict";
+        let list2 = {
+          comma(string) {
+            return list2.split(string, [","], true);
+          },
+          space(string) {
+            let spaces = [" ", "\n", "	"];
+            return list2.split(string, spaces);
+          },
+          split(string, separators, last) {
+            let array = [];
+            let current = "";
+            let split = false;
+            let func = 0;
+            let inQuote = false;
+            let prevQuote = "";
+            let escape2 = false;
+            for (let letter of string) {
+              if (escape2) {
+                escape2 = false;
+              } else if (letter === "\\") {
+                escape2 = true;
+              } else if (inQuote) {
+                if (letter === prevQuote) {
+                  inQuote = false;
+                }
+              } else if (letter === '"' || letter === "'") {
+                inQuote = true;
+                prevQuote = letter;
+              } else if (letter === "(") {
+                func += 1;
+              } else if (letter === ")") {
+                if (func > 0)
+                  func -= 1;
+              } else if (func === 0) {
+                if (separators.includes(letter))
+                  split = true;
+              }
+              if (split) {
+                if (current !== "")
+                  array.push(current.trim());
+                current = "";
+                split = false;
+              } else {
+                current += letter;
+              }
+            }
+            if (last || current !== "")
+              array.push(current.trim());
+            return array;
+          }
+        };
+        module4.exports = list2;
+        list2.default = list2;
+      }, {}], 17: [function(require2, module4, exports3) {
+        (function(Buffer2) {
+          (function() {
+            "use strict";
+            let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
+            let { dirname, relative, resolve, sep } = require2("path");
+            let { pathToFileURL } = require2("url");
+            let Input = require2("./input");
+            let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator);
+            let pathAvailable = Boolean(dirname && resolve && relative && sep);
+            class MapGenerator {
+              constructor(stringify, root, opts, cssString) {
+                this.stringify = stringify;
+                this.mapOpts = opts.map || {};
+                this.root = root;
+                this.opts = opts;
+                this.css = cssString;
+                this.originalCSS = cssString;
+                this.usesFileUrls = !this.mapOpts.from && this.mapOpts.absolute;
+                this.memoizedFileURLs = /* @__PURE__ */ new Map();
+                this.memoizedPaths = /* @__PURE__ */ new Map();
+                this.memoizedURLs = /* @__PURE__ */ new Map();
+              }
+              addAnnotation() {
+                let content;
+                if (this.isInline()) {
+                  content = "data:application/json;base64," + this.toBase64(this.map.toString());
+                } else if (typeof this.mapOpts.annotation === "string") {
+                  content = this.mapOpts.annotation;
+                } else if (typeof this.mapOpts.annotation === "function") {
+                  content = this.mapOpts.annotation(this.opts.to, this.root);
+                } else {
+                  content = this.outputFile() + ".map";
+                }
+                let eol = "\n";
+                if (this.css.includes("\r\n"))
+                  eol = "\r\n";
+                this.css += eol + "/*# sourceMappingURL=" + content + " */";
+              }
+              applyPrevMaps() {
+                for (let prev of this.previous()) {
+                  let from = this.toUrl(this.path(prev.file));
+                  let root = prev.root || dirname(prev.file);
+                  let map;
+                  if (this.mapOpts.sourcesContent === false) {
+                    map = new SourceMapConsumer(prev.text);
+                    if (map.sourcesContent) {
+                      map.sourcesContent = null;
+                    }
+                  } else {
+                    map = prev.consumer();
+                  }
+                  this.map.applySourceMap(map, from, this.toUrl(this.path(root)));
+                }
+              }
+              clearAnnotation() {
+                if (this.mapOpts.annotation === false)
+                  return;
+                if (this.root) {
+                  let node;
+                  for (let i = this.root.nodes.length - 1; i >= 0; i--) {
+                    node = this.root.nodes[i];
+                    if (node.type !== "comment")
+                      continue;
+                    if (node.text.indexOf("# sourceMappingURL=") === 0) {
+                      this.root.removeChild(i);
+                    }
+                  }
+                } else if (this.css) {
+                  this.css = this.css.replace(/\n*?\/\*#[\S\s]*?\*\/$/gm, "");
+                }
+              }
+              generate() {
+                this.clearAnnotation();
+                if (pathAvailable && sourceMapAvailable && this.isMap()) {
+                  return this.generateMap();
+                } else {
+                  let result = "";
+                  this.stringify(this.root, (i) => {
+                    result += i;
+                  });
+                  return [result];
+                }
+              }
+              generateMap() {
+                if (this.root) {
+                  this.generateString();
+                } else if (this.previous().length === 1) {
+                  let prev = this.previous()[0].consumer();
+                  prev.file = this.outputFile();
+                  this.map = SourceMapGenerator.fromSourceMap(prev, {
+                    ignoreInvalidMapping: true
+                  });
+                } else {
+                  this.map = new SourceMapGenerator({
+                    file: this.outputFile(),
+                    ignoreInvalidMapping: true
+                  });
+                  this.map.addMapping({
+                    generated: { column: 0, line: 1 },
+                    original: { column: 0, line: 1 },
+                    source: this.opts.from ? this.toUrl(this.path(this.opts.from)) : "<no source>"
+                  });
+                }
+                if (this.isSourcesContent())
+                  this.setSourcesContent();
+                if (this.root && this.previous().length > 0)
+                  this.applyPrevMaps();
+                if (this.isAnnotation())
+                  this.addAnnotation();
+                if (this.isInline()) {
+                  return [this.css];
+                } else {
+                  return [this.css, this.map];
+                }
+              }
+              generateString() {
+                this.css = "";
+                this.map = new SourceMapGenerator({
+                  file: this.outputFile(),
+                  ignoreInvalidMapping: true
+                });
+                let line = 1;
+                let column = 1;
+                let noSource = "<no source>";
+                let mapping = {
+                  generated: { column: 0, line: 0 },
+                  original: { column: 0, line: 0 },
+                  source: ""
+                };
+                let lines, last;
+                this.stringify(this.root, (str, node, type) => {
+                  this.css += str;
+                  if (node && type !== "end") {
+                    mapping.generated.line = line;
+                    mapping.generated.column = column - 1;
+                    if (node.source && node.source.start) {
+                      mapping.source = this.sourcePath(node);
+                      mapping.original.line = node.source.start.line;
+                      mapping.original.column = node.source.start.column - 1;
+                      this.map.addMapping(mapping);
+                    } else {
+                      mapping.source = noSource;
+                      mapping.original.line = 1;
+                      mapping.original.column = 0;
+                      this.map.addMapping(mapping);
+                    }
+                  }
+                  lines = str.match(/\n/g);
+                  if (lines) {
+                    line += lines.length;
+                    last = str.lastIndexOf("\n");
+                    column = str.length - last;
+                  } else {
+                    column += str.length;
+                  }
+                  if (node && type !== "start") {
+                    let p = node.parent || { raws: {} };
+                    let childless = node.type === "decl" || node.type === "atrule" && !node.nodes;
+                    if (!childless || node !== p.last || p.raws.semicolon) {
+                      if (node.source && node.source.end) {
+                        mapping.source = this.sourcePath(node);
+                        mapping.original.line = node.source.end.line;
+                        mapping.original.column = node.source.end.column - 1;
+                        mapping.generated.line = line;
+                        mapping.generated.column = column - 2;
+                        this.map.addMapping(mapping);
+                      } else {
+                        mapping.source = noSource;
+                        mapping.original.line = 1;
+                        mapping.original.column = 0;
+                        mapping.generated.line = line;
+                        mapping.generated.column = column - 1;
+                        this.map.addMapping(mapping);
+                      }
+                    }
+                  }
+                });
+              }
+              isAnnotation() {
+                if (this.isInline()) {
+                  return true;
+                }
+                if (typeof this.mapOpts.annotation !== "undefined") {
+                  return this.mapOpts.annotation;
+                }
+                if (this.previous().length) {
+                  return this.previous().some((i) => i.annotation);
+                }
+                return true;
+              }
+              isInline() {
+                if (typeof this.mapOpts.inline !== "undefined") {
+                  return this.mapOpts.inline;
+                }
+                let annotation = this.mapOpts.annotation;
+                if (typeof annotation !== "undefined" && annotation !== true) {
+                  return false;
+                }
+                if (this.previous().length) {
+                  return this.previous().some((i) => i.inline);
+                }
+                return true;
+              }
+              isMap() {
+                if (typeof this.opts.map !== "undefined") {
+                  return !!this.opts.map;
+                }
+                return this.previous().length > 0;
+              }
+              isSourcesContent() {
+                if (typeof this.mapOpts.sourcesContent !== "undefined") {
+                  return this.mapOpts.sourcesContent;
+                }
+                if (this.previous().length) {
+                  return this.previous().some((i) => i.withContent());
+                }
+                return true;
+              }
+              outputFile() {
+                if (this.opts.to) {
+                  return this.path(this.opts.to);
+                } else if (this.opts.from) {
+                  return this.path(this.opts.from);
+                } else {
+                  return "to.css";
+                }
+              }
+              path(file) {
+                if (this.mapOpts.absolute)
+                  return file;
+                if (file.charCodeAt(0) === 60)
+                  return file;
+                if (/^\w+:\/\//.test(file))
+                  return file;
+                let cached = this.memoizedPaths.get(file);
+                if (cached)
+                  return cached;
+                let from = this.opts.to ? dirname(this.opts.to) : ".";
+                if (typeof this.mapOpts.annotation === "string") {
+                  from = dirname(resolve(from, this.mapOpts.annotation));
+                }
+                let path = relative(from, file);
+                this.memoizedPaths.set(file, path);
+                return path;
+              }
+              previous() {
+                if (!this.previousMaps) {
+                  this.previousMaps = [];
+                  if (this.root) {
+                    this.root.walk((node) => {
+                      if (node.source && node.source.input.map) {
+                        let map = node.source.input.map;
+                        if (!this.previousMaps.includes(map)) {
+                          this.previousMaps.push(map);
+                        }
+                      }
+                    });
+                  } else {
+                    let input = new Input(this.originalCSS, this.opts);
+                    if (input.map)
+                      this.previousMaps.push(input.map);
+                  }
+                }
+                return this.previousMaps;
+              }
+              setSourcesContent() {
+                let already = {};
+                if (this.root) {
+                  this.root.walk((node) => {
+                    if (node.source) {
+                      let from = node.source.input.from;
+                      if (from && !already[from]) {
+                        already[from] = true;
+                        let fromUrl = this.usesFileUrls ? this.toFileUrl(from) : this.toUrl(this.path(from));
+                        this.map.setSourceContent(fromUrl, node.source.input.css);
+                      }
+                    }
+                  });
+                } else if (this.css) {
+                  let from = this.opts.from ? this.toUrl(this.path(this.opts.from)) : "<no source>";
+                  this.map.setSourceContent(from, this.css);
+                }
+              }
+              sourcePath(node) {
+                if (this.mapOpts.from) {
+                  return this.toUrl(this.mapOpts.from);
+                } else if (this.usesFileUrls) {
+                  return this.toFileUrl(node.source.input.from);
+                } else {
+                  return this.toUrl(this.path(node.source.input.from));
+                }
+              }
+              toBase64(str) {
+                if (Buffer2) {
+                  return Buffer2.from(str).toString("base64");
+                } else {
+                  return window.btoa(unescape(encodeURIComponent(str)));
+                }
+              }
+              toFileUrl(path) {
+                let cached = this.memoizedFileURLs.get(path);
+                if (cached)
+                  return cached;
+                if (pathToFileURL) {
+                  let fileURL = pathToFileURL(path).toString();
+                  this.memoizedFileURLs.set(path, fileURL);
+                  return fileURL;
+                } else {
+                  throw new Error(
+                    "`map.absolute` option is not available in this PostCSS build"
+                  );
+                }
+              }
+              toUrl(path) {
+                let cached = this.memoizedURLs.get(path);
+                if (cached)
+                  return cached;
+                if (sep === "\\") {
+                  path = path.replace(/\\/g, "/");
+                }
+                let url = encodeURI(path).replace(/[#?]/g, encodeURIComponent);
+                this.memoizedURLs.set(path, url);
+                return url;
+              }
+            }
+            module4.exports = MapGenerator;
+          }).call(this);
+        }).call(this, require2("buffer").Buffer);
+      }, { "./input": 14, "buffer": 3, "path": 2, "source-map-js": 2, "url": 2 }], 18: [function(require2, module4, exports3) {
+        (function(process2) {
+          (function() {
+            "use strict";
+            let MapGenerator = require2("./map-generator");
+            let stringify = require2("./stringify");
+            let warnOnce = require2("./warn-once");
+            let parse2 = require2("./parse");
+            const Result = require2("./result");
+            class NoWorkResult {
+              constructor(processor, css2, opts) {
+                css2 = css2.toString();
+                this.stringified = false;
+                this._processor = processor;
+                this._css = css2;
+                this._opts = opts;
+                this._map = void 0;
+                let root;
+                let str = stringify;
+                this.result = new Result(this._processor, root, this._opts);
+                this.result.css = css2;
+                let self2 = this;
+                Object.defineProperty(this.result, "root", {
+                  get() {
+                    return self2.root;
+                  }
+                });
+                let map = new MapGenerator(str, root, this._opts, css2);
+                if (map.isMap()) {
+                  let [generatedCSS, generatedMap] = map.generate();
+                  if (generatedCSS) {
+                    this.result.css = generatedCSS;
+                  }
+                  if (generatedMap) {
+                    this.result.map = generatedMap;
+                  }
+                } else {
+                  map.clearAnnotation();
+                  this.result.css = map.css;
+                }
+              }
+              async() {
+                if (this.error)
+                  return Promise.reject(this.error);
+                return Promise.resolve(this.result);
+              }
+              catch(onRejected) {
+                return this.async().catch(onRejected);
+              }
+              finally(onFinally) {
+                return this.async().then(onFinally, onFinally);
+              }
+              sync() {
+                if (this.error)
+                  throw this.error;
+                return this.result;
+              }
+              then(onFulfilled, onRejected) {
+                if (process2.env.NODE_ENV !== "production") {
+                  if (!("from" in this._opts)) {
+                    warnOnce(
+                      "Without `from` option PostCSS could generate wrong source map and will not find Browserslist config. Set it to CSS file path or to `undefined` to prevent this warning."
+                    );
+                  }
+                }
+                return this.async().then(onFulfilled, onRejected);
+              }
+              toString() {
+                return this._css;
+              }
+              warnings() {
+                return [];
+              }
+              get content() {
+                return this.result.css;
+              }
+              get css() {
+                return this.result.css;
+              }
+              get map() {
+                return this.result.map;
+              }
+              get messages() {
+                return [];
+              }
+              get opts() {
+                return this.result.opts;
+              }
+              get processor() {
+                return this.result.processor;
+              }
+              get root() {
+                if (this._root) {
+                  return this._root;
+                }
+                let root;
+                let parser2 = parse2;
+                try {
+                  root = parser2(this._css, this._opts);
+                } catch (error) {
+                  this.error = error;
+                }
+                if (this.error) {
+                  throw this.error;
+                } else {
+                  this._root = root;
+                  return root;
+                }
+              }
+              get [Symbol.toStringTag]() {
+                return "NoWorkResult";
+              }
+            }
+            module4.exports = NoWorkResult;
+            NoWorkResult.default = NoWorkResult;
+          }).call(this);
+        }).call(this, require2("_process"));
+      }, { "./map-generator": 17, "./parse": 20, "./result": 24, "./stringify": 28, "./warn-once": 31, "_process": 33 }], 19: [function(require2, module4, exports3) {
+        "use strict";
+        let { isClean, my } = require2("./symbols");
+        let CssSyntaxError = require2("./css-syntax-error");
+        let Stringifier = require2("./stringifier");
+        let stringify = require2("./stringify");
+        function cloneNode2(obj, parent) {
+          let cloned = new obj.constructor();
+          for (let i in obj) {
+            if (!Object.prototype.hasOwnProperty.call(obj, i)) {
+              continue;
+            }
+            if (i === "proxyCache")
+              continue;
+            let value = obj[i];
+            let type = typeof value;
+            if (i === "parent" && type === "object") {
+              if (parent)
+                cloned[i] = parent;
+            } else if (i === "source") {
+              cloned[i] = value;
+            } else if (Array.isArray(value)) {
+              cloned[i] = value.map((j) => cloneNode2(j, cloned));
+            } else {
+              if (type === "object" && value !== null)
+                value = cloneNode2(value);
+              cloned[i] = value;
+            }
+          }
+          return cloned;
+        }
+        class Node {
+          constructor(defaults = {}) {
+            this.raws = {};
+            this[isClean] = false;
+            this[my] = true;
+            for (let name in defaults) {
+              if (name === "nodes") {
+                this.nodes = [];
+                for (let node of defaults[name]) {
+                  if (typeof node.clone === "function") {
+                    this.append(node.clone());
+                  } else {
+                    this.append(node);
+                  }
+                }
+              } else {
+                this[name] = defaults[name];
+              }
+            }
+          }
+          addToError(error) {
+            error.postcssNode = this;
+            if (error.stack && this.source && /\n\s{4}at /.test(error.stack)) {
+              let s = this.source;
+              error.stack = error.stack.replace(
+                /\n\s{4}at /,
+                `$&${s.input.from}:${s.start.line}:${s.start.column}$&`
+              );
+            }
+            return error;
+          }
+          after(add) {
+            this.parent.insertAfter(this, add);
+            return this;
+          }
+          assign(overrides = {}) {
+            for (let name in overrides) {
+              this[name] = overrides[name];
+            }
+            return this;
+          }
+          before(add) {
+            this.parent.insertBefore(this, add);
+            return this;
+          }
+          cleanRaws(keepBetween) {
+            delete this.raws.before;
+            delete this.raws.after;
+            if (!keepBetween)
+              delete this.raws.between;
+          }
+          clone(overrides = {}) {
+            let cloned = cloneNode2(this);
+            for (let name in overrides) {
+              cloned[name] = overrides[name];
+            }
+            return cloned;
+          }
+          cloneAfter(overrides = {}) {
+            let cloned = this.clone(overrides);
+            this.parent.insertAfter(this, cloned);
+            return cloned;
+          }
+          cloneBefore(overrides = {}) {
+            let cloned = this.clone(overrides);
+            this.parent.insertBefore(this, cloned);
+            return cloned;
+          }
+          error(message, opts = {}) {
+            if (this.source) {
+              let { end, start } = this.rangeBy(opts);
+              return this.source.input.error(
+                message,
+                { column: start.column, line: start.line },
+                { column: end.column, line: end.line },
+                opts
+              );
+            }
+            return new CssSyntaxError(message);
+          }
+          getProxyProcessor() {
+            return {
+              get(node, prop) {
+                if (prop === "proxyOf") {
+                  return node;
+                } else if (prop === "root") {
+                  return () => node.root().toProxy();
+                } else {
+                  return node[prop];
+                }
+              },
+              set(node, prop, value) {
+                if (node[prop] === value)
+                  return true;
+                node[prop] = value;
+                if (prop === "prop" || prop === "value" || prop === "name" || prop === "params" || prop === "important" || /* c8 ignore next */
+                prop === "text") {
+                  node.markDirty();
+                }
+                return true;
+              }
+            };
+          }
+          markDirty() {
+            if (this[isClean]) {
+              this[isClean] = false;
+              let next = this;
+              while (next = next.parent) {
+                next[isClean] = false;
+              }
+            }
+          }
+          next() {
+            if (!this.parent)
+              return void 0;
+            let index = this.parent.index(this);
+            return this.parent.nodes[index + 1];
+          }
+          positionBy(opts, stringRepresentation) {
+            let pos = this.source.start;
+            if (opts.index) {
+              pos = this.positionInside(opts.index, stringRepresentation);
+            } else if (opts.word) {
+              stringRepresentation = this.toString();
+              let index = stringRepresentation.indexOf(opts.word);
+              if (index !== -1)
+                pos = this.positionInside(index, stringRepresentation);
+            }
+            return pos;
+          }
+          positionInside(index, stringRepresentation) {
+            let string = stringRepresentation || this.toString();
+            let column = this.source.start.column;
+            let line = this.source.start.line;
+            for (let i = 0; i < index; i++) {
+              if (string[i] === "\n") {
+                column = 1;
+                line += 1;
+              } else {
+                column += 1;
+              }
+            }
+            return { column, line };
+          }
+          prev() {
+            if (!this.parent)
+              return void 0;
+            let index = this.parent.index(this);
+            return this.parent.nodes[index - 1];
+          }
+          rangeBy(opts) {
+            let start = {
+              column: this.source.start.column,
+              line: this.source.start.line
+            };
+            let end = this.source.end ? {
+              column: this.source.end.column + 1,
+              line: this.source.end.line
+            } : {
+              column: start.column + 1,
+              line: start.line
+            };
+            if (opts.word) {
+              let stringRepresentation = this.toString();
+              let index = stringRepresentation.indexOf(opts.word);
+              if (index !== -1) {
+                start = this.positionInside(index, stringRepresentation);
+                end = this.positionInside(index + opts.word.length, stringRepresentation);
+              }
+            } else {
+              if (opts.start) {
+                start = {
+                  column: opts.start.column,
+                  line: opts.start.line
+                };
+              } else if (opts.index) {
+                start = this.positionInside(opts.index);
+              }
+              if (opts.end) {
+                end = {
+                  column: opts.end.column,
+                  line: opts.end.line
+                };
+              } else if (typeof opts.endIndex === "number") {
+                end = this.positionInside(opts.endIndex);
+              } else if (opts.index) {
+                end = this.positionInside(opts.index + 1);
+              }
+            }
+            if (end.line < start.line || end.line === start.line && end.column <= start.column) {
+              end = { column: start.column + 1, line: start.line };
+            }
+            return { end, start };
+          }
+          raw(prop, defaultType) {
+            let str = new Stringifier();
+            return str.raw(this, prop, defaultType);
+          }
+          remove() {
+            if (this.parent) {
+              this.parent.removeChild(this);
+            }
+            this.parent = void 0;
+            return this;
+          }
+          replaceWith(...nodes) {
+            if (this.parent) {
+              let bookmark = this;
+              let foundSelf = false;
+              for (let node of nodes) {
+                if (node === this) {
+                  foundSelf = true;
+                } else if (foundSelf) {
+                  this.parent.insertAfter(bookmark, node);
+                  bookmark = node;
+                } else {
+                  this.parent.insertBefore(bookmark, node);
+                }
+              }
+              if (!foundSelf) {
+                this.remove();
+              }
+            }
+            return this;
+          }
+          root() {
+            let result = this;
+            while (result.parent && result.parent.type !== "document") {
+              result = result.parent;
+            }
+            return result;
+          }
+          toJSON(_, inputs) {
+            let fixed = {};
+            let emitInputs = inputs == null;
+            inputs = inputs || /* @__PURE__ */ new Map();
+            let inputsNextIndex = 0;
+            for (let name in this) {
+              if (!Object.prototype.hasOwnProperty.call(this, name)) {
+                continue;
+              }
+              if (name === "parent" || name === "proxyCache")
+                continue;
+              let value = this[name];
+              if (Array.isArray(value)) {
+                fixed[name] = value.map((i) => {
+                  if (typeof i === "object" && i.toJSON) {
+                    return i.toJSON(null, inputs);
+                  } else {
+                    return i;
+                  }
+                });
+              } else if (typeof value === "object" && value.toJSON) {
+                fixed[name] = value.toJSON(null, inputs);
+              } else if (name === "source") {
+                let inputId = inputs.get(value.input);
+                if (inputId == null) {
+                  inputId = inputsNextIndex;
+                  inputs.set(value.input, inputsNextIndex);
+                  inputsNextIndex++;
+                }
+                fixed[name] = {
+                  end: value.end,
+                  inputId,
+                  start: value.start
+                };
+              } else {
+                fixed[name] = value;
+              }
+            }
+            if (emitInputs) {
+              fixed.inputs = [...inputs.keys()].map((input) => input.toJSON());
+            }
+            return fixed;
+          }
+          toProxy() {
+            if (!this.proxyCache) {
+              this.proxyCache = new Proxy(this, this.getProxyProcessor());
+            }
+            return this.proxyCache;
+          }
+          toString(stringifier = stringify) {
+            if (stringifier.stringify)
+              stringifier = stringifier.stringify;
+            let result = "";
+            stringifier(this, (i) => {
+              result += i;
+            });
+            return result;
+          }
+          warn(result, text, opts) {
+            let data = { node: this };
+            for (let i in opts)
+              data[i] = opts[i];
+            return result.warn(text, data);
+          }
+          get proxyOf() {
+            return this;
+          }
+        }
+        module4.exports = Node;
+        Node.default = Node;
+      }, { "./css-syntax-error": 10, "./stringifier": 27, "./stringify": 28, "./symbols": 29 }], 20: [function(require2, module4, exports3) {
+        (function(process2) {
+          (function() {
+            "use strict";
+            let Container = require2("./container");
+            let Parser = require2("./parser");
+            let Input = require2("./input");
+            function parse2(css2, opts) {
+              let input = new Input(css2, opts);
+              let parser2 = new Parser(input);
+              try {
+                parser2.parse();
+              } catch (e2) {
+                if (process2.env.NODE_ENV !== "production") {
+                  if (e2.name === "CssSyntaxError" && opts && opts.from) {
+                    if (/\.scss$/i.test(opts.from)) {
+                      e2.message += "\nYou tried to parse SCSS with the standard CSS parser; try again with the postcss-scss parser";
+                    } else if (/\.sass/i.test(opts.from)) {
+                      e2.message += "\nYou tried to parse Sass with the standard CSS parser; try again with the postcss-sass parser";
+                    } else if (/\.less$/i.test(opts.from)) {
+                      e2.message += "\nYou tried to parse Less with the standard CSS parser; try again with the postcss-less parser";
+                    }
+                  }
+                }
+                throw e2;
+              }
+              return parser2.root;
+            }
+            module4.exports = parse2;
+            parse2.default = parse2;
+            Container.registerParse(parse2);
+          }).call(this);
+        }).call(this, require2("_process"));
+      }, { "./container": 9, "./input": 14, "./parser": 21, "_process": 33 }], 21: [function(require2, module4, exports3) {
+        "use strict";
+        let Declaration = require2("./declaration");
+        let tokenizer = require2("./tokenize");
+        let Comment2 = require2("./comment");
+        let AtRule = require2("./at-rule");
+        let Root = require2("./root");
+        let Rule = require2("./rule");
+        const SAFE_COMMENT_NEIGHBOR = {
+          empty: true,
+          space: true
+        };
+        function findLastWithPosition(tokens) {
+          for (let i = tokens.length - 1; i >= 0; i--) {
+            let token = tokens[i];
+            let pos = token[3] || token[2];
+            if (pos)
+              return pos;
+          }
+        }
+        class Parser {
+          constructor(input) {
+            this.input = input;
+            this.root = new Root();
+            this.current = this.root;
+            this.spaces = "";
+            this.semicolon = false;
+            this.createTokenizer();
+            this.root.source = { input, start: { column: 1, line: 1, offset: 0 } };
+          }
+          atrule(token) {
+            let node = new AtRule();
+            node.name = token[1].slice(1);
+            if (node.name === "") {
+              this.unnamedAtrule(node, token);
+            }
+            this.init(node, token[2]);
+            let type;
+            let prev;
+            let shift;
+            let last = false;
+            let open = false;
+            let params = [];
+            let brackets = [];
+            while (!this.tokenizer.endOfFile()) {
+              token = this.tokenizer.nextToken();
+              type = token[0];
+              if (type === "(" || type === "[") {
+                brackets.push(type === "(" ? ")" : "]");
+              } else if (type === "{" && brackets.length > 0) {
+                brackets.push("}");
+              } else if (type === brackets[brackets.length - 1]) {
+                brackets.pop();
+              }
+              if (brackets.length === 0) {
+                if (type === ";") {
+                  node.source.end = this.getPosition(token[2]);
+                  node.source.end.offset++;
+                  this.semicolon = true;
+                  break;
+                } else if (type === "{") {
+                  open = true;
+                  break;
+                } else if (type === "}") {
+                  if (params.length > 0) {
+                    shift = params.length - 1;
+                    prev = params[shift];
+                    while (prev && prev[0] === "space") {
+                      prev = params[--shift];
+                    }
+                    if (prev) {
+                      node.source.end = this.getPosition(prev[3] || prev[2]);
+                      node.source.end.offset++;
+                    }
+                  }
+                  this.end(token);
+                  break;
+                } else {
+                  params.push(token);
+                }
+              } else {
+                params.push(token);
+              }
+              if (this.tokenizer.endOfFile()) {
+                last = true;
+                break;
+              }
+            }
+            node.raws.between = this.spacesAndCommentsFromEnd(params);
+            if (params.length) {
+              node.raws.afterName = this.spacesAndCommentsFromStart(params);
+              this.raw(node, "params", params);
+              if (last) {
+                token = params[params.length - 1];
+                node.source.end = this.getPosition(token[3] || token[2]);
+                node.source.end.offset++;
+                this.spaces = node.raws.between;
+                node.raws.between = "";
+              }
+            } else {
+              node.raws.afterName = "";
+              node.params = "";
+            }
+            if (open) {
+              node.nodes = [];
+              this.current = node;
+            }
+          }
+          checkMissedSemicolon(tokens) {
+            let colon = this.colon(tokens);
+            if (colon === false)
+              return;
+            let founded = 0;
+            let token;
+            for (let j = colon - 1; j >= 0; j--) {
+              token = tokens[j];
+              if (token[0] !== "space") {
+                founded += 1;
+                if (founded === 2)
+                  break;
+              }
+            }
+            throw this.input.error(
+              "Missed semicolon",
+              token[0] === "word" ? token[3] + 1 : token[2]
+            );
+          }
+          colon(tokens) {
+            let brackets = 0;
+            let token, type, prev;
+            for (let [i, element] of tokens.entries()) {
+              token = element;
+              type = token[0];
+              if (type === "(") {
+                brackets += 1;
+              }
+              if (type === ")") {
+                brackets -= 1;
+              }
+              if (brackets === 0 && type === ":") {
+                if (!prev) {
+                  this.doubleColon(token);
+                } else if (prev[0] === "word" && prev[1] === "progid") {
+                  continue;
+                } else {
+                  return i;
+                }
+              }
+              prev = token;
+            }
+            return false;
+          }
+          comment(token) {
+            let node = new Comment2();
+            this.init(node, token[2]);
+            node.source.end = this.getPosition(token[3] || token[2]);
+            node.source.end.offset++;
+            let text = token[1].slice(2, -2);
+            if (/^\s*$/.test(text)) {
+              node.text = "";
+              node.raws.left = text;
+              node.raws.right = "";
+            } else {
+              let match = text.match(/^(\s*)([^]*\S)(\s*)$/);
+              node.text = match[2];
+              node.raws.left = match[1];
+              node.raws.right = match[3];
+            }
+          }
+          createTokenizer() {
+            this.tokenizer = tokenizer(this.input);
+          }
+          decl(tokens, customProperty) {
+            let node = new Declaration();
+            this.init(node, tokens[0][2]);
+            let last = tokens[tokens.length - 1];
+            if (last[0] === ";") {
+              this.semicolon = true;
+              tokens.pop();
+            }
+            node.source.end = this.getPosition(
+              last[3] || last[2] || findLastWithPosition(tokens)
+            );
+            node.source.end.offset++;
+            while (tokens[0][0] !== "word") {
+              if (tokens.length === 1)
+                this.unknownWord(tokens);
+              node.raws.before += tokens.shift()[1];
+            }
+            node.source.start = this.getPosition(tokens[0][2]);
+            node.prop = "";
+            while (tokens.length) {
+              let type = tokens[0][0];
+              if (type === ":" || type === "space" || type === "comment") {
+                break;
+              }
+              node.prop += tokens.shift()[1];
+            }
+            node.raws.between = "";
+            let token;
+            while (tokens.length) {
+              token = tokens.shift();
+              if (token[0] === ":") {
+                node.raws.between += token[1];
+                break;
+              } else {
+                if (token[0] === "word" && /\w/.test(token[1])) {
+                  this.unknownWord([token]);
+                }
+                node.raws.between += token[1];
+              }
+            }
+            if (node.prop[0] === "_" || node.prop[0] === "*") {
+              node.raws.before += node.prop[0];
+              node.prop = node.prop.slice(1);
+            }
+            let firstSpaces = [];
+            let next;
+            while (tokens.length) {
+              next = tokens[0][0];
+              if (next !== "space" && next !== "comment")
+                break;
+              firstSpaces.push(tokens.shift());
+            }
+            this.precheckMissedSemicolon(tokens);
+            for (let i = tokens.length - 1; i >= 0; i--) {
+              token = tokens[i];
+              if (token[1].toLowerCase() === "!important") {
+                node.important = true;
+                let string = this.stringFrom(tokens, i);
+                string = this.spacesFromEnd(tokens) + string;
+                if (string !== " !important")
+                  node.raws.important = string;
+                break;
+              } else if (token[1].toLowerCase() === "important") {
+                let cache2 = tokens.slice(0);
+                let str = "";
+                for (let j = i; j > 0; j--) {
+                  let type = cache2[j][0];
+                  if (str.trim().indexOf("!") === 0 && type !== "space") {
+                    break;
+                  }
+                  str = cache2.pop()[1] + str;
+                }
+                if (str.trim().indexOf("!") === 0) {
+                  node.important = true;
+                  node.raws.important = str;
+                  tokens = cache2;
+                }
+              }
+              if (token[0] !== "space" && token[0] !== "comment") {
+                break;
+              }
+            }
+            let hasWord = tokens.some((i) => i[0] !== "space" && i[0] !== "comment");
+            if (hasWord) {
+              node.raws.between += firstSpaces.map((i) => i[1]).join("");
+              firstSpaces = [];
+            }
+            this.raw(node, "value", firstSpaces.concat(tokens), customProperty);
+            if (node.value.includes(":") && !customProperty) {
+              this.checkMissedSemicolon(tokens);
+            }
+          }
+          doubleColon(token) {
+            throw this.input.error(
+              "Double colon",
+              { offset: token[2] },
+              { offset: token[2] + token[1].length }
+            );
+          }
+          emptyRule(token) {
+            let node = new Rule();
+            this.init(node, token[2]);
+            node.selector = "";
+            node.raws.between = "";
+            this.current = node;
+          }
+          end(token) {
+            if (this.current.nodes && this.current.nodes.length) {
+              this.current.raws.semicolon = this.semicolon;
+            }
+            this.semicolon = false;
+            this.current.raws.after = (this.current.raws.after || "") + this.spaces;
+            this.spaces = "";
+            if (this.current.parent) {
+              this.current.source.end = this.getPosition(token[2]);
+              this.current.source.end.offset++;
+              this.current = this.current.parent;
+            } else {
+              this.unexpectedClose(token);
+            }
+          }
+          endFile() {
+            if (this.current.parent)
+              this.unclosedBlock();
+            if (this.current.nodes && this.current.nodes.length) {
+              this.current.raws.semicolon = this.semicolon;
+            }
+            this.current.raws.after = (this.current.raws.after || "") + this.spaces;
+            this.root.source.end = this.getPosition(this.tokenizer.position());
+          }
+          freeSemicolon(token) {
+            this.spaces += token[1];
+            if (this.current.nodes) {
+              let prev = this.current.nodes[this.current.nodes.length - 1];
+              if (prev && prev.type === "rule" && !prev.raws.ownSemicolon) {
+                prev.raws.ownSemicolon = this.spaces;
+                this.spaces = "";
+              }
+            }
+          }
+          // Helpers
+          getPosition(offset) {
+            let pos = this.input.fromOffset(offset);
+            return {
+              column: pos.col,
+              line: pos.line,
+              offset
+            };
+          }
+          init(node, offset) {
+            this.current.push(node);
+            node.source = {
+              input: this.input,
+              start: this.getPosition(offset)
+            };
+            node.raws.before = this.spaces;
+            this.spaces = "";
+            if (node.type !== "comment")
+              this.semicolon = false;
+          }
+          other(start) {
+            let end = false;
+            let type = null;
+            let colon = false;
+            let bracket = null;
+            let brackets = [];
+            let customProperty = start[1].startsWith("--");
+            let tokens = [];
+            let token = start;
+            while (token) {
+              type = token[0];
+              tokens.push(token);
+              if (type === "(" || type === "[") {
+                if (!bracket)
+                  bracket = token;
+                brackets.push(type === "(" ? ")" : "]");
+              } else if (customProperty && colon && type === "{") {
+                if (!bracket)
+                  bracket = token;
+                brackets.push("}");
+              } else if (brackets.length === 0) {
+                if (type === ";") {
+                  if (colon) {
+                    this.decl(tokens, customProperty);
+                    return;
+                  } else {
+                    break;
+                  }
+                } else if (type === "{") {
+                  this.rule(tokens);
+                  return;
+                } else if (type === "}") {
+                  this.tokenizer.back(tokens.pop());
+                  end = true;
+                  break;
+                } else if (type === ":") {
+                  colon = true;
+                }
+              } else if (type === brackets[brackets.length - 1]) {
+                brackets.pop();
+                if (brackets.length === 0)
+                  bracket = null;
+              }
+              token = this.tokenizer.nextToken();
+            }
+            if (this.tokenizer.endOfFile())
+              end = true;
+            if (brackets.length > 0)
+              this.unclosedBracket(bracket);
+            if (end && colon) {
+              if (!customProperty) {
+                while (tokens.length) {
+                  token = tokens[tokens.length - 1][0];
+                  if (token !== "space" && token !== "comment")
+                    break;
+                  this.tokenizer.back(tokens.pop());
+                }
+              }
+              this.decl(tokens, customProperty);
+            } else {
+              this.unknownWord(tokens);
+            }
+          }
+          parse() {
+            let token;
+            while (!this.tokenizer.endOfFile()) {
+              token = this.tokenizer.nextToken();
+              switch (token[0]) {
+                case "space":
+                  this.spaces += token[1];
+                  break;
+                case ";":
+                  this.freeSemicolon(token);
+                  break;
+                case "}":
+                  this.end(token);
+                  break;
+                case "comment":
+                  this.comment(token);
+                  break;
+                case "at-word":
+                  this.atrule(token);
+                  break;
+                case "{":
+                  this.emptyRule(token);
+                  break;
+                default:
+                  this.other(token);
+                  break;
+              }
+            }
+            this.endFile();
+          }
+          precheckMissedSemicolon() {
+          }
+          raw(node, prop, tokens, customProperty) {
+            let token, type;
+            let length = tokens.length;
+            let value = "";
+            let clean = true;
+            let next, prev;
+            for (let i = 0; i < length; i += 1) {
+              token = tokens[i];
+              type = token[0];
+              if (type === "space" && i === length - 1 && !customProperty) {
+                clean = false;
+              } else if (type === "comment") {
+                prev = tokens[i - 1] ? tokens[i - 1][0] : "empty";
+                next = tokens[i + 1] ? tokens[i + 1][0] : "empty";
+                if (!SAFE_COMMENT_NEIGHBOR[prev] && !SAFE_COMMENT_NEIGHBOR[next]) {
+                  if (value.slice(-1) === ",") {
+                    clean = false;
+                  } else {
+                    value += token[1];
+                  }
+                } else {
+                  clean = false;
+                }
+              } else {
+                value += token[1];
+              }
+            }
+            if (!clean) {
+              let raw = tokens.reduce((all, i) => all + i[1], "");
+              node.raws[prop] = { raw, value };
+            }
+            node[prop] = value;
+          }
+          rule(tokens) {
+            tokens.pop();
+            let node = new Rule();
+            this.init(node, tokens[0][2]);
+            node.raws.between = this.spacesAndCommentsFromEnd(tokens);
+            this.raw(node, "selector", tokens);
+            this.current = node;
+          }
+          spacesAndCommentsFromEnd(tokens) {
+            let lastTokenType;
+            let spaces = "";
+            while (tokens.length) {
+              lastTokenType = tokens[tokens.length - 1][0];
+              if (lastTokenType !== "space" && lastTokenType !== "comment")
+                break;
+              spaces = tokens.pop()[1] + spaces;
+            }
+            return spaces;
+          }
+          // Errors
+          spacesAndCommentsFromStart(tokens) {
+            let next;
+            let spaces = "";
+            while (tokens.length) {
+              next = tokens[0][0];
+              if (next !== "space" && next !== "comment")
+                break;
+              spaces += tokens.shift()[1];
+            }
+            return spaces;
+          }
+          spacesFromEnd(tokens) {
+            let lastTokenType;
+            let spaces = "";
+            while (tokens.length) {
+              lastTokenType = tokens[tokens.length - 1][0];
+              if (lastTokenType !== "space")
+                break;
+              spaces = tokens.pop()[1] + spaces;
+            }
+            return spaces;
+          }
+          stringFrom(tokens, from) {
+            let result = "";
+            for (let i = from; i < tokens.length; i++) {
+              result += tokens[i][1];
+            }
+            tokens.splice(from, tokens.length - from);
+            return result;
+          }
+          unclosedBlock() {
+            let pos = this.current.source.start;
+            throw this.input.error("Unclosed block", pos.line, pos.column);
+          }
+          unclosedBracket(bracket) {
+            throw this.input.error(
+              "Unclosed bracket",
+              { offset: bracket[2] },
+              { offset: bracket[2] + 1 }
+            );
+          }
+          unexpectedClose(token) {
+            throw this.input.error(
+              "Unexpected }",
+              { offset: token[2] },
+              { offset: token[2] + 1 }
+            );
+          }
+          unknownWord(tokens) {
+            throw this.input.error(
+              "Unknown word",
+              { offset: tokens[0][2] },
+              { offset: tokens[0][2] + tokens[0][1].length }
+            );
+          }
+          unnamedAtrule(node, token) {
+            throw this.input.error(
+              "At-rule without name",
+              { offset: token[2] },
+              { offset: token[2] + token[1].length }
+            );
+          }
+        }
+        module4.exports = Parser;
+      }, { "./at-rule": 7, "./comment": 8, "./declaration": 11, "./root": 25, "./rule": 26, "./tokenize": 30 }], 22: [function(require2, module4, exports3) {
+        (function(Buffer2) {
+          (function() {
+            "use strict";
+            let { SourceMapConsumer, SourceMapGenerator } = require2("source-map-js");
+            let { existsSync, readFileSync } = require2("fs");
+            let { dirname, join } = require2("path");
+            function fromBase64(str) {
+              if (Buffer2) {
+                return Buffer2.from(str, "base64").toString();
+              } else {
+                return window.atob(str);
+              }
+            }
+            class PreviousMap {
+              constructor(css2, opts) {
+                if (opts.map === false)
+                  return;
+                this.loadAnnotation(css2);
+                this.inline = this.startWith(this.annotation, "data:");
+                let prev = opts.map ? opts.map.prev : void 0;
+                let text = this.loadMap(opts.from, prev);
+                if (!this.mapFile && opts.from) {
+                  this.mapFile = opts.from;
+                }
+                if (this.mapFile)
+                  this.root = dirname(this.mapFile);
+                if (text)
+                  this.text = text;
+              }
+              consumer() {
+                if (!this.consumerCache) {
+                  this.consumerCache = new SourceMapConsumer(this.text);
+                }
+                return this.consumerCache;
+              }
+              decodeInline(text) {
+                let baseCharsetUri = /^data:application\/json;charset=utf-?8;base64,/;
+                let baseUri = /^data:application\/json;base64,/;
+                let charsetUri = /^data:application\/json;charset=utf-?8,/;
+                let uri = /^data:application\/json,/;
+                if (charsetUri.test(text) || uri.test(text)) {
+                  return decodeURIComponent(text.substr(RegExp.lastMatch.length));
+                }
+                if (baseCharsetUri.test(text) || baseUri.test(text)) {
+                  return fromBase64(text.substr(RegExp.lastMatch.length));
+                }
+                let encoding = text.match(/data:application\/json;([^,]+),/)[1];
+                throw new Error("Unsupported source map encoding " + encoding);
+              }
+              getAnnotationURL(sourceMapString) {
+                return sourceMapString.replace(/^\/\*\s*# sourceMappingURL=/, "").trim();
+              }
+              isMap(map) {
+                if (typeof map !== "object")
+                  return false;
+                return typeof map.mappings === "string" || typeof map._mappings === "string" || Array.isArray(map.sections);
+              }
+              loadAnnotation(css2) {
+                let comments = css2.match(/\/\*\s*# sourceMappingURL=/gm);
+                if (!comments)
+                  return;
+                let start = css2.lastIndexOf(comments.pop());
+                let end = css2.indexOf("*/", start);
+                if (start > -1 && end > -1) {
+                  this.annotation = this.getAnnotationURL(css2.substring(start, end));
+                }
+              }
+              loadFile(path) {
+                this.root = dirname(path);
+                if (existsSync(path)) {
+                  this.mapFile = path;
+                  return readFileSync(path, "utf-8").toString().trim();
+                }
+              }
+              loadMap(file, prev) {
+                if (prev === false)
+                  return false;
+                if (prev) {
+                  if (typeof prev === "string") {
+                    return prev;
+                  } else if (typeof prev === "function") {
+                    let prevPath = prev(file);
+                    if (prevPath) {
+                      let map = this.loadFile(prevPath);
+                      if (!map) {
+                        throw new Error(
+                          "Unable to load previous source map: " + prevPath.toString()
+                        );
+                      }
+                      return map;
+                    }
+                  } else if (prev instanceof SourceMapConsumer) {
+                    return SourceMapGenerator.fromSourceMap(prev).toString();
+                  } else if (prev instanceof SourceMapGenerator) {
+                    return prev.toString();
+                  } else if (this.isMap(prev)) {
+                    return JSON.stringify(prev);
+                  } else {
+                    throw new Error(
+                      "Unsupported previous source map format: " + prev.toString()
+                    );
+                  }
+                } else if (this.inline) {
+                  return this.decodeInline(this.annotation);
+                } else if (this.annotation) {
+                  let map = this.annotation;
+                  if (file)
+                    map = join(dirname(file), map);
+                  return this.loadFile(map);
+                }
+              }
+              startWith(string, start) {
+                if (!string)
+                  return false;
+                return string.substr(0, start.length) === start;
+              }
+              withContent() {
+                return !!(this.consumer().sourcesContent && this.consumer().sourcesContent.length > 0);
+              }
+            }
+            module4.exports = PreviousMap;
+            PreviousMap.default = PreviousMap;
+          }).call(this);
+        }).call(this, require2("buffer").Buffer);
+      }, { "buffer": 3, "fs": 2, "path": 2, "source-map-js": 2 }], 23: [function(require2, module4, exports3) {
+        (function(process2) {
+          (function() {
+            "use strict";
+            let NoWorkResult = require2("./no-work-result");
+            let LazyResult = require2("./lazy-result");
+            let Document = require2("./document");
+            let Root = require2("./root");
+            class Processor {
+              constructor(plugins = []) {
+                this.version = "8.4.40";
+                this.plugins = this.normalize(plugins);
+              }
+              normalize(plugins) {
+                let normalized = [];
+                for (let i of plugins) {
+                  if (i.postcss === true) {
+                    i = i();
+                  } else if (i.postcss) {
+                    i = i.postcss;
+                  }
+                  if (typeof i === "object" && Array.isArray(i.plugins)) {
+                    normalized = normalized.concat(i.plugins);
+                  } else if (typeof i === "object" && i.postcssPlugin) {
+                    normalized.push(i);
+                  } else if (typeof i === "function") {
+                    normalized.push(i);
+                  } else if (typeof i === "object" && (i.parse || i.stringify)) {
+                    if (process2.env.NODE_ENV !== "production") {
+                      throw new Error(
+                        "PostCSS syntaxes cannot be used as plugins. Instead, please use one of the syntax/parser/stringifier options as outlined in your PostCSS runner documentation."
+                      );
+                    }
+                  } else {
+                    throw new Error(i + " is not a PostCSS plugin");
+                  }
+                }
+                return normalized;
+              }
+              process(css2, opts = {}) {
+                if (!this.plugins.length && !opts.parser && !opts.stringifier && !opts.syntax) {
+                  return new NoWorkResult(this, css2, opts);
+                } else {
+                  return new LazyResult(this, css2, opts);
+                }
+              }
+              use(plugin) {
+                this.plugins = this.plugins.concat(this.normalize([plugin]));
+                return this;
+              }
+            }
+            module4.exports = Processor;
+            Processor.default = Processor;
+            Root.registerProcessor(Processor);
+            Document.registerProcessor(Processor);
+          }).call(this);
+        }).call(this, require2("_process"));
+      }, { "./document": 12, "./lazy-result": 15, "./no-work-result": 18, "./root": 25, "_process": 33 }], 24: [function(require2, module4, exports3) {
+        "use strict";
+        let Warning = require2("./warning");
+        class Result {
+          constructor(processor, root, opts) {
+            this.processor = processor;
+            this.messages = [];
+            this.root = root;
+            this.opts = opts;
+            this.css = void 0;
+            this.map = void 0;
+          }
+          toString() {
+            return this.css;
+          }
+          warn(text, opts = {}) {
+            if (!opts.plugin) {
+              if (this.lastPlugin && this.lastPlugin.postcssPlugin) {
+                opts.plugin = this.lastPlugin.postcssPlugin;
+              }
+            }
+            let warning = new Warning(text, opts);
+            this.messages.push(warning);
+            return warning;
+          }
+          warnings() {
+            return this.messages.filter((i) => i.type === "warning");
+          }
+          get content() {
+            return this.css;
+          }
+        }
+        module4.exports = Result;
+        Result.default = Result;
+      }, { "./warning": 32 }], 25: [function(require2, module4, exports3) {
+        "use strict";
+        let Container = require2("./container");
+        let LazyResult, Processor;
+        class Root extends Container {
+          constructor(defaults) {
+            super(defaults);
+            this.type = "root";
+            if (!this.nodes)
+              this.nodes = [];
+          }
+          normalize(child, sample, type) {
+            let nodes = super.normalize(child);
+            if (sample) {
+              if (type === "prepend") {
+                if (this.nodes.length > 1) {
+                  sample.raws.before = this.nodes[1].raws.before;
+                } else {
+                  delete sample.raws.before;
+                }
+              } else if (this.first !== sample) {
+                for (let node of nodes) {
+                  node.raws.before = sample.raws.before;
+                }
+              }
+            }
+            return nodes;
+          }
+          removeChild(child, ignore) {
+            let index = this.index(child);
+            if (!ignore && index === 0 && this.nodes.length > 1) {
+              this.nodes[1].raws.before = this.nodes[index].raws.before;
+            }
+            return super.removeChild(child);
+          }
+          toResult(opts = {}) {
+            let lazy = new LazyResult(new Processor(), this, opts);
+            return lazy.stringify();
+          }
+        }
+        Root.registerLazyResult = (dependant) => {
+          LazyResult = dependant;
+        };
+        Root.registerProcessor = (dependant) => {
+          Processor = dependant;
+        };
+        module4.exports = Root;
+        Root.default = Root;
+        Container.registerRoot(Root);
+      }, { "./container": 9 }], 26: [function(require2, module4, exports3) {
+        "use strict";
+        let Container = require2("./container");
+        let list2 = require2("./list");
+        class Rule extends Container {
+          constructor(defaults) {
+            super(defaults);
+            this.type = "rule";
+            if (!this.nodes)
+              this.nodes = [];
+          }
+          get selectors() {
+            return list2.comma(this.selector);
+          }
+          set selectors(values) {
+            let match = this.selector ? this.selector.match(/,\s*/) : null;
+            let sep = match ? match[0] : "," + this.raw("between", "beforeOpen");
+            this.selector = values.join(sep);
+          }
+        }
+        module4.exports = Rule;
+        Rule.default = Rule;
+        Container.registerRule(Rule);
+      }, { "./container": 9, "./list": 16 }], 27: [function(require2, module4, exports3) {
+        "use strict";
+        const DEFAULT_RAW = {
+          after: "\n",
+          beforeClose: "\n",
+          beforeComment: "\n",
+          beforeDecl: "\n",
+          beforeOpen: " ",
+          beforeRule: "\n",
+          colon: ": ",
+          commentLeft: " ",
+          commentRight: " ",
+          emptyBody: "",
+          indent: "    ",
+          semicolon: false
+        };
+        function capitalize(str) {
+          return str[0].toUpperCase() + str.slice(1);
+        }
+        class Stringifier {
+          constructor(builder) {
+            this.builder = builder;
+          }
+          atrule(node, semicolon) {
+            let name = "@" + node.name;
+            let params = node.params ? this.rawValue(node, "params") : "";
+            if (typeof node.raws.afterName !== "undefined") {
+              name += node.raws.afterName;
+            } else if (params) {
+              name += " ";
+            }
+            if (node.nodes) {
+              this.block(node, name + params);
+            } else {
+              let end = (node.raws.between || "") + (semicolon ? ";" : "");
+              this.builder(name + params + end, node);
+            }
+          }
+          beforeAfter(node, detect) {
+            let value;
+            if (node.type === "decl") {
+              value = this.raw(node, null, "beforeDecl");
+            } else if (node.type === "comment") {
+              value = this.raw(node, null, "beforeComment");
+            } else if (detect === "before") {
+              value = this.raw(node, null, "beforeRule");
+            } else {
+              value = this.raw(node, null, "beforeClose");
+            }
+            let buf = node.parent;
+            let depth = 0;
+            while (buf && buf.type !== "root") {
+              depth += 1;
+              buf = buf.parent;
+            }
+            if (value.includes("\n")) {
+              let indent = this.raw(node, null, "indent");
+              if (indent.length) {
+                for (let step = 0; step < depth; step++)
+                  value += indent;
+              }
+            }
+            return value;
+          }
+          block(node, start) {
+            let between = this.raw(node, "between", "beforeOpen");
+            this.builder(start + between + "{", node, "start");
+            let after;
+            if (node.nodes && node.nodes.length) {
+              this.body(node);
+              after = this.raw(node, "after");
+            } else {
+              after = this.raw(node, "after", "emptyBody");
+            }
+            if (after)
+              this.builder(after);
+            this.builder("}", node, "end");
+          }
+          body(node) {
+            let last = node.nodes.length - 1;
+            while (last > 0) {
+              if (node.nodes[last].type !== "comment")
+                break;
+              last -= 1;
+            }
+            let semicolon = this.raw(node, "semicolon");
+            for (let i = 0; i < node.nodes.length; i++) {
+              let child = node.nodes[i];
+              let before = this.raw(child, "before");
+              if (before)
+                this.builder(before);
+              this.stringify(child, last !== i || semicolon);
+            }
+          }
+          comment(node) {
+            let left = this.raw(node, "left", "commentLeft");
+            let right = this.raw(node, "right", "commentRight");
+            this.builder("/*" + left + node.text + right + "*/", node);
+          }
+          decl(node, semicolon) {
+            let between = this.raw(node, "between", "colon");
+            let string = node.prop + between + this.rawValue(node, "value");
+            if (node.important) {
+              string += node.raws.important || " !important";
+            }
+            if (semicolon)
+              string += ";";
+            this.builder(string, node);
+          }
+          document(node) {
+            this.body(node);
+          }
+          raw(node, own, detect) {
+            let value;
+            if (!detect)
+              detect = own;
+            if (own) {
+              value = node.raws[own];
+              if (typeof value !== "undefined")
+                return value;
+            }
+            let parent = node.parent;
+            if (detect === "before") {
+              if (!parent || parent.type === "root" && parent.first === node) {
+                return "";
+              }
+              if (parent && parent.type === "document") {
+                return "";
+              }
+            }
+            if (!parent)
+              return DEFAULT_RAW[detect];
+            let root = node.root();
+            if (!root.rawCache)
+              root.rawCache = {};
+            if (typeof root.rawCache[detect] !== "undefined") {
+              return root.rawCache[detect];
+            }
+            if (detect === "before" || detect === "after") {
+              return this.beforeAfter(node, detect);
+            } else {
+              let method = "raw" + capitalize(detect);
+              if (this[method]) {
+                value = this[method](root, node);
+              } else {
+                root.walk((i) => {
+                  value = i.raws[own];
+                  if (typeof value !== "undefined")
+                    return false;
+                });
+              }
+            }
+            if (typeof value === "undefined")
+              value = DEFAULT_RAW[detect];
+            root.rawCache[detect] = value;
+            return value;
+          }
+          rawBeforeClose(root) {
+            let value;
+            root.walk((i) => {
+              if (i.nodes && i.nodes.length > 0) {
+                if (typeof i.raws.after !== "undefined") {
+                  value = i.raws.after;
+                  if (value.includes("\n")) {
+                    value = value.replace(/[^\n]+$/, "");
+                  }
+                  return false;
+                }
+              }
+            });
+            if (value)
+              value = value.replace(/\S/g, "");
+            return value;
+          }
+          rawBeforeComment(root, node) {
+            let value;
+            root.walkComments((i) => {
+              if (typeof i.raws.before !== "undefined") {
+                value = i.raws.before;
+                if (value.includes("\n")) {
+                  value = value.replace(/[^\n]+$/, "");
+                }
+                return false;
+              }
+            });
+            if (typeof value === "undefined") {
+              value = this.raw(node, null, "beforeDecl");
+            } else if (value) {
+              value = value.replace(/\S/g, "");
+            }
+            return value;
+          }
+          rawBeforeDecl(root, node) {
+            let value;
+            root.walkDecls((i) => {
+              if (typeof i.raws.before !== "undefined") {
+                value = i.raws.before;
+                if (value.includes("\n")) {
+                  value = value.replace(/[^\n]+$/, "");
+                }
+                return false;
+              }
+            });
+            if (typeof value === "undefined") {
+              value = this.raw(node, null, "beforeRule");
+            } else if (value) {
+              value = value.replace(/\S/g, "");
+            }
+            return value;
+          }
+          rawBeforeOpen(root) {
+            let value;
+            root.walk((i) => {
+              if (i.type !== "decl") {
+                value = i.raws.between;
+                if (typeof value !== "undefined")
+                  return false;
+              }
+            });
+            return value;
+          }
+          rawBeforeRule(root) {
+            let value;
+            root.walk((i) => {
+              if (i.nodes && (i.parent !== root || root.first !== i)) {
+                if (typeof i.raws.before !== "undefined") {
+                  value = i.raws.before;
+                  if (value.includes("\n")) {
+                    value = value.replace(/[^\n]+$/, "");
+                  }
+                  return false;
+                }
+              }
+            });
+            if (value)
+              value = value.replace(/\S/g, "");
+            return value;
+          }
+          rawColon(root) {
+            let value;
+            root.walkDecls((i) => {
+              if (typeof i.raws.between !== "undefined") {
+                value = i.raws.between.replace(/[^\s:]/g, "");
+                return false;
+              }
+            });
+            return value;
+          }
+          rawEmptyBody(root) {
+            let value;
+            root.walk((i) => {
+              if (i.nodes && i.nodes.length === 0) {
+                value = i.raws.after;
+                if (typeof value !== "undefined")
+                  return false;
+              }
+            });
+            return value;
+          }
+          rawIndent(root) {
+            if (root.raws.indent)
+              return root.raws.indent;
+            let value;
+            root.walk((i) => {
+              let p = i.parent;
+              if (p && p !== root && p.parent && p.parent === root) {
+                if (typeof i.raws.before !== "undefined") {
+                  let parts = i.raws.before.split("\n");
+                  value = parts[parts.length - 1];
+                  value = value.replace(/\S/g, "");
+                  return false;
+                }
+              }
+            });
+            return value;
+          }
+          rawSemicolon(root) {
+            let value;
+            root.walk((i) => {
+              if (i.nodes && i.nodes.length && i.last.type === "decl") {
+                value = i.raws.semicolon;
+                if (typeof value !== "undefined")
+                  return false;
+              }
+            });
+            return value;
+          }
+          rawValue(node, prop) {
+            let value = node[prop];
+            let raw = node.raws[prop];
+            if (raw && raw.value === value) {
+              return raw.raw;
+            }
+            return value;
+          }
+          root(node) {
+            this.body(node);
+            if (node.raws.after)
+              this.builder(node.raws.after);
+          }
+          rule(node) {
+            this.block(node, this.rawValue(node, "selector"));
+            if (node.raws.ownSemicolon) {
+              this.builder(node.raws.ownSemicolon, node, "end");
+            }
+          }
+          stringify(node, semicolon) {
+            if (!this[node.type]) {
+              throw new Error(
+                "Unknown AST node type " + node.type + ". Maybe you need to change PostCSS stringifier."
+              );
+            }
+            this[node.type](node, semicolon);
+          }
+        }
+        module4.exports = Stringifier;
+        Stringifier.default = Stringifier;
+      }, {}], 28: [function(require2, module4, exports3) {
+        "use strict";
+        let Stringifier = require2("./stringifier");
+        function stringify(node, builder) {
+          let str = new Stringifier(builder);
+          str.stringify(node);
+        }
+        module4.exports = stringify;
+        stringify.default = stringify;
+      }, { "./stringifier": 27 }], 29: [function(require2, module4, exports3) {
+        "use strict";
+        module4.exports.isClean = Symbol("isClean");
+        module4.exports.my = Symbol("my");
+      }, {}], 30: [function(require2, module4, exports3) {
+        "use strict";
+        const SINGLE_QUOTE = "'".charCodeAt(0);
+        const DOUBLE_QUOTE = '"'.charCodeAt(0);
+        const BACKSLASH = "\\".charCodeAt(0);
+        const SLASH = "/".charCodeAt(0);
+        const NEWLINE = "\n".charCodeAt(0);
+        const SPACE = " ".charCodeAt(0);
+        const FEED = "\f".charCodeAt(0);
+        const TAB = "	".charCodeAt(0);
+        const CR = "\r".charCodeAt(0);
+        const OPEN_SQUARE = "[".charCodeAt(0);
+        const CLOSE_SQUARE = "]".charCodeAt(0);
+        const OPEN_PARENTHESES = "(".charCodeAt(0);
+        const CLOSE_PARENTHESES = ")".charCodeAt(0);
+        const OPEN_CURLY = "{".charCodeAt(0);
+        const CLOSE_CURLY = "}".charCodeAt(0);
+        const SEMICOLON = ";".charCodeAt(0);
+        const ASTERISK = "*".charCodeAt(0);
+        const COLON = ":".charCodeAt(0);
+        const AT = "@".charCodeAt(0);
+        const RE_AT_END = /[\t\n\f\r "#'()/;[\\\]{}]/g;
+        const RE_WORD_END = /[\t\n\f\r !"#'():;@[\\\]{}]|\/(?=\*)/g;
+        const RE_BAD_BRACKET = /.[\r\n"'(/\\]/;
+        const RE_HEX_ESCAPE = /[\da-f]/i;
+        module4.exports = function tokenizer(input, options2 = {}) {
+          let css2 = input.css.valueOf();
+          let ignore = options2.ignoreErrors;
+          let code, next, quote, content, escape2;
+          let escaped, escapePos, prev, n, currentToken;
+          let length = css2.length;
+          let pos = 0;
+          let buffer = [];
+          let returned = [];
+          function position() {
+            return pos;
+          }
+          function unclosed(what) {
+            throw input.error("Unclosed " + what, pos);
+          }
+          function endOfFile() {
+            return returned.length === 0 && pos >= length;
+          }
+          function nextToken(opts) {
+            if (returned.length)
+              return returned.pop();
+            if (pos >= length)
+              return;
+            let ignoreUnclosed = opts ? opts.ignoreUnclosed : false;
+            code = css2.charCodeAt(pos);
+            switch (code) {
+              case NEWLINE:
+              case SPACE:
+              case TAB:
+              case CR:
+              case FEED: {
+                next = pos;
+                do {
+                  next += 1;
+                  code = css2.charCodeAt(next);
+                } while (code === SPACE || code === NEWLINE || code === TAB || code === CR || code === FEED);
+                currentToken = ["space", css2.slice(pos, next)];
+                pos = next - 1;
+                break;
+              }
+              case OPEN_SQUARE:
+              case CLOSE_SQUARE:
+              case OPEN_CURLY:
+              case CLOSE_CURLY:
+              case COLON:
+              case SEMICOLON:
+              case CLOSE_PARENTHESES: {
+                let controlChar = String.fromCharCode(code);
+                currentToken = [controlChar, controlChar, pos];
+                break;
+              }
+              case OPEN_PARENTHESES: {
+                prev = buffer.length ? buffer.pop()[1] : "";
+                n = css2.charCodeAt(pos + 1);
+                if (prev === "url" && n !== SINGLE_QUOTE && n !== DOUBLE_QUOTE && n !== SPACE && n !== NEWLINE && n !== TAB && n !== FEED && n !== CR) {
+                  next = pos;
+                  do {
+                    escaped = false;
+                    next = css2.indexOf(")", next + 1);
+                    if (next === -1) {
+                      if (ignore || ignoreUnclosed) {
+                        next = pos;
+                        break;
+                      } else {
+                        unclosed("bracket");
+                      }
+                    }
+                    escapePos = next;
+                    while (css2.charCodeAt(escapePos - 1) === BACKSLASH) {
+                      escapePos -= 1;
+                      escaped = !escaped;
+                    }
+                  } while (escaped);
+                  currentToken = ["brackets", css2.slice(pos, next + 1), pos, next];
+                  pos = next;
+                } else {
+                  next = css2.indexOf(")", pos + 1);
+                  content = css2.slice(pos, next + 1);
+                  if (next === -1 || RE_BAD_BRACKET.test(content)) {
+                    currentToken = ["(", "(", pos];
+                  } else {
+                    currentToken = ["brackets", content, pos, next];
+                    pos = next;
+                  }
+                }
+                break;
+              }
+              case SINGLE_QUOTE:
+              case DOUBLE_QUOTE: {
+                quote = code === SINGLE_QUOTE ? "'" : '"';
+                next = pos;
+                do {
+                  escaped = false;
+                  next = css2.indexOf(quote, next + 1);
+                  if (next === -1) {
+                    if (ignore || ignoreUnclosed) {
+                      next = pos + 1;
+                      break;
+                    } else {
+                      unclosed("string");
+                    }
+                  }
+                  escapePos = next;
+                  while (css2.charCodeAt(escapePos - 1) === BACKSLASH) {
+                    escapePos -= 1;
+                    escaped = !escaped;
+                  }
+                } while (escaped);
+                currentToken = ["string", css2.slice(pos, next + 1), pos, next];
+                pos = next;
+                break;
+              }
+              case AT: {
+                RE_AT_END.lastIndex = pos + 1;
+                RE_AT_END.test(css2);
+                if (RE_AT_END.lastIndex === 0) {
+                  next = css2.length - 1;
+                } else {
+                  next = RE_AT_END.lastIndex - 2;
+                }
+                currentToken = ["at-word", css2.slice(pos, next + 1), pos, next];
+                pos = next;
+                break;
+              }
+              case BACKSLASH: {
+                next = pos;
+                escape2 = true;
+                while (css2.charCodeAt(next + 1) === BACKSLASH) {
+                  next += 1;
+                  escape2 = !escape2;
+                }
+                code = css2.charCodeAt(next + 1);
+                if (escape2 && code !== SLASH && code !== SPACE && code !== NEWLINE && code !== TAB && code !== CR && code !== FEED) {
+                  next += 1;
+                  if (RE_HEX_ESCAPE.test(css2.charAt(next))) {
+                    while (RE_HEX_ESCAPE.test(css2.charAt(next + 1))) {
+                      next += 1;
+                    }
+                    if (css2.charCodeAt(next + 1) === SPACE) {
+                      next += 1;
+                    }
+                  }
+                }
+                currentToken = ["word", css2.slice(pos, next + 1), pos, next];
+                pos = next;
+                break;
+              }
+              default: {
+                if (code === SLASH && css2.charCodeAt(pos + 1) === ASTERISK) {
+                  next = css2.indexOf("*/", pos + 2) + 1;
+                  if (next === 0) {
+                    if (ignore || ignoreUnclosed) {
+                      next = css2.length;
+                    } else {
+                      unclosed("comment");
+                    }
+                  }
+                  currentToken = ["comment", css2.slice(pos, next + 1), pos, next];
+                  pos = next;
+                } else {
+                  RE_WORD_END.lastIndex = pos + 1;
+                  RE_WORD_END.test(css2);
+                  if (RE_WORD_END.lastIndex === 0) {
+                    next = css2.length - 1;
+                  } else {
+                    next = RE_WORD_END.lastIndex - 2;
+                  }
+                  currentToken = ["word", css2.slice(pos, next + 1), pos, next];
+                  buffer.push(currentToken);
+                  pos = next;
+                }
+                break;
+              }
+            }
+            pos++;
+            return currentToken;
+          }
+          function back(token) {
+            returned.push(token);
+          }
+          return {
+            back,
+            endOfFile,
+            nextToken,
+            position
+          };
+        };
+      }, {}], 31: [function(require2, module4, exports3) {
+        "use strict";
+        let printed = {};
+        module4.exports = function warnOnce(message) {
+          if (printed[message])
+            return;
+          printed[message] = true;
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn(message);
+          }
+        };
+      }, {}], 32: [function(require2, module4, exports3) {
+        "use strict";
+        class Warning {
+          constructor(text, opts = {}) {
+            this.type = "warning";
+            this.text = text;
+            if (opts.node && opts.node.source) {
+              let range = opts.node.rangeBy(opts);
+              this.line = range.start.line;
+              this.column = range.start.column;
+              this.endLine = range.end.line;
+              this.endColumn = range.end.column;
+            }
+            for (let opt in opts)
+              this[opt] = opts[opt];
+          }
+          toString() {
+            if (this.node) {
+              return this.node.error(this.text, {
+                index: this.index,
+                plugin: this.plugin,
+                word: this.word
+              }).message;
+            }
+            if (this.plugin) {
+              return this.plugin + ": " + this.text;
+            }
+            return this.text;
+          }
+        }
+        module4.exports = Warning;
+        Warning.default = Warning;
+      }, {}], 33: [function(require2, module4, exports3) {
+        var process2 = module4.exports = {};
+        var cachedSetTimeout;
+        var cachedClearTimeout;
+        function defaultSetTimout() {
+          throw new Error("setTimeout has not been defined");
+        }
+        function defaultClearTimeout() {
+          throw new Error("clearTimeout has not been defined");
+        }
+        (function() {
+          try {
+            if (typeof setTimeout === "function") {
+              cachedSetTimeout = setTimeout;
+            } else {
+              cachedSetTimeout = defaultSetTimout;
+            }
+          } catch (e2) {
+            cachedSetTimeout = defaultSetTimout;
+          }
+          try {
+            if (typeof clearTimeout === "function") {
+              cachedClearTimeout = clearTimeout;
+            } else {
+              cachedClearTimeout = defaultClearTimeout;
+            }
+          } catch (e2) {
+            cachedClearTimeout = defaultClearTimeout;
+          }
+        })();
+        function runTimeout(fun) {
+          if (cachedSetTimeout === setTimeout) {
+            return setTimeout(fun, 0);
+          }
+          if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+            cachedSetTimeout = setTimeout;
+            return setTimeout(fun, 0);
+          }
+          try {
+            return cachedSetTimeout(fun, 0);
+          } catch (e2) {
+            try {
+              return cachedSetTimeout.call(null, fun, 0);
+            } catch (e3) {
+              return cachedSetTimeout.call(this, fun, 0);
+            }
+          }
+        }
+        function runClearTimeout(marker) {
+          if (cachedClearTimeout === clearTimeout) {
+            return clearTimeout(marker);
+          }
+          if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+            cachedClearTimeout = clearTimeout;
+            return clearTimeout(marker);
+          }
+          try {
+            return cachedClearTimeout(marker);
+          } catch (e2) {
+            try {
+              return cachedClearTimeout.call(null, marker);
+            } catch (e3) {
+              return cachedClearTimeout.call(this, marker);
+            }
+          }
+        }
+        var queue = [];
+        var draining = false;
+        var currentQueue;
+        var queueIndex = -1;
+        function cleanUpNextTick() {
+          if (!draining || !currentQueue) {
+            return;
+          }
+          draining = false;
+          if (currentQueue.length) {
+            queue = currentQueue.concat(queue);
+          } else {
+            queueIndex = -1;
+          }
+          if (queue.length) {
+            drainQueue();
+          }
+        }
+        function drainQueue() {
+          if (draining) {
+            return;
+          }
+          var timeout = runTimeout(cleanUpNextTick);
+          draining = true;
+          var len = queue.length;
+          while (len) {
+            currentQueue = queue;
+            queue = [];
+            while (++queueIndex < len) {
+              if (currentQueue) {
+                currentQueue[queueIndex].run();
+              }
+            }
+            queueIndex = -1;
+            len = queue.length;
+          }
+          currentQueue = null;
+          draining = false;
+          runClearTimeout(timeout);
+        }
+        process2.nextTick = function(fun) {
+          var args = new Array(arguments.length - 1);
+          if (arguments.length > 1) {
+            for (var i = 1; i < arguments.length; i++) {
+              args[i - 1] = arguments[i];
+            }
+          }
+          queue.push(new Item(fun, args));
+          if (queue.length === 1 && !draining) {
+            runTimeout(drainQueue);
+          }
+        };
+        function Item(fun, array) {
+          this.fun = fun;
+          this.array = array;
+        }
+        Item.prototype.run = function() {
+          this.fun.apply(null, this.array);
+        };
+        process2.title = "browser";
+        process2.browser = true;
+        process2.env = {};
+        process2.argv = [];
+        process2.version = "";
+        process2.versions = {};
+        function noop() {
+        }
+        process2.on = noop;
+        process2.addListener = noop;
+        process2.once = noop;
+        process2.off = noop;
+        process2.removeListener = noop;
+        process2.removeAllListeners = noop;
+        process2.emit = noop;
+        process2.prependListener = noop;
+        process2.prependOnceListener = noop;
+        process2.listeners = function(name) {
+          return [];
+        };
+        process2.binding = function(name) {
+          throw new Error("process.binding is not supported");
+        };
+        process2.cwd = function() {
+          return "/";
+        };
+        process2.chdir = function(dir) {
+          throw new Error("process.chdir is not supported");
+        };
+        process2.umask = function() {
+          return 0;
+        };
+      }, {}], "postcss": [function(require2, module4, exports3) {
+        (function(process2) {
+          (function() {
+            "use strict";
+            let CssSyntaxError = require2("./css-syntax-error");
+            let Declaration = require2("./declaration");
+            let LazyResult = require2("./lazy-result");
+            let Container = require2("./container");
+            let Processor = require2("./processor");
+            let stringify = require2("./stringify");
+            let fromJSON = require2("./fromJSON");
+            let Document = require2("./document");
+            let Warning = require2("./warning");
+            let Comment2 = require2("./comment");
+            let AtRule = require2("./at-rule");
+            let Result = require2("./result.js");
+            let Input = require2("./input");
+            let parse2 = require2("./parse");
+            let list2 = require2("./list");
+            let Rule = require2("./rule");
+            let Root = require2("./root");
+            let Node = require2("./node");
+            function postcss2(...plugins) {
+              if (plugins.length === 1 && Array.isArray(plugins[0])) {
+                plugins = plugins[0];
+              }
+              return new Processor(plugins);
+            }
+            postcss2.plugin = function plugin(name, initializer) {
+              let warningPrinted = false;
+              function creator(...args) {
+                if (console && console.warn && !warningPrinted) {
+                  warningPrinted = true;
+                  console.warn(
+                    name + ": postcss.plugin was deprecated. Migration guide:\nhttps://evilmartians.com/chronicles/postcss-8-plugin-migration"
+                  );
+                  if (process2.env.LANG && process2.env.LANG.startsWith("cn")) {
+                    console.warn(
+                      name + ": \u91CC\u9762 postcss.plugin \u88AB\u5F03\u7528. \u8FC1\u79FB\u6307\u5357:\nhttps://www.w3ctech.com/topic/2226"
+                    );
+                  }
+                }
+                let transformer = initializer(...args);
+                transformer.postcssPlugin = name;
+                transformer.postcssVersion = new Processor().version;
+                return transformer;
+              }
+              let cache2;
+              Object.defineProperty(creator, "postcss", {
+                get() {
+                  if (!cache2)
+                    cache2 = creator();
+                  return cache2;
+                }
+              });
+              creator.process = function(css2, processOpts, pluginOpts) {
+                return postcss2([creator(pluginOpts)]).process(css2, processOpts);
+              };
+              return creator;
+            };
+            postcss2.stringify = stringify;
+            postcss2.parse = parse2;
+            postcss2.fromJSON = fromJSON;
+            postcss2.list = list2;
+            postcss2.comment = (defaults) => new Comment2(defaults);
+            postcss2.atRule = (defaults) => new AtRule(defaults);
+            postcss2.decl = (defaults) => new Declaration(defaults);
+            postcss2.rule = (defaults) => new Rule(defaults);
+            postcss2.root = (defaults) => new Root(defaults);
+            postcss2.document = (defaults) => new Document(defaults);
+            postcss2.CssSyntaxError = CssSyntaxError;
+            postcss2.Declaration = Declaration;
+            postcss2.Container = Container;
+            postcss2.Processor = Processor;
+            postcss2.Document = Document;
+            postcss2.Comment = Comment2;
+            postcss2.Warning = Warning;
+            postcss2.AtRule = AtRule;
+            postcss2.Result = Result;
+            postcss2.Input = Input;
+            postcss2.Rule = Rule;
+            postcss2.Root = Root;
+            postcss2.Node = Node;
+            LazyResult.registerPostcss(postcss2);
+            module4.exports = postcss2;
+            postcss2.default = postcss2;
+          }).call(this);
+        }).call(this, require2("_process"));
+      }, { "./at-rule": 7, "./comment": 8, "./container": 9, "./css-syntax-error": 10, "./declaration": 11, "./document": 12, "./fromJSON": 13, "./input": 14, "./lazy-result": 15, "./list": 16, "./node": 19, "./parse": 20, "./processor": 23, "./result.js": 24, "./root": 25, "./rule": 26, "./stringify": 28, "./warning": 32, "_process": 33 }] }, {}, [])("postcss");
+    });
+  }
+});
+
 // src/core/main.ts
 var main_exports = {};
 __export(main_exports, {
   default: () => WxEditPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian13 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/ui/views/preview-view.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 
 // src/ui/controllers/preview-controller.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/core/settings.ts
 var WxSettings = class {
   constructor() {
     this.isLoaded = false;
     this.enableEmptyLine = false;
+    // Claude Code Update: 更新默认值为石墨黑、16px、非衬线
     this.fontFamily = "sans-serif";
     this.fontSize = "16px";
     this.primaryColor = "#2d3748";
     this.customCSS = "";
+    // Claude Code ADD: 新增图片处理相关设置
     this.imageQuality = 0.9;
     this.imageMaxWidth = 1200;
     this.autoCompressImage = true;
+    // Claude Code ADD: 新增排版相关设置
     this.paragraphSpacing = "\u6B63\u5E38";
     this.firstLineIndent = false;
     this.headingAlign = "left";
+    // Claude Code ADD: 新增导出相关设置
     this.defaultExportFormat = "copy";
     this.autoSaveDraft = false;
+    // Claude Code ADD: 新增公众号相关设置
     this.defaultWxAccount = "";
+    // Claude Code ADD: 新增预览相关设置
     this.previewWidth = 800;
     this.previewDelay = 500;
     this.defaultStyle = "obsidian-light";
@@ -56890,6 +56582,7 @@ var WxSettings = class {
     this.previewWidth = 800;
     this.previewDelay = 500;
   }
+  // 静态方法，用于获取实例
   static getInstance() {
     if (!WxSettings.instance) {
       WxSettings.instance = new WxSettings();
@@ -57025,6 +56718,7 @@ var WxSettings = class {
     }
     settings.isLoaded = true;
   }
+  // Claude Code Update: 移除authKey导出，添加新设置属性导出
   static allSettings() {
     const settings = WxSettings.getInstance();
     return {
@@ -57059,6 +56753,7 @@ var WxSettings = class {
       "previewDelay": settings.previewDelay
     };
   }
+  // Claude Code Remove: 移除getExpiredDate()和isAuthKeyVaild()方法，不再需要注册码验证
 };
 
 // src/core/assets.ts
@@ -66817,6 +66512,7 @@ var AssetsManager = class {
         this.themes = [this.defaultTheme, ...themes];
       }
     } catch (error) {
+      console.error(error);
       new import_obsidian.Notice("themes.json\u89E3\u6790\u5931\u8D25\uFF01");
     }
   }
@@ -66830,6 +66526,7 @@ var AssetsManager = class {
         }
       }
     } catch (error) {
+      console.error(error);
       new import_obsidian.Notice("\u8BFB\u53D6CSS\u5931\u8D25\uFF01");
     }
   }
@@ -66856,6 +66553,7 @@ var AssetsManager = class {
         this.customCSS = cssContent;
       }
     } catch (error) {
+      console.error(error);
       new import_obsidian.Notice("\u8BFB\u53D6CSS\u5931\u8D25\uFF01");
     }
   }
@@ -66881,6 +66579,7 @@ var AssetsManager = class {
         }
       }
     } catch (error) {
+      console.error(error);
       new import_obsidian.Notice("highlights.json\u89E3\u6790\u5931\u8D25\uFF01");
     }
   }
@@ -66925,9 +66624,10 @@ var AssetsManager = class {
       }
     }
   }
+  // Claude Code Update: 按用户要求使用无前缀版本号的下载地址
   getThemeURL() {
     const version = this.manifest.version;
-    return `https://github.com/IsHexx/WDWXEdit/releases/download/v${version}/assets.zip`;
+    return `https://github.com/IsHexx/WDWXEdit/releases/download/${version}/assets.zip`;
   }
   async getStyle() {
     const file = this.app.vault.configDir + "/plugins/" + this.manifest.id + "/styles.css";
@@ -66952,10 +66652,12 @@ var AssetsManager = class {
       await this.loadAssets();
       new import_obsidian.Notice("\u4E3B\u9898\u4E0B\u8F7D\u5B8C\u6210\uFF01");
     } catch (error) {
+      console.error(error);
       await this.removeThemes();
       new import_obsidian.Notice("\u4E3B\u9898\u4E0B\u8F7D\u5931\u8D25, \u8BF7\u68C0\u67E5\u7F51\u7EDC\uFF01");
     }
   }
+  // Claude Code Update
   async unzip(data) {
     const zipFileReader = new BlobReader(data);
     const zipReader = new ZipReader(zipFileReader);
@@ -66992,6 +66694,7 @@ var AssetsManager = class {
             const data2 = await entry.getData(blobWriter);
             await this.app.vault.adapter.writeBinary(filePath, data2.buffer);
           } catch (error) {
+            console.error(`Failed to extract ${entry.filename}:`, error);
           }
         }
       }
@@ -67016,34 +66719,29 @@ var AssetsManager = class {
       await this.loadAssets();
       new import_obsidian.Notice("\u6E05\u7A7A\u5B8C\u6210\uFF01");
     } catch (error) {
+      console.error(error);
       new import_obsidian.Notice("\u6E05\u7A7A\u4E3B\u9898\u5931\u8D25\uFF01");
     }
   }
+  // Claude Code Update
   async openAssets() {
-    if (!import_obsidian.Platform.isDesktopApp) {
+    if (!this.app.vault.adapter) {
       new import_obsidian.Notice("\u5F53\u524D\u5E73\u53F0\u4E0D\u652F\u6301\u6B64\u529F\u80FD");
       return;
     }
     const adapter = this.app.vault.adapter;
-    const fsAdapter = adapter;
-    if (typeof fsAdapter.getBasePath !== "function") {
+    if (!(adapter instanceof import_obsidian.FileSystemAdapter)) {
       new import_obsidian.Notice("\u5F53\u524D\u5E73\u53F0\u4E0D\u652F\u6301\u6253\u5F00\u6587\u4EF6\u5939");
       return;
     }
-    const desktopRequire = window == null ? void 0 : window.require;
-    const path = desktopRequire == null ? void 0 : desktopRequire("path");
-    const electron = desktopRequire == null ? void 0 : desktopRequire("electron");
-    const shell = electron == null ? void 0 : electron.shell;
-    if (!path || !shell) {
-      new import_obsidian.Notice("\u672A\u627E\u5230\u684C\u9762\u7CFB\u7EDF\u4F9D\u8D56\uFF0C\u65E0\u6CD5\u6253\u5F00\u8D44\u6E90\u76EE\u5F55\u3002");
-      return;
-    }
-    const vaultRoot = fsAdapter.getBasePath();
+    const path = require("path");
+    const vaultRoot = adapter.getBasePath();
     const assets = this.assetsPath;
     if (!await adapter.exists(assets)) {
       await adapter.mkdir(assets);
     }
     const dst = path.join(vaultRoot, assets);
+    const { shell } = require("electron");
     shell.openPath(dst);
   }
   searchFile(nameOrPath) {
@@ -67085,6 +66783,7 @@ var AssetsManager = class {
     }
     return null;
   }
+  // Claude Code Update
   getResourcePath(path) {
     const file = this.searchFile(path);
     if (!file || !(file instanceof import_obsidian.TFile)) {
@@ -67123,6 +66822,7 @@ var AssetsManager = class {
     }
     return parts.join("/");
   }
+  // Claude Code Update
   async readFileBinary(path) {
     const vault = this.app.vault;
     const file = this.searchFile(path);
@@ -67134,7 +66834,7 @@ var AssetsManager = class {
 };
 
 // src/services/renderer/markdown/local-file.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/services/renderer/markdown/extension.ts
 var Extension = class {
@@ -67174,6 +66874,7 @@ async function LoadWasm() {
   const assets = AssetsManager.getInstance();
   const wasmContent = await assets.loadWasm();
   if (!wasmContent) {
+    console.error("WASM content not found");
     return;
   }
   const go = new Go();
@@ -67216,78 +66917,15 @@ async function UploadImageToWx(data, filename, token, type) {
     type
   });
   const result = await wxUploadImage(data, filename, token, type);
-  return result;
-}
-
-// src/shared/utils.ts
-var import_obsidian2 = require("obsidian");
-var postcss = __toESM(require_postcss());
-var PluginVersion = "0.0.0";
-var PlugPlatform = "obsidian";
-function setVersion(version) {
-  PluginVersion = version;
-  if (import_obsidian2.Platform.isWin) {
-    PlugPlatform = "win";
-  } else if (import_obsidian2.Platform.isMacOS) {
-    PlugPlatform = "mac";
-  } else if (import_obsidian2.Platform.isLinux) {
-    PlugPlatform = "linux";
-  } else if (import_obsidian2.Platform.isIosApp) {
-    PlugPlatform = "ios";
-  } else if (import_obsidian2.Platform.isAndroidApp) {
-    PlugPlatform = "android";
-  }
-}
-var serializer = new XMLSerializer();
-function stripXhtmlNamespace(serialized) {
-  return serialized.replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, "");
-}
-function serializeElementChildren(element) {
-  let result = "";
-  element.childNodes.forEach((node) => {
-    result += stripXhtmlNamespace(serializer.serializeToString(node));
+  console.log("\u{1F4CA} \u56FE\u7247\u4E0A\u4F20\u7ED3\u679C:", {
+    filename,
+    errcode: result.errcode,
+    errmsg: result.errmsg,
+    hasUrl: !!result.url,
+    hasMediaId: !!result.media_id,
+    result
   });
   return result;
-}
-function applyCSS(html2, css2) {
-  return `<div class="wdwx-export-root">
-<style data-wdwxedit-export="true">
-${css2}
-</style>
-${html2}
-</div>`;
-}
-function uevent(name) {
-}
-function debounce(func, wait) {
-  let timeout = null;
-  return function(...args) {
-    const context = this;
-    const later = () => {
-      timeout = null;
-      func.apply(context, args);
-    };
-    if (timeout !== null) {
-      clearTimeout(timeout);
-    }
-    timeout = setTimeout(later, wait);
-  };
-}
-function cleanUrl(href) {
-  try {
-    href = encodeURI(href).replace(/%25/g, "%");
-  } catch (e2) {
-    return null;
-  }
-  return href;
-}
-async function waitForLayoutReady(app) {
-  if (app.workspace.layoutReady) {
-    return;
-  }
-  return new Promise((resolve) => {
-    app.workspace.onLayoutReady(() => resolve());
-  });
 }
 
 // src/services/renderer/markdown/local-file.ts
@@ -67296,6 +66934,7 @@ var LocalImageManager = class {
   constructor() {
     this.images = /* @__PURE__ */ new Map();
   }
+  // 静态方法，用于获取实例
   static getInstance() {
     if (!LocalImageManager.instance) {
       LocalImageManager.instance = new LocalImageManager();
@@ -67308,7 +66947,7 @@ var LocalImageManager = class {
     }
   }
   isWebp(file) {
-    if (file instanceof import_obsidian3.TFile) {
+    if (file instanceof import_obsidian4.TFile) {
       return file.extension.toLowerCase() === "webp";
     }
     const name = file.toLowerCase();
@@ -67334,19 +66973,37 @@ var LocalImageManager = class {
           fileData = WebpToJPG(fileData);
           name = name.toLowerCase().replace(".webp", ".jpg");
         } else {
+          console.error("wasm not ready for webp");
         }
       }
       const res = await UploadImageToWx(new Blob([fileData]), name, token, type);
       if (res.errcode != 0) {
         const msg = `\u4E0A\u4F20\u56FE\u7247\u5931\u8D25: ${res.errcode} ${res.errmsg}`;
-        new import_obsidian3.Notice(msg);
+        new import_obsidian4.Notice(msg);
+        console.error(msg);
       } else {
+        console.log(`\u2705 \u56FE\u7247\u4E0A\u4F20\u6210\u529F: ${name}`, {
+          filePath: value.filePath,
+          oldUrl: value.url,
+          newUrl: res.url,
+          mediaId: res.media_id
+        });
       }
       value.media_id = res.media_id || null;
       value.url = res.url || (res.media_id ? `https://mmbiz.qlogo.cn/mmbiz_png/${res.media_id}/0?wx_fmt=png` : null);
       if (!res.url && res.media_id) {
+        console.log(`\u{1F527} \u540E\u7AEF\u672A\u8FD4\u56DEURL\uFF0C\u4F7F\u7528fallback: ${value.url}`);
       } else if (res.url) {
+        console.log(`\u2705 \u4F7F\u7528\u540E\u7AEF\u8FD4\u56DE\u7684URL: ${value.url}`);
       }
+      console.log(`\u{1F517} \u66F4\u65B0\u56FE\u7247\u4FE1\u606F: ${name}`, {
+        resUrl: value.resUrl,
+        filePath: value.filePath,
+        finalUrl: value.url,
+        mediaId: value.media_id,
+        originalUrl: res.url,
+        generatedUrl: value.url
+      });
       result.push(res);
     }
     return result;
@@ -67407,7 +67064,7 @@ var LocalImageManager = class {
   }
   async uploadImageFromUrl(url, token, type = "") {
     try {
-      const rep = await (0, import_obsidian3.requestUrl)(url);
+      const rep = await (0, import_obsidian4.requestUrl)(url);
       await PrepareImageLib();
       let data = rep.arrayBuffer;
       let blob = new Blob([data]);
@@ -67421,10 +67078,12 @@ var LocalImageManager = class {
           blob = new Blob([data]);
           filename = filename.toLowerCase().replace(".webp", ".jpg");
         } else {
+          console.error("wasm not ready for webp");
         }
       }
       return await UploadImageToWx(blob, filename, token, type);
     } catch (e2) {
+      console.error(e2);
       throw new Error("\u4E0A\u4F20\u56FE\u7247\u5931\u8D25:" + e2.message + "|" + url);
     }
   }
@@ -67473,14 +67132,15 @@ var LocalImageManager = class {
       const img = images[i];
       if (img.src.includes("mmbiz.qpic.cn"))
         continue;
-      if (img.src.startsWith("http://localhost/") && import_obsidian3.Platform.isMobileApp) {
+      if (img.src.startsWith("http://localhost/") && import_obsidian4.Platform.isMobileApp) {
         continue;
       }
       if (img.src.startsWith("http")) {
         const res = await this.uploadImageFromUrl(img.src, token, type);
         if (res.errcode != 0) {
           const msg = `\u4E0A\u4F20\u56FE\u7247\u5931\u8D25: ${img.src} ${res.errcode} ${res.errmsg}`;
-          new import_obsidian3.Notice(msg);
+          new import_obsidian4.Notice(msg);
+          console.error(msg);
         }
         const info = {
           resUrl: img.src,
@@ -67499,7 +67159,8 @@ var LocalImageManager = class {
         const res = await UploadImageToWx(blob, name, token);
         if (res.errcode != 0) {
           const msg = `\u4E0A\u4F20\u56FE\u7247\u5931\u8D25: ${res.errcode} ${res.errmsg}`;
-          new import_obsidian3.Notice(msg);
+          new import_obsidian4.Notice(msg);
+          console.error(msg);
           continue;
         }
         const info = {
@@ -67516,21 +67177,26 @@ var LocalImageManager = class {
   }
   replaceImages(root) {
     const images = root.getElementsByTagName("img");
+    console.log(`\u{1F504} \u5F00\u59CB\u66FF\u6362\u56FE\u7247\u94FE\u63A5\uFF0C\u5171\u627E\u5230 ${images.length} \u5F20\u56FE\u7247`);
     for (let i = 0; i < images.length; i++) {
       const img = images[i];
       let value = this.images.get(img.src);
       if (value == null) {
         if (!img.id) {
+          console.error("miss image id, " + img.src);
           continue;
         }
         value = this.images.get("#" + img.id);
       }
       if (value == null) {
+        console.warn(`\u{1F4F7} \u672A\u627E\u5230\u56FE\u7247\u4FE1\u606F: ${img.src}`);
         continue;
       }
       if (value.url == null) {
+        console.warn(`\u{1F4F7} \u56FE\u7247\u672A\u4E0A\u4F20\uFF0C\u8DF3\u8FC7\u66FF\u6362: ${img.src}`, value);
         continue;
       }
+      console.log(`\u{1F517} \u66FF\u6362\u56FE\u7247\u94FE\u63A5: ${img.src} -> ${value.url}`);
       img.setAttribute("src", value.url);
     }
   }
@@ -67563,7 +67229,7 @@ var LocalImageManager = class {
   }
   async downloadRemoteImage(url) {
     try {
-      const rep = await (0, import_obsidian3.requestUrl)(url);
+      const rep = await (0, import_obsidian4.requestUrl)(url);
       let data = rep.arrayBuffer;
       let blob = new Blob([data]);
       let ext = this.getImageExtFromBlob(blob);
@@ -67575,6 +67241,7 @@ var LocalImageManager = class {
       const mimeType = this.getMimeType(ext);
       return `data:${mimeType};base64,${base64}`;
     } catch (e2) {
+      console.error(e2);
       return "";
     }
   }
@@ -67592,6 +67259,7 @@ var LocalImageManager = class {
     }
     return result;
   }
+  // Claude Code Update: 保留innerHTML读取操作（用于最终HTML序列化输出）
   async embleImages(root, vault) {
     const localImages = await this.localImagesToBase64(vault);
     const remoteImages = await this.remoteImagesToBase64(root);
@@ -67611,7 +67279,7 @@ var LocalImageManager = class {
         }
       }
     }
-    return serializeElementChildren(result);
+    return result.innerHTML;
   }
   async cleanup() {
     this.images.clear();
@@ -67629,6 +67297,7 @@ var _LocalFile = class extends Extension {
   getImagePath(path) {
     const res = this.assetsManager.getResourcePath(path);
     if (res == null) {
+      console.error("\u627E\u4E0D\u5230\u6587\u4EF6\uFF1A" + path);
       return "";
     }
     const info = {
@@ -67792,100 +67461,54 @@ var _LocalFile = class extends Extension {
   static async readBlob(src) {
     return await fetch(src).then((response) => response.blob());
   }
-  normalizeSvgDimension(value) {
-    if (!value) {
-      return void 0;
-    }
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return void 0;
-    }
-    if (/^\d+(\.\d+)?%$/.test(trimmed)) {
-      return trimmed;
-    }
-    if (/^\d+(\.\d+)?(px|em|rem|vh|vw)$/.test(trimmed)) {
-      return trimmed;
-    }
-    if (/^\d+(\.\d+)?$/.test(trimmed)) {
-      return `${trimmed}px`;
-    }
-    return trimmed;
-  }
-  applySvgDimensions(svgContent, width, height) {
-    if (!width && !height) {
-      return svgContent;
-    }
-    try {
-      const fragment = (0, import_obsidian3.sanitizeHTMLToDom)(svgContent);
-      const container = document.createElement("div");
-      container.appendChild(fragment);
-      const svgEl = container.querySelector("svg");
-      if (!svgEl) {
-        return svgContent;
-      }
-      if (width) {
-        svgEl.setAttribute("width", width);
-      }
-      if (height) {
-        svgEl.setAttribute("height", height);
-      }
-      return serializeElementChildren(container);
-    } catch (error) {
-      return svgContent;
-    }
-  }
   parseLinkStyle(link2) {
     let filename = "";
-    let width;
-    let height;
-    let position = "left";
-    const positions = ["left", "center", "right"];
+    let style = 'style="width:100%;height:100%"';
+    let postion = "left";
+    const postions = ["left", "center", "right"];
     if (link2.includes("|")) {
       const items = link2.split("|");
       filename = items[0];
       let size = "";
-      if (items.length === 2) {
-        if (positions.includes(items[1])) {
-          position = items[1];
+      if (items.length == 2) {
+        if (postions.includes(items[1])) {
+          postion = items[1];
         } else {
           size = items[1];
         }
-      } else if (items.length === 3) {
+      } else if (items.length == 3) {
         size = items[1];
-        if (positions.includes(items[1])) {
+        if (postions.includes(items[1])) {
           size = items[2];
-          position = items[1];
-        } else if (positions.includes(items[2])) {
-          position = items[2];
+          postion = items[1];
+        } else {
+          size = items[1];
+          postion = items[2];
         }
       }
-      if (size !== "") {
+      if (size != "") {
         const sizes = size.split("x");
-        width = this.normalizeSvgDimension(sizes[0]);
-        if (sizes.length > 1) {
-          height = this.normalizeSvgDimension(sizes[1]);
+        if (sizes.length == 2) {
+          style = `style="width:${sizes[0]}px;height:${sizes[1]}px;"`;
+        } else {
+          style = `style="width:${sizes[0]}px;"`;
         }
       }
     } else {
       filename = link2;
     }
-    if (!width) {
-      width = "100%";
-    }
-    if (!height) {
-      height = "100%";
-    }
-    return { filename, width, height, position };
+    return { filename, style, postion };
   }
   parseSVGLink(link2) {
-    const positionClasses = /* @__PURE__ */ new Map([
+    let classname = "note-embed-svg-left";
+    const postions = /* @__PURE__ */ new Map([
       ["left", "note-embed-svg-left"],
       ["center", "note-embed-svg-center"],
       ["right", "note-embed-svg-right"]
     ]);
-    const { filename, width, height, position } = this.parseLinkStyle(link2);
-    const classname = positionClasses.get(position) || "note-embed-svg-left";
-    return { filename, width, height, position, classname };
+    let { filename, style, postion } = this.parseLinkStyle(link2);
+    classname = postions.get(postion) || classname;
+    return { filename, style, classname };
   }
   async renderSVGFile(filename, id) {
     const file = this.assetsManager.searchFile(filename);
@@ -67916,15 +67539,13 @@ var _LocalFile = class extends Extension {
         if (token.href.endsWith(".svg") || token.href.includes(".svg|")) {
           const info = this.parseSVGLink(token.href);
           const id2 = this.generateId();
-          let svgContent = "\u6E32\u67D3\u4E2D";
+          let svg = "\u6E32\u67D3\u4E2D";
           if (_LocalFile.fileCache.has(info.filename)) {
-            const cached = _LocalFile.fileCache.get(info.filename) || "\u6E32\u67D3\u5931\u8D25";
-            svgContent = this.applySvgDimensions(cached, info.width, info.height);
+            svg = _LocalFile.fileCache.get(info.filename) || "\u6E32\u67D3\u5931\u8D25";
           } else {
-            const rawSvg = await this.renderSVGFile(info.filename, id2) || "\u6E32\u67D3\u5931\u8D25";
-            svgContent = this.applySvgDimensions(rawSvg, info.width, info.height);
+            svg = await this.renderSVGFile(info.filename, id2) || "\u6E32\u67D3\u5931\u8D25";
           }
-          token.html = `<span class="${info.classname}"><span class="note-embed-svg" id="${id2}">${svgContent}</span></span>`;
+          token.html = `<span class="${info.classname}"><span class="note-embed-svg" id="${id2}" ${info.style}>${svg}</span></span>`;
           return;
         }
         const id = this.generateId();
@@ -67964,7 +67585,7 @@ var LocalFile = _LocalFile;
 LocalFile.fileCache = /* @__PURE__ */ new Map();
 
 // src/services/renderer/markdown/code.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // node_modules/highlight.js/es/index.js
 var import_lib = __toESM(require_lib(), 1);
@@ -67979,9 +67600,11 @@ function cleanMathCache() {
 }
 var MathRendererQueue = class {
   constructor() {
+    // 禁用外部数学渲染服务，使用本地处理
     this.host = "disabled";
     this.mathIndex = 0;
   }
+  // 静态方法，用于获取实例
   static getInstance() {
     if (!MathRendererQueue.instance) {
       MathRendererQueue.instance = new MathRendererQueue();
@@ -68005,11 +67628,14 @@ var MathRendererQueue = class {
           svg = `<div class="math-block">$$${expression}$$</div>`;
         }
         success = true;
+        console.log("Math formula processed locally:", expression);
       } catch (error) {
+        console.error("Math processing error:", error);
         svg = `<span class="math-error">\u6570\u5B66\u516C\u5F0F: ${expression}</span>`;
       }
       return { svg, success };
     } catch (err) {
+      console.log(err.msg);
       const svg = "\u6E32\u67D3\u5931\u8D25: " + err.message;
       return { svg, success: false };
     }
@@ -68119,6 +67745,7 @@ var CardDataManager = class {
   constructor() {
     this.cardData = /* @__PURE__ */ new Map();
   }
+  // 静态方法，用于获取实例
   static getInstance() {
     if (!CardDataManager.instance) {
       CardDataManager.instance = new CardDataManager();
@@ -68136,6 +67763,7 @@ var CardDataManager = class {
       const exp = `<section[^>]*\\sdata-id="${key}"[^>]*>(.*?)<\\/section>`;
       const regex = new RegExp(exp, "gs");
       if (!regex.test(html2)) {
+        console.warn("\u6CA1\u6709\u516C\u4F17\u53F7\u4FE1\u606F\uFF1A", key);
         continue;
       }
       html2 = html2.replace(regex, value);
@@ -68172,7 +67800,8 @@ var CodeRenderer = class extends Extension {
       const res = await UploadImageToWx(blob, name, token);
       if (res.errcode != 0) {
         const msg = `\u4E0A\u4F20\u56FE\u7247\u5931\u8D25: ${res.errcode} ${res.errmsg}`;
-        new import_obsidian4.Notice(msg);
+        new import_obsidian5.Notice(msg);
+        console.error(msg);
         continue;
       }
       const url = res.url;
@@ -68219,6 +67848,7 @@ var CodeRenderer = class extends Extension {
         code = es_default.highlightAuto(code).value;
       }
     } catch (err) {
+      console.error(err);
     }
     code = this.replaceSpaces(code);
     const lines = code.split("\n");
@@ -68238,9 +67868,9 @@ var CodeRenderer = class extends Extension {
     }
     let html2 = "";
     if (lang) {
-      html2 = codeSection + '<pre class="code-snippet__pre hljs language-' + lang + '">' + body + "</pre></section>";
+      html2 = codeSection + '<pre style="max-width:1000% !important;" class="hljs language-' + lang + '">' + body + "</pre></section>";
     } else {
-      html2 = codeSection + '<pre class="code-snippet__pre">' + body + "</pre></section>";
+      html2 = codeSection + "<pre>" + body + "</pre></section>";
     }
     return html2;
   }
@@ -68287,6 +67917,7 @@ var CodeRenderer = class extends Extension {
       this.mermaidIndex += 1;
       return `<section id="${containerId}" class="${MermaidSectionClassName}"></section>`;
     } catch (error) {
+      console.error(error.message);
       return "<span>mermaid\u6E32\u67D3\u5931\u8D25</span>";
     }
   }
@@ -68324,7 +67955,128 @@ var CodeRenderer = class extends Extension {
 };
 
 // src/services/renderer/article-render.ts
+var import_obsidian7 = require("obsidian");
+
+// src/shared/utils.ts
 var import_obsidian6 = require("obsidian");
+var postcss = __toESM(require_postcss());
+var PluginVersion = "0.0.0";
+var PlugPlatform = "obsidian";
+function setVersion(version) {
+  PluginVersion = version;
+  if (import_obsidian6.Platform.isWin) {
+    PlugPlatform = "win";
+  } else if (import_obsidian6.Platform.isMacOS) {
+    PlugPlatform = "mac";
+  } else if (import_obsidian6.Platform.isLinux) {
+    PlugPlatform = "linux";
+  } else if (import_obsidian6.Platform.isIosApp) {
+    PlugPlatform = "ios";
+  } else if (import_obsidian6.Platform.isAndroidApp) {
+    PlugPlatform = "android";
+  }
+}
+function processPseudoSelector(selector) {
+  if (selector.includes("::before") || selector.includes("::after")) {
+    selector = selector.replace(/::before/g, "").replace(/::after/g, "");
+  }
+  return selector;
+}
+function getPseudoType(selector) {
+  if (selector.includes("::before")) {
+    return "before";
+  } else if (selector.includes("::after")) {
+    return "after";
+  }
+  return void 0;
+}
+function applyStyle(root, cssRoot) {
+  if (root.tagName.toLowerCase() === "a" && root.classList.contains("wx_topic_link")) {
+    return;
+  }
+  const cssText = root.style.cssText;
+  cssRoot.walkRules((rule) => {
+    const selector = processPseudoSelector(rule.selector);
+    try {
+      if (root.matches(selector)) {
+        let item = root;
+        const pseudoType = getPseudoType(rule.selector);
+        if (pseudoType) {
+          let content = "";
+          rule.walkDecls("content", (decl) => {
+            content = decl.value || "";
+          });
+          item = createSpan();
+          item.textContent = content.replace(/(^")|("$)/g, "");
+          if (pseudoType === "before") {
+            root.prepend(item);
+          } else if (pseudoType === "after") {
+            root.appendChild(item);
+          }
+        }
+        rule.walkDecls((decl) => {
+          const setted = cssText.includes(decl.prop);
+          if (!setted || decl.important) {
+            item.style.setProperty(decl.prop, decl.value);
+          }
+        });
+      }
+    } catch (err) {
+      if (err.message && err.message.includes("is not a valid selector")) {
+        return;
+      } else {
+        throw err;
+      }
+    }
+  });
+  if (root.tagName === "svg") {
+    return;
+  }
+  let element = root.firstElementChild;
+  while (element) {
+    applyStyle(element, cssRoot);
+    element = element.nextElementSibling;
+  }
+}
+function applyCSS(html2, css2) {
+  const doc = (0, import_obsidian6.sanitizeHTMLToDom)(html2);
+  const root = doc.firstChild;
+  const cssRoot = postcss.parse(css2);
+  applyStyle(root, cssRoot);
+  return root.outerHTML;
+}
+function uevent(name) {
+}
+function debounce(func, wait) {
+  let timeout = null;
+  return function(...args) {
+    const context = this;
+    const later = () => {
+      timeout = null;
+      func.apply(context, args);
+    };
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
+}
+function cleanUrl(href) {
+  try {
+    href = encodeURI(href).replace(/%25/g, "%");
+  } catch (e2) {
+    return null;
+  }
+  return href;
+}
+async function waitForLayoutReady(app) {
+  if (app.workspace.layoutReady) {
+    return;
+  }
+  return new Promise((resolve) => {
+    app.workspace.onLayoutReady(() => resolve());
+  });
+}
 
 // src/shared/inline-css.ts
 var inline_css_default = `
@@ -68432,14 +68184,14 @@ section .note-callout-custom {
 }
 
 /* --------------------------------------- */
-
+/* \u9AD8\u4EAE */
 /* --------------------------------------- */
 .note-highlight {
   background-color: rgba(255,208,0, 0.4);
 }
 
 /* --------------------------------------- */
-
+/* \u5217\u8868\u9700\u8981\u5F3A\u5236\u8BBE\u7F6E\u6837\u5F0F*/
 /* --------------------------------------- */
 ul {
   list-style-type: disc;
@@ -68452,26 +68204,8 @@ ul {
 }
 
 .note-svg-icon svg {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.wx_topic_link,
-.wx-topic-link {
-  color: var(--wdwx-topic-link-color, #576B95) !important;
-  text-decoration: none;
-}
-
-.wx-preview-figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.code-snippet__pre {
-  max-width: 1000% !important;
+  width: 100%;
+  height: 100%;
 }
 
 .note-embed-excalidraw-left {
@@ -68531,21 +68265,16 @@ ul {
   width: 100%;
 }
 
-.note-embed-svg {
-  display: inline-block;
-}
-
 .note-embed-svg svg {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 `;
 
 // src/services/renderer/article-render.ts
 init_api();
+init_weixin_api();
 
 // node_modules/marked/lib/marked.esm.js
 function _getDefaults() {
@@ -70772,6 +70501,7 @@ var Blockquote = class extends Extension {
   }
   async prepare() {
     if (!this.marked) {
+      console.error("marked is not ready");
       return;
     }
     if (this.callout)
@@ -70846,7 +70576,6 @@ var EmbedBlockMark = class extends Extension {
 };
 
 // src/services/renderer/markdown/icons.ts
-var import_obsidian5 = require("obsidian");
 var iconsRegex = /^\[:(.*?):\]/;
 var SVGIcon = class extends Extension {
   isNumeric(str) {
@@ -70866,74 +70595,36 @@ var SVGIcon = class extends Extension {
     height = this.isNumeric(height) ? height + "px" : height;
     return { width, height };
   }
-  isValidColorToken(token) {
-    const normalized = token.trim();
-    if (normalized.length === 0) {
-      return false;
-    }
-    return /^#[0-9a-fA-F]{3,8}$/.test(normalized) || /^rgba?\([^\)]+\)$/i.test(normalized) || /^hsla?\([^\)]+\)$/i.test(normalized) || /^var\(--[a-zA-Z0-9_-]+\)$/.test(normalized) || /^[a-zA-Z]+$/.test(normalized);
-  }
-  parseAppearance(items) {
-    let sizeToken = "";
-    let colorToken = "";
-    if (items.length === 3) {
-      sizeToken = items[1];
-      colorToken = items[2];
-    } else if (items.length === 2) {
-      if (this.isValidColorToken(items[1])) {
-        colorToken = items[1];
+  renderStyle(items) {
+    let size = "";
+    let color = "";
+    if (items.length == 3) {
+      size = items[1];
+      color = items[2];
+    } else if (items.length == 2) {
+      if (items[1].startsWith("#")) {
+        color = items[1];
       } else {
-        sizeToken = items[1];
+        size = items[1];
       }
     }
-    const appearance = {};
-    if (sizeToken.length > 0) {
-      const { width, height } = this.getSize(sizeToken);
-      appearance.width = width;
-      appearance.height = height;
+    let style = "";
+    if (size.length > 0) {
+      const { width, height } = this.getSize(size);
+      style += `width:${width};height:${height};`;
     }
-    if (colorToken.length > 0 && this.isValidColorToken(colorToken)) {
-      appearance.color = colorToken.trim();
+    if (color.length > 0) {
+      style += `color:${color};`;
     }
-    return appearance;
-  }
-  applyIconAppearance(svgContent, appearance) {
-    const { width, height, color } = appearance;
-    if (!width && !height && !color) {
-      return svgContent;
-    }
-    try {
-      const fragment = (0, import_obsidian5.sanitizeHTMLToDom)(svgContent);
-      const container = document.createElement("div");
-      container.appendChild(fragment);
-      const svgEl = container.querySelector("svg");
-      if (!svgEl) {
-        return svgContent;
-      }
-      if (width) {
-        svgEl.setAttribute("width", width);
-      }
-      if (height) {
-        svgEl.setAttribute("height", height);
-      }
-      if (color) {
-        svgEl.setAttribute("fill", color);
-        svgEl.setAttribute("stroke", color);
-        svgEl.setAttribute("color", color);
-      }
-      return serializeElementChildren(container);
-    } catch (error) {
-      return svgContent;
-    }
+    return style.length > 0 ? `style="${style}"` : "";
   }
   async render(text) {
     const items = text.split("|");
     const name = items[0];
     const svg = await this.assetsManager.loadIcon(name);
     const body = svg === "" ? "\u672A\u627E\u5230\u56FE\u6807" + name : svg;
-    const appearance = this.parseAppearance(items);
-    const rendered = this.applyIconAppearance(body, appearance);
-    return `<span class="note-svg-icon">${rendered}</span>`;
+    const style = this.renderStyle(items);
+    return `<span class="note-svg-icon" ${style}>${body}</span>`;
   }
   markedExtension() {
     return {
@@ -71143,7 +70834,7 @@ var Topic = class extends Extension {
             }
           },
           renderer(token) {
-            return `<a class="wx_topic_link" data-topic="1">${"#" + token.text.trim()}</a>`;
+            return `<a class="wx_topic_link" style="color: #576B95 !important;" data-topic="1">${"#" + token.text.trim()}</a>`;
           }
         }
       ]
@@ -71322,7 +71013,7 @@ var customRenderer = {
     }
     let out = "";
     if (WxSettings.getInstance().useFigcaption) {
-      out = `<figure class="wx-preview-figure"><img src="${href}" alt="${text}"`;
+      out = `<figure style="display: flex; flex-direction: column; align-items: center;"><img src="${href}" alt="${text}"`;
       if (title) {
         out += ` title="${title}"`;
       }
@@ -71939,7 +71630,7 @@ async function embedImages(clonedNode, options2) {
 }
 
 // node_modules/html-to-image/es/apply-style.js
-function applyStyle(node, options2) {
+function applyStyle2(node, options2) {
   const { style } = node;
   if (options2.backgroundColor) {
     style.backgroundColor = options2.backgroundColor;
@@ -72115,7 +71806,7 @@ async function toSvg(node, options2 = {}) {
   const clonedNode = await cloneNode(node, options2, true);
   await embedWebFonts(clonedNode, options2);
   await embedImages(clonedNode, options2);
-  applyStyle(clonedNode, options2);
+  applyStyle2(clonedNode, options2);
   const datauri = await nodeToDataURL(clonedNode, width, height);
   return datauri;
 }
@@ -72164,11 +71855,6 @@ var ArticleRender = class {
     this._currentHighlight = "default";
     this.markedParser = new MarkedParser(app, this);
     this.debouncedRenderMarkdown = debounce(this.renderMarkdown.bind(this), 1e3);
-    try {
-      initApiClients();
-      this.wechatClient = getWechatClient();
-    } catch (error) {
-    }
   }
   set currentTheme(value) {
     this._currentTheme = value;
@@ -72204,7 +71890,7 @@ var ArticleRender = class {
       className = this.currentTheme;
     }
     const html2 = `<section class="${className}" id="article-section">${article}</section>`;
-    const doc = (0, import_obsidian6.sanitizeHTMLToDom)(html2);
+    const doc = (0, import_obsidian7.sanitizeHTMLToDom)(html2);
     if (doc.firstChild) {
       this.articleDiv.appendChild(doc.firstChild);
     }
@@ -72219,8 +71905,9 @@ var ArticleRender = class {
   getArticleSection() {
     return this.articleDiv.querySelector("#article-section");
   }
+  // Claude Code Update: 保留innerHTML读取操作（用于最终输出序列化）
   getArticleContent() {
-    const content = serializeElementChildren(this.articleDiv);
+    const content = this.articleDiv.innerHTML;
     let html2 = applyCSS(content, this.getCSS());
     html2 = html2.replace(/rel="noopener nofollow"/g, "");
     html2 = html2.replace(/target="_blank"/g, "");
@@ -72231,7 +71918,7 @@ var ArticleRender = class {
     return this.articleDiv.innerText.trimStart();
   }
   errorContent(error) {
-    return '<h1>\u6E32\u67D3\u5931\u8D25!</h1><br/>\u5982\u9700\u5E2E\u52A9\u8BF7\u524D\u5F80&nbsp;&nbsp;<a href="https://github.com/IsHexx/WDWXEdit/issues">https://github.com/IsHexx/WDWXEdit/issues</a>&nbsp;&nbsp;\u53CD\u9988<br/><br/>\u5982\u679C\u65B9\u4FBF\uFF0C\u8BF7\u63D0\u4F9B\u5F15\u53D1\u9519\u8BEF\u7684\u5B8C\u6574Markdown\u5185\u5BB9\u3002<br/><br/><br/>Obsidian\u7248\u672C\uFF1A' + import_obsidian6.apiVersion + `<br/>\u9519\u8BEF\u4FE1\u606F\uFF1A<br/>${error}`;
+    return '<h1>\u6E32\u67D3\u5931\u8D25!</h1><br/>\u5982\u9700\u5E2E\u52A9\u8BF7\u524D\u5F80&nbsp;&nbsp;<a href="https://github.com/IsHexx/WDWXEdit/issues">https://github.com/IsHexx/WDWXEdit/issues</a>&nbsp;&nbsp;\u53CD\u9988<br/><br/>\u5982\u679C\u65B9\u4FBF\uFF0C\u8BF7\u63D0\u4F9B\u5F15\u53D1\u9519\u8BEF\u7684\u5B8C\u6574Markdown\u5185\u5BB9\u3002<br/><br/><br/>Obsidian\u7248\u672C\uFF1A' + import_obsidian7.apiVersion + `<br/>\u9519\u8BEF\u4FE1\u606F\uFF1A<br/>${error}`;
   }
   async renderMarkdown(af = null) {
     try {
@@ -72250,9 +71937,11 @@ var ArticleRender = class {
       this.setArticle(this.articleHTML);
       await this.processCachedElements();
     } catch (e2) {
+      console.error(e2);
       this.setArticle(this.errorContent(e2));
     }
   }
+  // 添加样式编辑器CSS支持
   getCSS() {
     try {
       const theme = this.assetsManager.getTheme(this.currentTheme);
@@ -72274,7 +71963,8 @@ ${this.settings.customCSS}
 
 ${styleEditorCSS}`;
     } catch (error) {
-      new import_obsidian6.Notice(`\u83B7\u53D6\u6837\u5F0F\u5931\u8D25${this.currentTheme}|${this.currentHighlight}\uFF0C\u8BF7\u68C0\u67E5\u4E3B\u9898\u662F\u5426\u6B63\u786E\u5B89\u88C5\u3002`);
+      console.error(error);
+      new import_obsidian7.Notice(`\u83B7\u53D6\u6837\u5F0F\u5931\u8D25${this.currentTheme}|${this.currentHighlight}\uFF0C\u8BF7\u68C0\u67E5\u4E3B\u9898\u662F\u5426\u6B63\u786E\u5B89\u88C5\u3002`);
     }
     return "";
   }
@@ -72286,6 +71976,7 @@ ${styleEditorCSS}`;
     this.currentHighlight = styleName;
     this.setStyle(this.getCSS());
   }
+  // 构建样式编辑器CSS（仅用于预览显示）
   buildStyleEditorCSS() {
     const cssRules = [];
     if (this.settings.fontFamily) {
@@ -72310,6 +72001,7 @@ ${styleEditorCSS}`;
           font-family: ${fontFamilyValue} !important; 
         }
       `);
+      console.log("\u{1F3A8} \u5E94\u7528\u5B57\u4F53\u8BBE\u7F6E:", this.settings.fontFamily, "->", fontFamilyValue);
     }
     if (this.settings.fontSize) {
       const fontSizeValue = this.mapFontSize(this.settings.fontSize);
@@ -72329,6 +72021,7 @@ ${styleEditorCSS}`;
           font-size: inherit !important; 
         }
       `);
+      console.log("\u{1F3A8} \u5E94\u7528\u5B57\u53F7\u8BBE\u7F6E:", this.settings.fontSize, "->", fontSizeValue);
     }
     if (this.settings.primaryColor) {
       cssRules.push(`
@@ -72363,9 +72056,11 @@ ${styleEditorCSS}`;
           color: ${this.settings.primaryColor} !important; 
         }
       `);
+      console.log("\u{1F3A8} \u5E94\u7528\u4E3B\u9898\u8272\u8BBE\u7F6E:", this.settings.primaryColor);
     }
     return cssRules.join("\n");
   }
+  // 字体映射函数
   mapFontFamily(fontFamily) {
     const fontMap = {
       "\u7B49\u7EBF": '"DengXian", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif',
@@ -72375,12 +72070,15 @@ ${styleEditorCSS}`;
     };
     return fontMap[fontFamily] || fontFamily;
   }
+  // 字号映射函数  
+  // Claude Code Update: 更新字号映射，支持所有像素值
   mapFontSize(fontSize) {
     const sizeMap = {
       "\u5C0F": "14px",
       "\u63A8\u8350": "16px",
       "\u5927": "18px",
       "\u7279\u5927": "20px",
+      // 直接映射像素值
       "14px": "14px",
       "16px": "16px",
       "18px": "18px",
@@ -72390,16 +72088,21 @@ ${styleEditorCSS}`;
     };
     return sizeMap[fontSize] || fontSize;
   }
+  // 样式编辑器更新方法
   updateFont(fontFamily) {
+    console.log("\u{1F3AF} ArticleRender\u6536\u5230\u5B57\u4F53\u53D8\u66F4:", fontFamily);
     this.setStyle(this.getCSS());
   }
   updateFontSize(fontSize) {
+    console.log("\u{1F3AF} ArticleRender\u6536\u5230\u5B57\u53F7\u53D8\u66F4:", fontSize);
     this.setStyle(this.getCSS());
   }
   updatePrimaryColor(color) {
+    console.log("\u{1F3AF} ArticleRender\u6536\u5230\u4E3B\u9898\u8272\u53D8\u66F4:", color);
     this.setStyle(this.getCSS());
   }
   updateCustomCSS(css2) {
+    console.log("\u{1F3AF} ArticleRender\u6536\u5230\u81EA\u5B9A\u4E49CSS\u53D8\u66F4");
     this.setStyle(this.getCSS());
   }
   getFrontmatterValue(frontmatter, key) {
@@ -72465,7 +72168,7 @@ ${styleEditorCSS}`;
     }
     const vault = this.app.vault;
     const file = this.assetsManager.searchFile(fileName);
-    if (!file || !(file instanceof import_obsidian6.TFile)) {
+    if (!file || !(file instanceof import_obsidian7.TFile)) {
       throw new Error("\u627E\u4E0D\u5230\u5C01\u9762\u6587\u4EF6: " + fileName);
     }
     const fileData = await vault.readBinary(file);
@@ -72483,47 +72186,39 @@ ${styleEditorCSS}`;
     if (res.media_id) {
       return res.media_id;
     }
+    console.error("upload cover fail: " + res.errmsg);
     throw new Error("\u4E0A\u4F20\u5C01\u9762\u5931\u8D25: " + res.errmsg);
   }
+  // 使用直接API获取默认封面
   async getDefaultCover(token) {
     try {
-      if (!this.wechatClient) {
-        initApiClients();
-        this.wechatClient = getWechatClient();
-      }
-      const response = await this.wechatClient.getMediaList({
-        accessToken: token,
-        type: "image",
-        count: 1,
-        offset: 0
-      });
+      const response = await wxBatchGetMaterial(token, "image", 0, 1);
       if (response.item_count && response.item_count > 0 && response.item) {
+        console.log("\u{1F50D} \u7D20\u6750\u5E93\u8FD4\u56DE\u7684\u7B2C\u4E00\u4E2A\u7D20\u6750:", response.item[0]);
         return response.item[0].media_id;
       }
     } catch (error) {
+      console.error("\u83B7\u53D6\u9ED8\u8BA4\u5C01\u9762\u5931\u8D25:", error);
     }
     return "";
   }
+  // 直接调用微信官方API获取Token
   async getToken(appid) {
     const secret = this.getSecret(appid);
     if (!secret || secret.length === 0) {
       throw new Error("\u516C\u4F17\u53F7AppSecret\u672A\u914D\u7F6E\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6E\u516C\u4F17\u53F7\u4FE1\u606F");
     }
     try {
-      if (!this.wechatClient) {
-        initApiClients();
-        this.wechatClient = getWechatClient();
+      const result = await wxGetToken("", appid, secret);
+      if (result.status === 200 && result.json.token) {
+        return result.json.token;
+      } else {
+        const errorMsg = result.json.message || "\u83B7\u53D6Token\u5931\u8D25";
+        throw new Error(errorMsg);
       }
-      const response = await this.wechatClient.authenticate({
-        appId: appid,
-        appSecret: secret
-      });
-      return response.access_token;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.includes("CORS") || errorMsg.includes("fetch") || errorMsg.includes("Failed to fetch")) {
-        throw new Error("\u65E0\u6CD5\u8FDE\u63A5\u5230\u670D\u52A1\u5668\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u6216\u540E\u7AEF\u670D\u52A1\u662F\u5426\u542F\u52A8");
-      } else if (errorMsg.includes("40001") || errorMsg.includes("AppSecret")) {
+      if (errorMsg.includes("40001") || errorMsg.includes("AppSecret")) {
         throw new Error("AppSecret\u65E0\u6548\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
       } else if (errorMsg.includes("40013") || errorMsg.includes("AppID")) {
         throw new Error("AppID\u65E0\u6548\uFF0C\u8BF7\u68C0\u67E5\u516C\u4F17\u53F7\u914D\u7F6E");
@@ -72546,6 +72241,7 @@ ${styleEditorCSS}`;
       }
     }
   }
+  // Claude Code Update: 移除authKey检查注释和copyArticle调用，上传图片不应复制内容
   async uploadImages(appid) {
     let metadata = this.getMetadata();
     if (metadata.appid) {
@@ -72579,6 +72275,7 @@ ${styleEditorCSS}`;
         return;
       }
     } catch (e2) {
+      console.warn("Electron\u526A\u8D34\u677F\u4E0D\u53EF\u7528\uFF0C\u5C1D\u8BD5\u4F7F\u7528Web\u526A\u8D34\u677FAPI\u3002");
     }
     const clipboard = navigator.clipboard;
     const canUseClipboardItem = typeof ClipboardItem !== "undefined";
@@ -72597,8 +72294,11 @@ ${styleEditorCSS}`;
         return;
       } catch (error) {
         if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
+          console.warn("Clipboard API\u672A\u6388\u6743\uFF0C\u5C1D\u8BD5\u4F7F\u7528\u517C\u5BB9\u6A21\u5F0F\u590D\u5236\u3002", error);
         } else if (error instanceof Error && error.message.includes("Document is not focused")) {
+          console.warn("Clipboard API\u56E0\u5931\u7126\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4F7F\u7528\u517C\u5BB9\u6A21\u5F0F\u590D\u5236\u3002");
         } else {
+          console.warn("Clipboard API\u590D\u5236\u5931\u8D25\uFF0C\u5C1D\u8BD5\u4F7F\u7528\u517C\u5BB9\u6A21\u5F0F\u590D\u5236\u3002", error);
         }
       }
     }
@@ -72615,11 +72315,14 @@ ${styleEditorCSS}`;
         return false;
       }
       const container = document.createElement("div");
-      container.classList.add("wdwx-clipboard-container");
-      container.setAttribute("aria-hidden", "true");
+      container.innerHTML = htmlContent;
       container.contentEditable = "true";
-      const fragment = (0, import_obsidian6.sanitizeHTMLToDom)(htmlContent);
-      container.appendChild(fragment);
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.top = "0";
+      container.style.opacity = "0";
+      container.style.pointerEvents = "none";
+      container.style.userSelect = "text";
       document.body.appendChild(container);
       const range = document.createRange();
       range.selectNodeContents(container);
@@ -72634,8 +72337,11 @@ ${styleEditorCSS}`;
       }
       const textarea = document.createElement("textarea");
       textarea.value = plainText;
-      textarea.setAttribute("readonly", "true");
-      textarea.classList.add("wdwx-clipboard-textarea");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
       document.body.appendChild(textarea);
       textarea.select();
       textarea.setSelectionRange(0, textarea.value.length);
@@ -72643,6 +72349,7 @@ ${styleEditorCSS}`;
       document.body.removeChild(textarea);
       return successful;
     } catch (error) {
+      console.warn("\u517C\u5BB9\u6A21\u5F0F\u590D\u5236\u5931\u8D25:", error);
       return false;
     }
   }
@@ -72654,9 +72361,12 @@ ${styleEditorCSS}`;
     }
     return "";
   }
+  // 简化版本，移除复杂的图片管理逻辑，图片上传已移至note-preview.ts
+  // 此方法已废弃，请使用note-preview.ts中的uploadImagesAndCreateDraft方法
   async postArticle(appid, localCover = null) {
     throw new Error("\u6B64\u65B9\u6CD5\u5DF2\u5E9F\u5F03\uFF0C\u8BF7\u4F7F\u7528note-preview.ts\u4E2D\u7684\u65B0\u8C03\u7528\u94FE");
   }
+  // Claude Code Update: 移除authKey检查注释
   async postImages(appid) {
     let metadata = this.getMetadata();
     if (metadata.appid) {
@@ -72676,6 +72386,7 @@ ${styleEditorCSS}`;
     const images = lm.getImageInfos(this.articleDiv);
     for (const image of images) {
       if (!image.media_id) {
+        console.warn("miss media id:", image.resUrl);
         continue;
       }
       imageList.push({
@@ -72697,29 +72408,15 @@ ${styleEditorCSS}`;
       }
     };
     try {
-      if (!this.wechatClient) {
-        initApiClients();
-        this.wechatClient = getWechatClient();
-      }
-      const newApiArticle = {
-        title: imagesData.title,
-        content: imagesData.content,
-        author: "",
-        digest: "",
-        content_source_url: "",
-        thumb_media_id: imageList.length > 0 ? imageList[0].image_media_id : "",
-        show_cover_pic: true,
-        need_open_comment: imagesData.need_open_commnet === 1,
-        only_fans_can_comment: imagesData.only_fans_can_comment === 1
-      };
-      const response = await this.wechatClient.createDraft([newApiArticle], token);
-      if (response.media_id) {
-        return response.media_id;
+      const result = await wxAddDraftImages(token, imagesData);
+      if (result.status === 200 && result.json.media_id) {
+        return result.json.media_id;
       } else {
-        console.error(JSON.stringify(response));
-        throw new Error("\u53D1\u5E03\u5931\u8D25!" + response.errmsg);
+        console.error(JSON.stringify(result));
+        throw new Error("\u53D1\u5E03\u5931\u8D25!" + (result.json.errmsg || ""));
       }
     } catch (error) {
+      console.error(error);
       throw new Error(`\u521B\u5EFA\u56FE\u7247/\u6587\u5B57\u5931\u8D25: ${error.message}\uFF01`);
     }
   }
@@ -72741,6 +72438,7 @@ ${styleEditorCSS}`;
   async processCachedElements() {
     const af = this.app.workspace.getActiveFile();
     if (!af) {
+      console.error("\u5F53\u524D\u6CA1\u6709\u6253\u5F00\u6587\u4EF6\uFF0C\u65E0\u6CD5\u5904\u7406\u7F13\u5B58\u5143\u7D20");
       return;
     }
     for (const [key, value] of this.cachedElements) {
@@ -72748,7 +72446,7 @@ ${styleEditorCSS}`;
       if (category === "mermaid") {
         const container = this.articleDiv.querySelector("#" + id);
         if (container) {
-          await import_obsidian6.MarkdownRenderer.render(this.app, value, container, af.path, this.itemView);
+          await import_obsidian7.MarkdownRenderer.render(this.app, value, container, af.path, this.itemView);
         }
       }
     }
@@ -72776,19 +72474,18 @@ ${styleEditorCSS}`;
       const img = document.createElement("img");
       img.id = `img-${id}`;
       img.src = pngDataUrl;
-      const svgWidth = Math.max(0, svg.clientWidth);
-      if (svgWidth > 0) {
-        img.width = Math.round(svgWidth);
-      }
+      img.style.width = `${svg.clientWidth}px`;
+      img.style.height = "auto";
       container.replaceChild(img, mermaidContainer);
     } catch (error) {
+      console.warn(`Failed to render Mermaid diagram: ${id}`, error);
     }
   }
   updateElementByID(id, html2) {
     const item = this.articleDiv.querySelector("#" + id);
     if (!item)
       return;
-    const doc = (0, import_obsidian6.sanitizeHTMLToDom)(html2);
+    const doc = (0, import_obsidian7.sanitizeHTMLToDom)(html2);
     item.empty();
     if (doc.childElementCount > 0) {
       for (const child of doc.children) {
@@ -72819,10 +72516,12 @@ var StyleEditor = class {
     this.addStyles();
     return this.container;
   }
+  // 参照v2创建样式编辑器布局
   createCollapsibleLayout() {
     this.createTitleBar();
     this.createContentArea();
   }
+  // Claude Code Update: 使用textContent替代innerHTML设置静态文本
   createTitleBar() {
     const titleBar = this.container.createDiv({ cls: "style-editor-header" });
     const toggleButton = titleBar.createEl("button", { cls: "style-editor-toggle" });
@@ -72837,6 +72536,7 @@ var StyleEditor = class {
       }
     };
   }
+  // Claude Code Update: 使用CSS类而非内联样式
   createContentArea() {
     this.contentDiv = this.container.createDiv({ cls: "style-editor-content" });
     if (this.isCollapsed) {
@@ -72999,7 +72699,7 @@ var StyleEditor = class {
     const cssLabel = secondRow.createDiv({ cls: "style-css-label", text: "\u81EA\u5B9A\u4E49CSS:" });
     const cssTextarea = this.contentDiv.createEl("textarea", {
       cls: "style-editor-css-textarea",
-      attr: { placeholder: "", rows: "4" }
+      attr: { placeholder: "/* \u5728\u8FD9\u91CC\u8F93\u5165\u81EA\u5B9A\u4E49CSS\u6837\u5F0F */", rows: "4" }
     });
     cssTextarea.value = this.settings.customCSS || "";
     let cssTimeout;
@@ -73013,6 +72713,7 @@ var StyleEditor = class {
       }, 500);
     };
   }
+  // Claude Code Update: 使用textContent替代innerHTML设置静态文本
   toggleCollapse() {
     this.isCollapsed = !this.isCollapsed;
     const toggleButton = this.container.querySelector(".style-editor-toggle");
@@ -73031,7 +72732,7 @@ var StyleEditor = class {
     const style = document.createElement("style");
     style.id = "style-editor-css";
     style.textContent = `
-            
+            /* \u65B0toolbar\u6837\u5F0F\uFF0C\u5339\u914D\u56FE\u7247\u8BBE\u8BA1 */
             .style-editor-container {
                 background: #f8f8f8;
                 border-radius: 6px;
@@ -73117,6 +72818,7 @@ var StyleEditor = class {
                 min-width: fit-content;
             }
 
+            /* Claude Code ADD: \u989C\u8272\u9009\u62E9\u5668\u6837\u5F0F */
             .color-input-wrapper {
                 display: inline-block;
                 margin-left: 4px;
@@ -73201,7 +72903,8 @@ var StyleEditor = class {
             .style-editor-css-textarea::placeholder {
                 color: var(--text-faint);
             }
-
+            
+            /* \u6309\u94AE\u6837\u5F0F */
             .button-group {
                 display: flex;
                 align-items: center;
@@ -73233,7 +72936,8 @@ var StyleEditor = class {
             .icon-button:active {
                 transform: scale(0.95);
             }
-
+            
+            /* \u53F3\u4E0A\u89D2\u6309\u94AE\u7EC4\u6837\u5F0F */
             .toolbar-buttons {
                 display: flex;
                 justify-content: flex-end;
@@ -73263,7 +72967,8 @@ var StyleEditor = class {
             .toolbar-button:active {
                 transform: scale(0.98);
             }
-
+            
+            /* \u65B0toolbar\u6309\u94AE\u6837\u5F0F */
             .toolbar-buttons-inline {
                 display: flex;
                 align-items: center;
@@ -73315,6 +73020,7 @@ var StyleEditor = class {
       highlightSelect.value = this.settings.defaultHighlight;
     }
   }
+  // 添加切换折叠状态的公共方法
   setCollapsed(collapsed) {
     if (this.isCollapsed !== collapsed) {
       this.toggleCollapse();
@@ -73323,6 +73029,8 @@ var StyleEditor = class {
   getCollapsed() {
     return this.isCollapsed;
   }
+  // Claude Code ADD: 更新下拉框和输入框选中状态
+  // Claude Code Update
   updateSelections(theme, highlight, font, fontSize, primaryColor, customCSS) {
     var _a, _b, _c, _d, _e;
     const contentDiv = this.container.querySelector(".style-editor-content");
@@ -73386,7 +73094,7 @@ var StyleEditor = class {
 };
 
 // src/ui/components/preview-toolbar.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 var PreviewToolbar = class {
   constructor(parent, settings, styleEditor, handlers) {
     this.parent = parent;
@@ -73396,7 +73104,7 @@ var PreviewToolbar = class {
   }
   async build() {
     this.toolbar = this.parent.createDiv({ cls: "preview-toolbar" });
-    if (this.settings.wxInfo.length > 1 || import_obsidian7.Platform.isDesktop) {
+    if (this.settings.wxInfo.length > 1 || import_obsidian8.Platform.isDesktop) {
       await this.buildMainToolbar();
     } else if (this.settings.wxInfo.length > 0) {
       this.handlers.onAppIdChanged(this.settings.wxInfo[0].appid);
@@ -73487,6 +73195,7 @@ var PreviewToolbar = class {
       }
     };
   }
+  // Claude Code Update: 使用sanitizeHTMLToDom替代innerHTML设置SVG内容
   buildActionButtons(parent) {
     const buttonContainer = parent.createDiv({ cls: "action-buttons" });
     const refreshBtn = buttonContainer.createEl("button", { cls: "action-button" });
@@ -73498,13 +73207,13 @@ var PreviewToolbar = class {
                 <path d="M3 21v-5h5"/>
             </svg>
         `;
-    refreshBtn.appendChild((0, import_obsidian7.sanitizeHTMLToDom)(refreshSvg));
+    refreshBtn.appendChild(document.createRange().createContextualFragment(refreshSvg));
     refreshBtn.setAttr("title", "\u5237\u65B0");
     refreshBtn.onclick = async () => {
       await this.handlers.onRefresh();
       uevent("refresh");
     };
-    if (import_obsidian7.Platform.isDesktop) {
+    if (import_obsidian8.Platform.isDesktop) {
       const copyBtn = buttonContainer.createEl("button", { cls: "action-button" });
       const copySvg = `
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -73512,13 +73221,14 @@ var PreviewToolbar = class {
                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
             `;
-      copyBtn.appendChild((0, import_obsidian7.sanitizeHTMLToDom)(copySvg));
+      copyBtn.appendChild(document.createRange().createContextualFragment(copySvg));
       copyBtn.setAttr("title", "\u590D\u5236");
       copyBtn.onclick = async () => {
         try {
           await this.handlers.onCopy();
           uevent("copy");
         } catch (error) {
+          console.error(error);
         }
       };
     }
@@ -73529,7 +73239,7 @@ var PreviewToolbar = class {
                 <path d="M21.854 2.147 10.61 13.39"/>
             </svg>
         `;
-    postBtn.appendChild((0, import_obsidian7.sanitizeHTMLToDom)(postSvg));
+    postBtn.appendChild(document.createRange().createContextualFragment(postSvg));
     postBtn.setAttr("title", "\u53D1\u8349\u7A3F");
     postBtn.onclick = async () => {
       await this.handlers.onPost();
@@ -73543,7 +73253,7 @@ var PreviewToolbar = class {
                 <line x1="12" y1="5" x2="12" y2="15"/>
             </svg>
         `;
-    uploadBtn.appendChild((0, import_obsidian7.sanitizeHTMLToDom)(uploadSvg));
+    uploadBtn.appendChild(document.createRange().createContextualFragment(uploadSvg));
     uploadBtn.setAttr("title", "\u4E0A\u4F20\u56FE\u7247");
     uploadBtn.onclick = async () => {
       await this.handlers.onUpload();
@@ -73564,6 +73274,7 @@ var PreviewToolbar = class {
       this.highlightSelect = highlightSelect;
     }
   }
+  // Claude Code Update: 使用CSS类而非内联样式
   toggleCoverUpload(showUpload) {
     const fileUploadContainer = this.toolbar.querySelector(".file-upload-container");
     if (fileUploadContainer) {
@@ -73574,6 +73285,7 @@ var PreviewToolbar = class {
       }
     }
   }
+  // 根据元数据更新工具栏状态
   updateFromMetadata(metadata, currentTheme, currentHighlight) {
     if (metadata.appid && this.wechatSelect) {
       this.wechatSelect.value = metadata.appid;
@@ -73593,30 +73305,38 @@ var PreviewToolbar = class {
       this.highlightSelect.value = currentHighlight;
     }
   }
+  // 获取封面文件
   getCoverFile() {
     if (this.useLocalCover && this.useLocalCover.checked && this.coverEl.files && this.coverEl.files.length > 0) {
       return this.coverEl.files[0];
     }
     return null;
   }
+  // 是否使用默认封面
   isUsingDefaultCover() {
     return this.useDefaultCover && this.useDefaultCover.checked;
   }
+  // 是否使用本地封面
   isUsingLocalCover() {
     return this.useLocalCover && this.useLocalCover.checked;
   }
+  // 获取工具栏元素
   getElement() {
     return this.toolbar;
   }
+  // 获取微信选择器
   getWechatSelect() {
     return this.wechatSelect;
   }
+  // 获取主题选择器
   getThemeSelect() {
     return this.themeSelect;
   }
+  // 获取高亮选择器
   getHighlightSelect() {
     return this.highlightSelect;
   }
+  // 刷新工具栏方法，重新构建UI以反映设置变更
   refresh() {
     const existingToolbar = this.parent.querySelector(".preview-toolbar");
     let insertPosition = null;
@@ -73625,7 +73345,7 @@ var PreviewToolbar = class {
       existingToolbar.remove();
     }
     this.toolbar = this.parent.createDiv({ cls: "preview-toolbar" });
-    if (this.settings.wxInfo.length > 1 || import_obsidian7.Platform.isDesktop) {
+    if (this.settings.wxInfo.length > 1 || import_obsidian8.Platform.isDesktop) {
       this.buildMainToolbar();
     } else if (this.settings.wxInfo.length > 0) {
       this.handlers.onAppIdChanged(this.settings.wxInfo[0].appid);
@@ -73640,7 +73360,6 @@ var PreviewToolbar = class {
 };
 
 // src/ui/components/preview-content.ts
-var import_obsidian8 = require("obsidian");
 var PreviewContent = class {
   constructor(parent) {
     this.parent = parent;
@@ -73648,10 +73367,12 @@ var PreviewContent = class {
   build() {
     this.renderDiv = this.parent.createDiv({ cls: "render-div" });
     this.renderDiv.id = "render-div";
+    this.renderDiv.setAttribute("style", "-webkit-user-select: text; user-select: text;");
     this.styleEl = this.renderDiv.createEl("style");
     this.styleEl.setAttr("title", "wdwxedit-style");
     this.articleDiv = this.renderDiv.createEl("div");
   }
+  // 获取所有内容元素
   getElements() {
     return {
       renderDiv: this.renderDiv,
@@ -73659,96 +73380,117 @@ var PreviewContent = class {
       articleDiv: this.articleDiv
     };
   }
+  // 获取渲染容器
   getRenderDiv() {
     return this.renderDiv;
   }
+  // 获取样式元素
   getStyleEl() {
     return this.styleEl;
   }
+  // 获取文章容器
   getArticleDiv() {
     return this.articleDiv;
   }
+  // 清空内容
   clearContent() {
     if (this.articleDiv) {
       this.articleDiv.empty();
     }
   }
+  // Claude Code Update: setContent使用sanitizeHTMLToDom确保安全，getContent可以保留innerHTML（用于序列化）
+  // 设置内容
   setContent(html2) {
-    if (!this.articleDiv) {
-      return;
-    }
-    const fragment = (0, import_obsidian8.sanitizeHTMLToDom)(html2);
-    this.articleDiv.empty();
-    while (fragment.firstChild) {
-      this.articleDiv.appendChild(fragment.firstChild);
+    if (this.articleDiv) {
+      import("obsidian").then(({ sanitizeHTMLToDom: sanitizeHTMLToDom4 }) => {
+        const sanitized = sanitizeHTMLToDom4(html2);
+        this.articleDiv.empty();
+        if (sanitized.firstChild) {
+          this.articleDiv.appendChild(sanitized.firstChild);
+        }
+      });
     }
   }
+  // 获取内容（保留innerHTML用于序列化输出）
   getContent() {
-    if (!this.articleDiv) {
-      return "";
-    }
-    return serializeElementChildren(this.articleDiv);
+    var _a;
+    return ((_a = this.articleDiv) == null ? void 0 : _a.innerHTML) || "";
   }
+  // Claude Code Update: 使用textContent替代innerHTML设置CSS文本
+  // 更新样式
   updateStyle(css2) {
     if (this.styleEl) {
       this.styleEl.textContent = css2;
     }
   }
+  // 添加样式
   addStyle(css2) {
     if (this.styleEl) {
       this.styleEl.textContent += css2;
     }
   }
+  // 显示加载状态
   showLoading() {
     this.clearContent();
     const loading = this.articleDiv.createDiv({ cls: "content-loading" });
     loading.createDiv({ cls: "loading-text" }).textContent = "\u6B63\u5728\u6E32\u67D3\u5185\u5BB9...";
   }
+  // 显示错误状态
   showError(message) {
     this.clearContent();
     const error = this.articleDiv.createDiv({ cls: "content-error" });
     error.createDiv({ cls: "error-title" }).textContent = "\u6E32\u67D3\u51FA\u9519";
     error.createDiv({ cls: "error-message" }).textContent = message;
   }
+  // 显示空状态
   showEmpty() {
     this.clearContent();
     const empty = this.articleDiv.createDiv({ cls: "content-empty" });
     empty.createDiv({ cls: "empty-title" }).textContent = "\u6CA1\u6709\u5185\u5BB9";
     empty.createDiv({ cls: "empty-message" }).textContent = "\u8BF7\u9009\u62E9\u4E00\u4E2AMarkdown\u6587\u4EF6\u8FDB\u884C\u9884\u89C8";
   }
+  // 滚动到顶部
   scrollToTop() {
     if (this.renderDiv) {
       this.renderDiv.scrollTop = 0;
     }
   }
+  // 滚动到底部
   scrollToBottom() {
     if (this.renderDiv) {
       this.renderDiv.scrollTop = this.renderDiv.scrollHeight;
     }
   }
+  // 获取滚动位置
   getScrollPosition() {
     var _a;
     return ((_a = this.renderDiv) == null ? void 0 : _a.scrollTop) || 0;
   }
+  // 设置滚动位置
   setScrollPosition(position) {
     if (this.renderDiv) {
       this.renderDiv.scrollTop = position;
     }
   }
+  // 添加CSS类
   addClass(className) {
     if (this.renderDiv) {
       this.renderDiv.addClass(className);
     }
   }
+  // 移除CSS类
   removeClass(className) {
     if (this.renderDiv) {
       this.renderDiv.removeClass(className);
     }
   }
+  // 检查是否有指定CSS类
   hasClass(className) {
     var _a;
     return ((_a = this.renderDiv) == null ? void 0 : _a.hasClass(className)) || false;
   }
+  // Claude Code Update: 使用CSS类而非内联样式
+  // 设置可见性
   setVisible(visible) {
     if (this.renderDiv) {
       if (visible) {
@@ -73758,25 +73500,31 @@ var PreviewContent = class {
       }
     }
   }
+  // 检查是否可见
   isVisible() {
     return this.renderDiv ? !this.renderDiv.hasClass("hidden") : false;
   }
+  // 获取内容高度
   getContentHeight() {
     var _a;
     return ((_a = this.renderDiv) == null ? void 0 : _a.scrollHeight) || 0;
   }
+  // 获取可视高度
   getVisibleHeight() {
     var _a;
     return ((_a = this.renderDiv) == null ? void 0 : _a.clientHeight) || 0;
   }
+  // 检查是否可以滚动
   isScrollable() {
     return this.getContentHeight() > this.getVisibleHeight();
   }
+  // 添加事件监听器
   addEventListener(event, handler) {
     if (this.renderDiv) {
       this.renderDiv.addEventListener(event, handler);
     }
   }
+  // 移除事件监听器
   removeEventListener(event, handler) {
     if (this.renderDiv) {
       this.renderDiv.removeEventListener(event, handler);
@@ -73785,46 +73533,55 @@ var PreviewContent = class {
 };
 
 // src/ui/components/preview-status.ts
-var import_obsidian9 = require("obsidian");
 var PreviewStatus = class {
   constructor(parent) {
     this.parent = parent;
     this.build();
   }
+  // Claude Code Update: 使用CSS类而非内联样式
   build() {
     this.statusContainer = this.parent.createDiv({ cls: "preview-status hidden" });
-    this.statusIcon = this.statusContainer.createDiv({ cls: "status-icon" });
-    this.statusMessage = this.statusContainer.createDiv({ cls: "status-message" });
-    this.progressBar = this.statusContainer.createEl("progress", { cls: "status-progress", attr: { value: "0", max: "100" } });
-    this.progressBar.classList.add("hidden");
+    const row = this.statusContainer.createDiv({ cls: "preview-status-row" });
+    this.statusIcon = row.createDiv({ cls: "status-icon" });
+    this.statusMessage = row.createDiv({ cls: "status-message" });
+    this.progressBar = this.statusContainer.createDiv({ cls: "status-progress" });
   }
+  // 显示信息状态
   showInfo(message, duration) {
     this.showStatus(message, "info", duration);
   }
+  // 显示成功状态
   showSuccess(message, duration) {
     this.showStatus(message, "success", duration || 3e3);
   }
+  // 显示警告状态
   showWarning(message, duration) {
     this.showStatus(message, "warning", duration || 5e3);
   }
+  // 显示错误状态
   showError(message, duration) {
     this.showStatus(message, "error", duration || 5e3);
   }
+  // 显示加载状态
   showLoading(message) {
     this.showStatus(message, "loading");
     this.showProgress(true);
   }
+  // 显示上传状态
   showUploading(message, duration) {
     this.showStatus(message, "upload", duration);
     this.showProgress(true);
   }
+  // 显示复制状态
   showCopying(message, duration) {
     this.showStatus(message, "copy", duration);
   }
+  // 显示处理状态
   showProcessing(message, duration) {
     this.showStatus(message, "processing", duration);
     this.showProgress(true);
   }
+  // 显示状态
   showStatus(message, type, duration) {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
@@ -73832,10 +73589,8 @@ var PreviewStatus = class {
     }
     this.statusMessage.textContent = message;
     this.updateIcon(type);
-    const statusClasses = Array.from(this.statusContainer.classList).filter((cls) => cls.startsWith("status-"));
-    statusClasses.forEach((cls) => this.statusContainer.classList.remove(cls));
-    this.statusContainer.classList.add(`status-${type}`);
-    this.statusContainer.classList.remove("hidden");
+    this.statusContainer.className = `preview-status status-${type}`;
+    this.statusContainer.removeClass("hidden");
     const showProgress = type === "loading" || type === "upload" || type === "processing";
     this.showProgress(showProgress);
     if (!showProgress && duration) {
@@ -73844,6 +73599,8 @@ var PreviewStatus = class {
       }, duration);
     }
   }
+  // Claude Code Update: 使用DOM API替代innerHTML设置SVG内容
+  // 更新图标
   updateIcon(type) {
     let iconSvg = "";
     switch (type) {
@@ -73922,50 +73679,62 @@ var PreviewStatus = class {
         break;
     }
     this.statusIcon.empty();
-    this.statusIcon.appendChild((0, import_obsidian9.sanitizeHTMLToDom)(iconSvg));
+    this.statusIcon.appendChild(document.createRange().createContextualFragment(iconSvg));
   }
+  // Claude Code Update: 使用DOM API替代innerHTML
+  // 显示/隐藏进度条
   showProgress(show) {
-    if (!this.progressBar) {
-      return;
-    }
-    this.progressBar.classList.toggle("hidden", !show);
     if (show) {
-      this.progressBar.value = 0;
+      this.progressBar.removeClass("hidden");
+      this.progressBar.empty();
+      this.progressBar.createDiv({ cls: "progress-bar-fill" });
+    } else {
+      this.progressBar.addClass("hidden");
     }
   }
+  // 更新进度
   updateProgress(percent) {
-    if (!this.progressBar) {
-      return;
+    const progressFill = this.progressBar.querySelector(".progress-bar-fill");
+    if (progressFill) {
+      progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
     }
-    this.progressBar.value = Math.min(100, Math.max(0, percent));
   }
+  // Claude Code Update: 使用CSS类而非内联样式
+  // 隐藏消息
   hideMessage() {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
       this.hideTimeout = void 0;
     }
-    this.statusContainer.classList.add("hidden");
+    this.statusContainer.addClass("hidden");
     this.showProgress(false);
   }
+  // 检查是否可见
   isVisible() {
-    return !this.statusContainer.classList.contains("hidden");
+    return !this.statusContainer.hasClass("hidden");
   }
+  // 获取当前消息
   getCurrentMessage() {
     return this.statusMessage.textContent || "";
   }
+  // 获取当前状态类型
   getCurrentType() {
     const className = this.statusContainer.className;
     const match = className.match(/status-(\w+)/);
     return match ? match[1] : "";
   }
+  // 设置点击处理器
   setClickHandler(handler) {
     this.statusContainer.onclick = handler;
-    this.statusContainer.classList.add("preview-status-clickable");
+    this.statusContainer.style.cursor = "pointer";
   }
+  // 移除点击处理器
   removeClickHandler() {
     this.statusContainer.onclick = null;
-    this.statusContainer.classList.remove("preview-status-clickable");
+    this.statusContainer.style.cursor = "default";
   }
+  // Claude Code Update: 使用DOM API替代innerHTML设置SVG内容
+  // 添加关闭按钮
   addCloseButton() {
     const closeBtn = this.statusContainer.createDiv({ cls: "status-close" });
     const closeSvg = `
@@ -73974,25 +73743,31 @@ var PreviewStatus = class {
                 <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
         `;
-    closeBtn.appendChild((0, import_obsidian9.sanitizeHTMLToDom)(closeSvg));
+    closeBtn.appendChild(document.createRange().createContextualFragment(closeSvg));
     closeBtn.onclick = (e2) => {
       e2.stopPropagation();
       this.hideMessage();
     };
   }
+  // 移除关闭按钮
   removeCloseButton() {
     const closeBtn = this.statusContainer.querySelector(".status-close");
     if (closeBtn) {
       closeBtn.remove();
     }
   }
+  // 设置位置
   setPosition(position) {
-    this.statusContainer.classList.remove("status-top", "status-bottom", "status-center");
-    this.statusContainer.classList.add(`status-${position}`);
+    this.statusContainer.removeClass("status-top");
+    this.statusContainer.removeClass("status-bottom");
+    this.statusContainer.removeClass("status-center");
+    this.statusContainer.addClass(`status-${position}`);
   }
+  // 获取状态容器元素
   getElement() {
     return this.statusContainer;
   }
+  // 销毁组件
   destroy() {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
@@ -74005,6 +73780,7 @@ var PreviewStatus = class {
 var PreviewController = class {
   constructor(app, view, plugin) {
     this.listeners = [];
+    // 渲染相关
     this._articleRender = null;
     this.cachedElements = /* @__PURE__ */ new Map();
     this.isCancelUpload = false;
@@ -74124,14 +73900,18 @@ var PreviewController = class {
       onCopy: async () => {
         const result = await this.copyWithImageUpload();
         if (result == null ? void 0 : result.uploaded) {
-          new import_obsidian10.Notice("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+          if (result.changed) {
+            new import_obsidian9.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672C\u6B21\u5DF2\u5C06\u56FE\u7247\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668\uFF0C\u8BF7\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+          } else {
+            new import_obsidian9.Notice("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u5728\u5FAE\u4FE1\u670D\u52A1\u5668\u4E0A\uFF0C\u5185\u5BB9\u5DF2\u590D\u5236\uFF0C\u53EF\u76F4\u63A5\u5230\u516C\u4F17\u53F7\u7F16\u8F91\u5668\u7C98\u8D34\u3002");
+          }
         } else {
           if ((result == null ? void 0 : result.reason) === "no-appid") {
-            new import_obsidian10.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002");
+            new import_obsidian9.Notice("\u590D\u5236\u6210\u529F\uFF0C\u672A\u914D\u7F6E\u516C\u4F17\u53F7\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u3002");
           } else if ((result == null ? void 0 : result.reason) === "backend" || (result == null ? void 0 : result.reason) === "token") {
-            new import_obsidian10.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\uFF08\u540E\u7AEF\u672A\u8FDE\u63A5\u6216\u8BA4\u8BC1\u5931\u8D25\uFF09\u3002");
+            new import_obsidian9.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\uFF08\u540E\u7AEF\u672A\u8FDE\u63A5\u6216\u8BA4\u8BC1\u5931\u8D25\uFF09\u3002");
           } else {
-            new import_obsidian10.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u3002");
+            new import_obsidian9.Notice("\u590D\u5236\u6210\u529F\uFF0C\u4EC5\u590D\u5236\u5185\u5BB9\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u3002");
           }
         }
       },
@@ -74161,6 +73941,7 @@ var PreviewController = class {
     (_a = this.listeners) == null ? void 0 : _a.forEach((listener) => this.app.workspace.offref(listener));
     LocalFile.fileCache.clear();
   }
+  // 刷新控制器，重新构建工具栏和内容
   async onRefresh() {
     try {
       this.status.showInfo("\u6B63\u5728\u5237\u65B0...");
@@ -74173,6 +73954,7 @@ var PreviewController = class {
       this.status.showError(`\u5237\u65B0\u5931\u8D25: ${error.message}`);
     }
   }
+  // 重新构建工具栏以反映设置变更
   rebuildToolbar() {
     if (this.toolbar && typeof this.toolbar.refresh === "function") {
       this.toolbar.refresh();
@@ -74215,6 +73997,7 @@ var PreviewController = class {
     const metadata = this.render.getMetadata();
     this.toolbar.updateFromMetadata(metadata, this.currentTheme, this.currentHighlight);
   }
+  // Claude Code Update: 改进错误提示，针对不同错误给出具体信息
   async uploadImages() {
     if (!this.currentAppId) {
       this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7", 3e3);
@@ -74224,7 +74007,7 @@ var PreviewController = class {
       const now = Date.now();
       if (now - this.lastBackendFailureAt < 5e3) {
         this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u65E0\u6CD5\u4E0A\u4F20\u56FE\u7247\u3002", 4e3);
-        new import_obsidian10.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
+        new import_obsidian9.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
         return;
       }
       this.backendAvailable = null;
@@ -74235,6 +74018,7 @@ var PreviewController = class {
       this.backendAvailable = true;
       this.status.showSuccess("\u56FE\u7247\u4E0A\u4F20\u6210\u529F\uFF0C\u56FE\u7247\u94FE\u63A5\u5DF2\u66F4\u65B0", 3e3);
     } catch (error) {
+      console.error("\u56FE\u7247\u4E0A\u4F20\u5931\u8D25:", error);
       this.notifyBackendUnavailable(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7")) {
@@ -74262,7 +74046,7 @@ var PreviewController = class {
       const now = Date.now();
       if (now - this.lastBackendFailureAt < 5e3) {
         this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u6682\u65E0\u6CD5\u53D1\u8349\u7A3F\u3002", 4e3);
-        new import_obsidian10.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
+        new import_obsidian9.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u540E\u7AEF\u540E\u518D\u8BD5\u3002");
         return;
       }
       this.backendAvailable = null;
@@ -74272,7 +74056,9 @@ var PreviewController = class {
       await this.uploadImagesAndCreateDraft(this.currentAppId, localCover);
       this.backendAvailable = true;
       this.status.showSuccess("\u53D1\u5E03\u6210\u529F", 3e3);
+      new import_obsidian9.Notice("\u{1F389} \u6587\u7AE0\u5DF2\u6210\u529F\u53D1\u5E03\u5230\u5FAE\u4FE1\u516C\u4F17\u53F7\u8349\u7A3F\u7BB1");
     } catch (error) {
+      console.error("\u53D1\u5E03\u5931\u8D25:", error);
       this.notifyBackendUnavailable(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes("token") || errorMessage.includes("Token") || errorMessage.includes("\u8BA4\u8BC1")) {
@@ -74287,22 +74073,25 @@ var PreviewController = class {
       try {
         await this.copyWithoutImageUpload();
       } catch (copyError) {
+        console.error("\u964D\u7EA7\u590D\u5236\u4E5F\u5931\u8D25:", copyError);
         this.status.showError("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
       }
     }
   }
+  // Claude Code Update: 改进错误提示
+  // Claude Code Update: 精确区分「本次是否执行上传」与「内容中是否已有微信图片链接」
   async copyWithImageUpload() {
     if (!this.currentAppId) {
       this.status.showWarning("\u8BF7\u5148\u9009\u62E9\u516C\u4F17\u53F7", 3e3);
       await this.copyWithoutImageUpload();
-      return { uploaded: false, reason: "no-appid" };
+      return { uploaded: false, reason: "no-appid", changed: false };
     }
     if (this.backendAvailable === false) {
       const now = Date.now();
       if (now - this.lastBackendFailureAt < 5e3) {
         this.status.showWarning("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\uFF0C\u76F4\u63A5\u590D\u5236\u672C\u5730\u5185\u5BB9\u3002", 4e3);
         await this.copyWithoutImageUpload();
-        return { uploaded: false, reason: "backend" };
+        return { uploaded: false, reason: "backend", changed: false };
       }
       this.backendAvailable = null;
     }
@@ -74312,16 +74101,17 @@ var PreviewController = class {
       token = await this.render.getToken(this.currentAppId);
       this.backendAvailable = true;
     } catch (error) {
+      console.error("Token\u83B7\u53D6\u5931\u8D25:", error);
       const message = error instanceof Error ? error.message : String(error);
       this.status.showError(message || "\u65E0\u6CD5\u83B7\u53D6\u8BBF\u95EE\u4EE4\u724C", 5e3);
       this.notifyBackendUnavailable(error, { suppressNotice: true });
       await this.copyWithoutImageUpload();
-      return { uploaded: false, reason: "token" };
+      return { uploaded: false, reason: "token", changed: false };
     }
     if (!token) {
       this.status.showError("Token\u83B7\u53D6\u5931\u8D25\uFF0C\u56FE\u7247\u672A\u4E0A\u4F20\u5230\u516C\u4F17\u53F7", 5e3);
       await this.copyWithoutImageUpload();
-      return { uploaded: false, reason: "token" };
+      return { uploaded: false, reason: "token", changed: false };
     }
     this.status.showProcessing("\u5904\u7406\u56FE\u7247...");
     this.status.showUploading("\u68C0\u6D4B\u672C\u5730\u56FE\u7247...");
@@ -74332,12 +74122,13 @@ var PreviewController = class {
       return image && image.url == null && image.filePath;
     });
     let didUpload = false;
+    let hasWechatImages = false;
     if (localImages.length > 0) {
-      const { initApiClients: initApiClients2, getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
-      if (!getWechatClient3()) {
+      const { initApiClients: initApiClients2, getWechatClient: getWechatClient2 } = await Promise.resolve().then(() => (init_api(), api_exports));
+      if (!getWechatClient2()) {
         initApiClients2();
       }
-      const wechatClient = getWechatClient3();
+      const wechatClient = getWechatClient2();
       this.status.showUploading(`\u4E0A\u4F20\u56FE\u7247\u4E2D... (0/${localImages.length})`);
       for (let i = 0; i < localImages.length; i++) {
         const imageKey = localImages[i];
@@ -74348,6 +74139,7 @@ var PreviewController = class {
         try {
           const file = this.app.vault.getFileByPath(imageInfo.filePath);
           if (!file) {
+            console.warn("\u56FE\u7247\u6587\u4EF6\u4E0D\u5B58\u5728:", imageInfo.filePath);
             continue;
           }
           const fileData = await this.app.vault.readBinary(file);
@@ -74365,13 +74157,21 @@ var PreviewController = class {
             imageInfo.url = uploadRes.url || `https://mmbiz.qlogo.cn/mmbiz_png/${mediaId}/0?wx_fmt=png`;
             imageInfo.media_id = mediaId;
             didUpload = true;
+            hasWechatImages = true;
           }
         } catch (error) {
+          console.error(`\u56FE\u7247\u5904\u7406\u5931\u8D25: ${imageInfo.filePath}`, error);
           this.notifyBackendUnavailable(error, { suppressNotice: true });
         }
       }
       this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
       lm.replaceImages(this.content.getElements().articleDiv);
+    } else {
+      const imageKeysAll = Array.from(lm.images.keys());
+      hasWechatImages = imageKeysAll.some((key) => {
+        const image = lm.images.get(key);
+        return image && image.url;
+      });
     }
     this.status.showCopying("\u590D\u5236\u5230\u526A\u8D34\u677F...");
     try {
@@ -74380,34 +74180,36 @@ var PreviewController = class {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       await this.render.copyArticle();
-      if (didUpload) {
+      if (hasWechatImages || didUpload) {
         this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
       } else {
         this.status.showSuccess("\u590D\u5236\u6210\u529F", 2e3);
       }
     } catch (error) {
+      console.error("\u526A\u8D34\u677F\u590D\u5236\u5931\u8D25:", error);
       try {
         await this.fallbackCopyToClipboard();
-        if (didUpload) {
+        if (hasWechatImages || didUpload) {
           this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u56FE\u7247\u5DF2\u4E0A\u4F20\u5230\u5FAE\u4FE1\u670D\u52A1\u5668", 2e3);
         } else {
           this.status.showSuccess("\u590D\u5236\u6210\u529F", 2e3);
         }
       } catch (fallbackError) {
+        console.error("\u964D\u7EA7\u590D\u5236\u5931\u8D25:", fallbackError);
         this.status.hideMessage();
         throw new Error("\u590D\u5236\u5931\u8D25\uFF1A\u8BF7\u786E\u4FDD\u6D4F\u89C8\u5668\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\uFF0C\u7136\u540E\u91CD\u8BD5");
       }
     }
-    return { uploaded: didUpload, reason: "none" };
+    return { uploaded: hasWechatImages || didUpload, reason: "none", changed: didUpload };
   }
   // V2风格的图片上传和草稿创建
   async uploadImagesAndCreateDraft(appid, localCover = null) {
     var _a;
-    const { initApiClients: initApiClients2, getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
-    if (!getWechatClient3()) {
+    const { initApiClients: initApiClients2, getWechatClient: getWechatClient2 } = await Promise.resolve().then(() => (init_api(), api_exports));
+    if (!getWechatClient2()) {
       initApiClients2();
     }
-    const wechatClient = getWechatClient3();
+    const wechatClient = getWechatClient2();
     this.status.showProcessing("\u83B7\u53D6\u8BA4\u8BC1\u4FE1\u606F...");
     const token = await this.render.getToken(appid);
     if (!token) {
@@ -74434,6 +74236,7 @@ var PreviewController = class {
         try {
           const file = this.app.vault.getFileByPath(imageInfo.filePath);
           if (!file) {
+            console.warn("\u56FE\u7247\u6587\u4EF6\u4E0D\u5B58\u5728:", imageInfo.filePath);
             continue;
           }
           const fileData = await this.app.vault.readBinary(file);
@@ -74452,8 +74255,10 @@ var PreviewController = class {
             imageInfo.media_id = mediaId2;
           } else {
             const error = uploadRes.errmsg || "\u672A\u77E5\u9519\u8BEF";
+            console.error(`\u56FE\u7247\u4E0A\u4F20\u5931\u8D25: ${file.name}, \u9519\u8BEF: ${error}`);
           }
         } catch (error) {
+          console.error(`\u56FE\u7247\u5904\u7406\u5931\u8D25: ${imageInfo.filePath}`, error);
         }
       }
       this.status.showProcessing("\u66FF\u6362\u56FE\u7247\u94FE\u63A5...");
@@ -74542,11 +74347,11 @@ var PreviewController = class {
     var _a, _b, _c, _d;
     const currentTitle = ((_a = this.currentFile) == null ? void 0 : _a.basename) || this.render.title || "\u672A\u547D\u540D\u6587\u7AE0";
     try {
-      const { initApiClients: initApiClients2, getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
-      if (!getWechatClient3()) {
+      const { initApiClients: initApiClients2, getWechatClient: getWechatClient2 } = await Promise.resolve().then(() => (init_api(), api_exports));
+      if (!getWechatClient2()) {
         initApiClients2();
       }
-      const wechatClient = getWechatClient3();
+      const wechatClient = getWechatClient2();
       const draftsRes = await wechatClient.getDraftList(token, 0, 20);
       if (draftsRes.total_count && draftsRes.total_count > 0 && draftsRes.item && draftsRes.item.length > 0) {
         for (let i = 0; i < draftsRes.item.length; i++) {
@@ -74563,6 +74368,7 @@ var PreviewController = class {
       }
       return { shouldUpdate: false, index: 0 };
     } catch (error) {
+      console.error("\u8349\u7A3F\u68C0\u6D4B\u5931\u8D25:", error);
       return { shouldUpdate: false, index: 0 };
     }
   }
@@ -74634,8 +74440,11 @@ var PreviewController = class {
     }
     const textarea = document.createElement("textarea");
     textarea.value = this.render.getArticleText();
-    textarea.setAttribute("readonly", "true");
-    textarea.classList.add("wdwx-clipboard-textarea");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
     document.body.appendChild(textarea);
     try {
       textarea.focus();
@@ -74659,13 +74468,15 @@ var PreviewController = class {
       await this.render.copyArticle();
       this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u5230\u516C\u4F17\u53F7", 2e3);
     } catch (error) {
+      console.warn("\u526A\u8D34\u677F\u590D\u5236\u5931\u8D25:", error);
       try {
         await this.fallbackCopyToClipboard();
         this.status.showSuccess("\u590D\u5236\u6210\u529F\uFF0C\u672A\u4E0A\u4F20\u56FE\u7247\u5230\u516C\u4F17\u53F7", 2e3);
       } catch (fallbackError) {
+        console.error("\u517C\u5BB9\u590D\u5236\u4E5F\u5931\u8D25:", fallbackError);
         this.status.hideMessage();
         this.status.showError("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002", 4e3);
-        new import_obsidian10.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
+        new import_obsidian9.Notice("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
         throw new Error("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u786E\u8BA4Obsidian\u7A97\u53E3\u5904\u4E8E\u6D3B\u52A8\u72B6\u6001\u540E\u91CD\u8BD5\u3002");
       }
     }
@@ -74681,14 +74492,14 @@ var PreviewController = class {
   async batchPost(folder) {
     const files = folder.children.filter((child) => child.path.toLocaleLowerCase().endsWith(".md"));
     if (!files) {
-      new import_obsidian10.Notice("\u6CA1\u6709\u53EF\u6E32\u67D3\u7684\u7B14\u8BB0\u6216\u6587\u4EF6\u4E0D\u652F\u6301\u6E32\u67D3");
+      new import_obsidian9.Notice("\u6CA1\u6709\u53EF\u6E32\u67D3\u7684\u7B14\u8BB0\u6216\u6587\u4EF6\u4E0D\u652F\u6301\u6E32\u67D3");
       return;
     }
     this.isCancelUpload = false;
     this.isBatchRuning = true;
     try {
       for (let file of files) {
-        if (!(file instanceof import_obsidian10.TFile)) {
+        if (!(file instanceof import_obsidian9.TFile)) {
           continue;
         }
         this.showLoading(`\u5373\u5C06\u53D1\u5E03: ${file.name}`, true);
@@ -74704,7 +74515,8 @@ var PreviewController = class {
         this.showMsg(`\u6279\u91CF\u53D1\u5E03\u5B8C\u6210\uFF1A\u6210\u529F\u53D1\u5E03 ${files.length} \u7BC7\u7B14\u8BB0`);
       }
     } catch (e2) {
-      new import_obsidian10.Notice("\u6279\u91CF\u53D1\u5E03\u5931\u8D25: " + e2.message);
+      console.error(e2);
+      new import_obsidian9.Notice("\u6279\u91CF\u53D1\u5E03\u5931\u8D25: " + e2.message);
     } finally {
       this.isBatchRuning = false;
       this.isCancelUpload = false;
@@ -74730,12 +74542,13 @@ var PreviewController = class {
         this.lastBackendNoticeAt = now;
         this.status.showError("\u540E\u7AEF\u670D\u52A1\u672A\u542F\u52A8\u6216\u65E0\u6CD5\u8FDE\u63A5\u3002\u5DF2\u5207\u6362\u4E3A\u201C\u4EC5\u590D\u5236\u201D\u6A21\u5F0F\u3002", 6e3);
         if (!(options2 == null ? void 0 : options2.suppressNotice)) {
-          new import_obsidian10.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u672C\u5730\u670D\u52A1\u6216\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u3002");
+          new import_obsidian9.Notice("\u672A\u68C0\u6D4B\u5230\u540E\u7AEF\u670D\u52A1\uFF0C\u8BF7\u5148\u542F\u52A8\u672C\u5730\u670D\u52A1\u6216\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u3002");
         }
       }
     }
     return matched;
   }
+  // 获取当前状态
   getCurrentAppId() {
     return this.currentAppId;
   }
@@ -74752,7 +74565,7 @@ var PreviewController = class {
 
 // src/ui/views/preview-view.ts
 var VIEW_TYPE_WX_PREVIEW = "wx-preview";
-var PreviewView = class extends import_obsidian11.ItemView {
+var PreviewView = class extends import_obsidian10.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.controller = new PreviewController(this.app, this, plugin);
@@ -74785,24 +74598,29 @@ var PreviewView = class extends import_obsidian11.ItemView {
     const loading = container.createDiv({ cls: "loading-wrapper" });
     loading.createDiv({ cls: "loading-spinner" });
   }
+  // 获取容器元素
   getContainer() {
     return this.containerEl.children[1];
   }
+  // 获取控制器实例
   getController() {
     return this.controller;
   }
+  // Claude Code Update
+  // 强制刷新视图
   async forceRefresh() {
     try {
       await this.controller.onRefresh();
     } catch (error) {
+      console.error("\u9884\u89C8\u89C6\u56FE\u5237\u65B0\u5931\u8D25:", error);
     }
   }
 };
 
 // src/ui/setting-tab.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 init_api();
-var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
+var WxSettingTab = class extends import_obsidian11.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -74828,17 +74646,19 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
   async testWXInfo() {
     const wxInfo = this.settings.wxInfo;
     if (wxInfo.length == 0) {
-      new import_obsidian12.Notice("\u8BF7\u5148\u8BBE\u7F6E\u516C\u4F17\u53F7\u4FE1\u606F");
+      new import_obsidian11.Notice("\u8BF7\u5148\u8BBE\u7F6E\u516C\u4F17\u53F7\u4FE1\u606F");
       return;
     }
     try {
       for (let wx of wxInfo) {
         try {
-          const tokenInfo = await wxGetToken(wx.appid, wx.secret);
-          if (tokenInfo.access_token && tokenInfo.access_token.length > 0) {
-            new import_obsidian12.Notice(`${wx.name} \u6D4B\u8BD5\u901A\u8FC7`);
+          const result = await wxGetToken("", wx.appid, wx.secret);
+          const tokenInfo = result.json;
+          if (tokenInfo.token && tokenInfo.token.length > 0) {
+            new import_obsidian11.Notice(`${wx.name} \u6D4B\u8BD5\u901A\u8FC7`);
           } else {
-            new import_obsidian12.Notice(`${wx.name} \u6D4B\u8BD5\u5931\u8D25\uFF1A\u672A\u83B7\u53D6\u5230\u6709\u6548token`);
+            const errMsg = tokenInfo.message || "\u672A\u83B7\u53D6\u5230\u6709\u6548token";
+            throw new Error(errMsg);
           }
         } catch (error) {
           let message = `${wx.name} \u6D4B\u8BD5\u5931\u8D25\uFF1A${error.message || error}`;
@@ -74863,25 +74683,26 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
           } else if (error.message && error.message.includes("50002")) {
             message = `${wx.name} \u6D4B\u8BD5\u5931\u8D25\uFF1A\u7528\u6237\u53D7\u9650\uFF0C\u53EF\u80FD\u662F\u516C\u4F17\u53F7\u88AB\u51BB\u7ED3`;
           }
-          new import_obsidian12.Notice(message);
+          new import_obsidian11.Notice(message);
           break;
         }
       }
     } catch (error) {
-      new import_obsidian12.Notice(`\u6D4B\u8BD5\u5931\u8D25\uFF1A${error}`);
+      new import_obsidian11.Notice(`\u6D4B\u8BD5\u5931\u8D25\uFF1A${error}`);
     }
   }
+  // 直接保存方式，不再需要后端加密
   async saveWXInfo(authKey) {
     if (this.wxInfo.length == 0) {
-      new import_obsidian12.Notice("\u8BF7\u8F93\u5165\u5185\u5BB9");
+      new import_obsidian11.Notice("\u8BF7\u8F93\u5165\u5185\u5BB9");
       return false;
     }
     if (this.settings.wxInfo.length > 0) {
-      new import_obsidian12.Notice("\u5DF2\u7ECF\u4FDD\u5B58\u8FC7\u4E86\uFF0C\u8BF7\u5148\u6E05\u9664\uFF01");
+      new import_obsidian11.Notice("\u5DF2\u7ECF\u4FDD\u5B58\u8FC7\u4E86\uFF0C\u8BF7\u5148\u6E05\u9664\uFF01");
       return false;
     }
-    if (!authKey || authKey.trim().length === 0) {
-      new import_obsidian12.Notice("\u8BF7\u5148\u9A8C\u8BC1AuthKey");
+    if (!authKey || !isAuthKeyValid(authKey.trim())) {
+      new import_obsidian11.Notice("\u8BF7\u5148\u9A8C\u8BC1AuthKey\uFF08\u63D0\u793A\uFF1A\u4F7F\u7528\u5185\u7F6E\u5BC6\u94A5\uFF09");
       return false;
     }
     const wechat = [];
@@ -74893,7 +74714,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
       }
       const items = line.split("|");
       if (items.length != 3) {
-        new import_obsidian12.Notice("\u683C\u5F0F\u9519\u8BEF\uFF0C\u8BF7\u68C0\u67E5");
+        new import_obsidian11.Notice("\u683C\u5F0F\u9519\u8BEF\uFF0C\u8BF7\u68C0\u67E5");
         return false;
       }
       const name = items[0].trim();
@@ -74905,29 +74726,15 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
       return false;
     }
     try {
-      const { getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
-      const wechatClient = getWechatClient3();
-      for (let wx of wechat) {
-        try {
-          await wechatClient.registerAccount({
-            app_id: wx.appid,
-            app_secret: wx.secret,
-            name: wx.name,
-            auth_key: authKey.trim()
-          });
-        } catch (error) {
-          new import_obsidian12.Notice(`\u540C\u6B65\u516C\u4F17\u53F7 ${wx.name} \u5230\u540E\u7AEF\u5931\u8D25: ${error.message || error}`);
-          return false;
-        }
-      }
       this.settings.wxInfo = wechat;
       await this.plugin.saveSettings();
       this.wxInfo = this.parseWXInfo();
       this.displayWXInfo(this.wxInfo);
-      new import_obsidian12.Notice("\u4FDD\u5B58\u6210\u529F");
+      new import_obsidian11.Notice("\u4FDD\u5B58\u6210\u529F");
       return true;
     } catch (error) {
-      new import_obsidian12.Notice(`\u4FDD\u5B58\u5931\u8D25\uFF1A${error}`);
+      new import_obsidian11.Notice(`\u4FDD\u5B58\u5931\u8D25\uFF1A${error}`);
+      console.error(error);
     }
     return false;
   }
@@ -74937,15 +74744,17 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
     this.wxInfo = "";
     this.displayWXInfo("");
   }
+  // Claude Code Update: 重构display方法，调整设置顺序并添加新设置项
   display() {
     const { containerEl } = this;
     containerEl.empty();
     this.wxInfo = this.parseWXInfo();
-    const helpEl = containerEl.createEl("div", { cls: "wdwx-setting-help" });
-    helpEl.createEl("h2", { text: "\u5E2E\u52A9\u6587\u6863", cls: "wdwx-setting-help__title" });
+    const helpEl = containerEl.createEl("div");
+    helpEl.style.cssText = "display: flex;flex-direction: row;align-items: center;";
+    helpEl.createEl("h2", { text: "\u5E2E\u52A9\u6587\u6863" }).style.cssText = "margin-right: 10px;";
     helpEl.createEl("a", { text: "https://github.com/IsHexx/WDWXEdit", attr: { href: "https://github.com/IsHexx/WDWXEdit" } });
     containerEl.createEl("h2", { text: "\u4E3B\u9898\u4E0E\u6837\u5F0F" });
-    new import_obsidian12.Setting(containerEl).setName("\u9ED8\u8BA4\u6837\u5F0F").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9ED8\u8BA4\u6837\u5F0F").addDropdown((dropdown) => {
       const styles = this.plugin.assetsManager.themes;
       for (let s of styles) {
         dropdown.addOption(s.className, s.name);
@@ -74956,7 +74765,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u4EE3\u7801\u9AD8\u4EAE").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u4EE3\u7801\u9AD8\u4EAE").addDropdown((dropdown) => {
       const styles = this.plugin.assetsManager.highlights;
       for (let s of styles) {
         dropdown.addOption(s.name, s.name);
@@ -74967,7 +74776,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u83B7\u53D6\u66F4\u591A\u4E3B\u9898").addButton((button) => {
+    new import_obsidian11.Setting(containerEl).setName("\u83B7\u53D6\u66F4\u591A\u4E3B\u9898").addButton((button) => {
       button.setButtonText("\u4E0B\u8F7D");
       button.onClick(async () => {
         button.setButtonText("\u4E0B\u8F7D\u4E2D...");
@@ -74980,7 +74789,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.assetsManager.openAssets();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u6E05\u7A7A\u4E3B\u9898").addButton((button) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6E05\u7A7A\u4E3B\u9898").addButton((button) => {
       button.setButtonText("\u6E05\u7A7A");
       button.onClick(async () => {
         await this.plugin.assetsManager.removeThemes();
@@ -74988,14 +74797,14 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u5728\u5DE5\u5177\u680F\u5C55\u793A\u6837\u5F0F\u9009\u62E9").setDesc("\u5EFA\u8BAE\u5728\u79FB\u52A8\u7AEF\u5173\u95ED\uFF0C\u53EF\u4EE5\u589E\u5927\u6587\u7AE0\u9884\u89C8\u533A\u57DF").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u5728\u5DE5\u5177\u680F\u5C55\u793A\u6837\u5F0F\u9009\u62E9").setDesc("\u5EFA\u8BAE\u5728\u79FB\u52A8\u7AEF\u5173\u95ED\uFF0C\u53EF\u4EE5\u589E\u5927\u6587\u7AE0\u9884\u89C8\u533A\u57DF").addToggle((toggle) => {
       toggle.setValue(this.settings.showStyleUI);
       toggle.onChange(async (value) => {
         this.settings.showStyleUI = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u5B57\u4F53").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u5B57\u4F53").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u5B57\u4F53").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u5B57\u4F53").addDropdown((dropdown) => {
       dropdown.addOption("\u7B49\u7EBF", "\u7B49\u7EBF");
       dropdown.addOption("\u5B8B\u4F53", "\u5B8B\u4F53");
       dropdown.addOption("\u9ED1\u4F53", "\u9ED1\u4F53");
@@ -75007,7 +74816,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u5B57\u53F7").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u5B57\u53F7").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u5B57\u53F7").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u5B57\u53F7").addDropdown((dropdown) => {
       dropdown.addOption("\u8F83\u5C0F", "\u8F83\u5C0F");
       dropdown.addOption("\u63A8\u8350", "\u63A8\u8350");
       dropdown.addOption("\u8F83\u5927", "\u8F83\u5927");
@@ -75017,17 +74826,14 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u4E3B\u9898\u8272").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u4E3B\u9898\u8272").addText((text) => {
-      text.setPlaceholder("#2d3748");
-      text.setValue(this.settings.primaryColor);
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u4E3B\u9898\u8272").setDesc("\u8BBE\u7F6E\u6587\u7AE0\u4E3B\u9898\u8272").addText((text) => {
+      text.setPlaceholder("#2d3748").setValue(this.settings.primaryColor).onChange(async (value) => {
         this.settings.primaryColor = value.trim();
         await this.plugin.saveSettings();
-      });
-      text.inputEl.classList.add("wdwx-setting-input-sm");
+      }).inputEl.setAttr("style", "width: 120px;");
     });
     containerEl.createEl("h2", { text: "\u5185\u5BB9\u6E32\u67D3" });
-    new import_obsidian12.Setting(containerEl).setName("\u94FE\u63A5\u5C55\u793A\u6837\u5F0F").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u94FE\u63A5\u5C55\u793A\u6837\u5F0F").addDropdown((dropdown) => {
       dropdown.addOption("inline", "\u5185\u5D4C");
       dropdown.addOption("footnote", "\u811A\u6CE8");
       dropdown.setValue(this.settings.linkStyle);
@@ -75036,7 +74842,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u6587\u4EF6\u5D4C\u5165\u5C55\u793A\u6837\u5F0F").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6587\u4EF6\u5D4C\u5165\u5C55\u793A\u6837\u5F0F").addDropdown((dropdown) => {
       dropdown.addOption("quote", "\u5F15\u7528");
       dropdown.addOption("content", "\u6B63\u6587");
       dropdown.setValue(this.settings.embedStyle);
@@ -75045,7 +74851,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u6570\u5B66\u516C\u5F0F\u8BED\u6CD5").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6570\u5B66\u516C\u5F0F\u8BED\u6CD5").addDropdown((dropdown) => {
       dropdown.addOption("latex", "latex");
       dropdown.addOption("asciimath", "asciimath");
       dropdown.setValue(this.settings.math);
@@ -75055,21 +74861,21 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u663E\u793A\u4EE3\u7801\u884C\u53F7").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u663E\u793A\u4EE3\u7801\u884C\u53F7").addToggle((toggle) => {
       toggle.setValue(this.settings.lineNumber);
       toggle.onChange(async (value) => {
         this.settings.lineNumber = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u542F\u7528\u7A7A\u884C\u6E32\u67D3").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u542F\u7528\u7A7A\u884C\u6E32\u67D3").addToggle((toggle) => {
       toggle.setValue(this.settings.enableEmptyLine);
       toggle.onChange(async (value) => {
         this.settings.enableEmptyLine = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u6E32\u67D3\u56FE\u7247\u6807\u9898").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6E32\u67D3\u56FE\u7247\u6807\u9898").addToggle((toggle) => {
       toggle.setValue(this.settings.useFigcaption);
       toggle.onChange(async (value) => {
         this.settings.useFigcaption = value;
@@ -75077,7 +74883,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
       });
     });
     containerEl.createEl("h2", { text: "\u6392\u7248\u8BBE\u7F6E" });
-    new import_obsidian12.Setting(containerEl).setName("\u6BB5\u843D\u95F4\u8DDD").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6BB5\u843D\u95F4\u8DDD").addDropdown((dropdown) => {
       dropdown.addOption("\u7D27\u51D1", "\u7D27\u51D1");
       dropdown.addOption("\u6B63\u5E38", "\u6B63\u5E38");
       dropdown.addOption("\u5BBD\u677E", "\u5BBD\u677E");
@@ -75087,14 +74893,14 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u9996\u884C\u7F29\u8FDB").setDesc("\u6BB5\u843D\u9996\u884C\u662F\u5426\u7F29\u8FDB\u4E24\u4E2A\u5B57\u7B26").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9996\u884C\u7F29\u8FDB").setDesc("\u6BB5\u843D\u9996\u884C\u662F\u5426\u7F29\u8FDB\u4E24\u4E2A\u5B57\u7B26").addToggle((toggle) => {
       toggle.setValue(this.settings.firstLineIndent);
       toggle.onChange(async (value) => {
         this.settings.firstLineIndent = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u6807\u9898\u5BF9\u9F50").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6807\u9898\u5BF9\u9F50").addDropdown((dropdown) => {
       dropdown.addOption("left", "\u5DE6\u5BF9\u9F50");
       dropdown.addOption("center", "\u5C45\u4E2D");
       dropdown.setValue(this.settings.headingAlign);
@@ -75104,70 +74910,55 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
       });
     });
     containerEl.createEl("h2", { text: "\u56FE\u7247\u5904\u7406" });
-    new import_obsidian12.Setting(containerEl).setName("\u6C34\u5370\u56FE\u7247").setDesc("\u8F93\u5165vault\u4E2D\u7684\u56FE\u7247\u6587\u4EF6\u540D").addText((text) => {
-      text.setPlaceholder("\u8BF7\u8F93\u5165\u56FE\u7247\u540D\u79F0");
-      text.setValue(this.settings.watermark);
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u6C34\u5370\u56FE\u7247").setDesc("\u8F93\u5165vault\u4E2D\u7684\u56FE\u7247\u6587\u4EF6\u540D").addText((text) => {
+      text.setPlaceholder("\u8BF7\u8F93\u5165\u56FE\u7247\u540D\u79F0").setValue(this.settings.watermark).onChange(async (value) => {
         this.settings.watermark = value.trim();
         await this.plugin.saveSettings();
-      });
-      text.inputEl.classList.add("wdwx-setting-input-md");
+      }).inputEl.setAttr("style", "width: 320px;");
     });
-    new import_obsidian12.Setting(containerEl).setName("\u81EA\u52A8\u538B\u7F29\u56FE\u7247").setDesc("\u4E0A\u4F20\u524D\u81EA\u52A8\u538B\u7F29\u56FE\u7247\u4EE5\u63D0\u9AD8\u52A0\u8F7D\u901F\u5EA6").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u81EA\u52A8\u538B\u7F29\u56FE\u7247").setDesc("\u4E0A\u4F20\u524D\u81EA\u52A8\u538B\u7F29\u56FE\u7247\u4EE5\u63D0\u9AD8\u52A0\u8F7D\u901F\u5EA6").addToggle((toggle) => {
       toggle.setValue(this.settings.autoCompressImage);
       toggle.onChange(async (value) => {
         this.settings.autoCompressImage = value;
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u56FE\u7247\u538B\u7F29\u8D28\u91CF").setDesc("\u538B\u7F29\u8D28\u91CF\uFF080.1-1.0\uFF09\uFF0C\u6570\u503C\u8D8A\u9AD8\u8D28\u91CF\u8D8A\u597D\u4F46\u6587\u4EF6\u8D8A\u5927").addText((text) => {
-      text.setPlaceholder("0.9");
-      text.setValue(String(this.settings.imageQuality));
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u56FE\u7247\u538B\u7F29\u8D28\u91CF").setDesc("\u538B\u7F29\u8D28\u91CF\uFF080.1-1.0\uFF09\uFF0C\u6570\u503C\u8D8A\u9AD8\u8D28\u91CF\u8D8A\u597D\u4F46\u6587\u4EF6\u8D8A\u5927").addText((text) => {
+      text.setPlaceholder("0.9").setValue(String(this.settings.imageQuality)).onChange(async (value) => {
         const quality = parseFloat(value);
         if (!isNaN(quality) && quality >= 0.1 && quality <= 1) {
           this.settings.imageQuality = quality;
           await this.plugin.saveSettings();
         }
-      });
-      text.inputEl.classList.add("wdwx-setting-input-sm");
+      }).inputEl.setAttr("style", "width: 120px;");
     });
-    new import_obsidian12.Setting(containerEl).setName("\u56FE\u7247\u6700\u5927\u5BBD\u5EA6").setDesc("\u56FE\u7247\u6700\u5927\u5BBD\u5EA6\u9650\u5236\uFF08\u50CF\u7D20\uFF09").addText((text) => {
-      text.setPlaceholder("1200");
-      text.setValue(String(this.settings.imageMaxWidth));
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u56FE\u7247\u6700\u5927\u5BBD\u5EA6").setDesc("\u56FE\u7247\u6700\u5927\u5BBD\u5EA6\u9650\u5236\uFF08\u50CF\u7D20\uFF09").addText((text) => {
+      text.setPlaceholder("1200").setValue(String(this.settings.imageMaxWidth)).onChange(async (value) => {
         const width = parseInt(value);
         if (!isNaN(width) && width > 0) {
           this.settings.imageMaxWidth = width;
           await this.plugin.saveSettings();
         }
-      });
-      text.inputEl.classList.add("wdwx-setting-input-sm");
+      }).inputEl.setAttr("style", "width: 120px;");
     });
     containerEl.createEl("h2", { text: "\u81EA\u5B9A\u4E49\u6837\u5F0F" });
-    new import_obsidian12.Setting(containerEl).setName("\u5168\u5C40CSS\u5C5E\u6027").setDesc("\u53EA\u80FD\u586B\u5199CSS\u5C5E\u6027\uFF0C\u4E0D\u80FD\u5199\u9009\u62E9\u5668").addTextArea((text) => {
+    new import_obsidian11.Setting(containerEl).setName("\u5168\u5C40CSS\u5C5E\u6027").setDesc("\u53EA\u80FD\u586B\u5199CSS\u5C5E\u6027\uFF0C\u4E0D\u80FD\u5199\u9009\u62E9\u5668").addTextArea((text) => {
       this.wxTextArea = text;
-      text.setPlaceholder("\u8BF7\u8F93\u5165CSS\u5C5E\u6027\uFF0C\u5982\uFF1Abackground: #fff;padding: 10px;");
-      text.setValue(this.settings.baseCSS);
-      text.onChange(async (value) => {
+      text.setPlaceholder("\u8BF7\u8F93\u5165CSS\u5C5E\u6027\uFF0C\u5982\uFF1Abackground: #fff;padding: 10px;").setValue(this.settings.baseCSS).onChange(async (value) => {
         this.settings.baseCSS = value;
         await this.plugin.saveSettings();
-      });
-      text.inputEl.classList.add("wdwx-setting-input-xl", "wdwx-setting-textarea-sm");
+      }).inputEl.setAttr("style", "width: 520px; height: 60px;");
     });
     const customCSSDoc = '\u4F7F\u7528\u6307\u5357\uFF1A<a href="https://github.com/IsHexx/WDWXEdit">https://github.com/IsHexx/WDWXEdit</a>';
-    new import_obsidian12.Setting(containerEl).setName("\u81EA\u5B9A\u4E49CSS\u7B14\u8BB0").setDesc((0, import_obsidian12.sanitizeHTMLToDom)(customCSSDoc)).addText((text) => {
-      text.setPlaceholder("\u8BF7\u8F93\u5165\u81EA\u5B9A\u4E49CSS\u7B14\u8BB0\u6807\u9898");
-      text.setValue(this.settings.customCSSNote);
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u81EA\u5B9A\u4E49CSS\u7B14\u8BB0").setDesc((0, import_obsidian11.sanitizeHTMLToDom)(customCSSDoc)).addText((text) => {
+      text.setPlaceholder("\u8BF7\u8F93\u5165\u81EA\u5B9A\u4E49CSS\u7B14\u8BB0\u6807\u9898").setValue(this.settings.customCSSNote).onChange(async (value) => {
         this.settings.customCSSNote = value.trim();
         await this.plugin.saveSettings();
         await this.plugin.assetsManager.loadCustomCSS();
-      });
-      text.inputEl.classList.add("wdwx-setting-input-md");
+      }).inputEl.setAttr("style", "width: 320px;");
     });
     containerEl.createEl("h2", { text: "\u5BFC\u51FA\u8BBE\u7F6E" });
-    new import_obsidian12.Setting(containerEl).setName("\u9ED8\u8BA4\u5BFC\u51FA\u683C\u5F0F").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9ED8\u8BA4\u5BFC\u51FA\u683C\u5F0F").addDropdown((dropdown) => {
       dropdown.addOption("copy", "\u590D\u5236\u5230\u526A\u8D34\u677F");
       dropdown.addOption("draft", "\u4FDD\u5B58\u4E3A\u8349\u7A3F");
       dropdown.addOption("image", "\u5BFC\u51FA\u4E3A\u56FE\u7247");
@@ -75177,7 +74968,7 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian12.Setting(containerEl).setName("\u81EA\u52A8\u4FDD\u5B58\u8349\u7A3F").setDesc("\u590D\u5236\u5185\u5BB9\u65F6\u81EA\u52A8\u4FDD\u5B58\u5230\u516C\u4F17\u53F7\u8349\u7A3F\u7BB1").addToggle((toggle) => {
+    new import_obsidian11.Setting(containerEl).setName("\u81EA\u52A8\u4FDD\u5B58\u8349\u7A3F").setDesc("\u590D\u5236\u5185\u5BB9\u65F6\u81EA\u52A8\u4FDD\u5B58\u5230\u516C\u4F17\u53F7\u8349\u7A3F\u7BB1").addToggle((toggle) => {
       toggle.setValue(this.settings.autoSaveDraft);
       toggle.onChange(async (value) => {
         this.settings.autoSaveDraft = value;
@@ -75185,32 +74976,26 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
       });
     });
     containerEl.createEl("h2", { text: "\u9884\u89C8\u8BBE\u7F6E" });
-    new import_obsidian12.Setting(containerEl).setName("\u9884\u89C8\u7A97\u53E3\u5BBD\u5EA6").setDesc("\u9884\u89C8\u7A97\u53E3\u7684\u9ED8\u8BA4\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09").addText((text) => {
-      text.setPlaceholder("800");
-      text.setValue(String(this.settings.previewWidth));
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9884\u89C8\u7A97\u53E3\u5BBD\u5EA6").setDesc("\u9884\u89C8\u7A97\u53E3\u7684\u9ED8\u8BA4\u5BBD\u5EA6\uFF08\u50CF\u7D20\uFF09").addText((text) => {
+      text.setPlaceholder("800").setValue(String(this.settings.previewWidth)).onChange(async (value) => {
         const width = parseInt(value);
         if (!isNaN(width) && width > 0) {
           this.settings.previewWidth = width;
           await this.plugin.saveSettings();
         }
-      });
-      text.inputEl.classList.add("wdwx-setting-input-sm");
+      }).inputEl.setAttr("style", "width: 120px;");
     });
-    new import_obsidian12.Setting(containerEl).setName("\u9884\u89C8\u66F4\u65B0\u5EF6\u8FDF").setDesc("\u9884\u89C8\u81EA\u52A8\u5237\u65B0\u7684\u5EF6\u8FDF\u65F6\u95F4\uFF08\u6BEB\u79D2\uFF09").addText((text) => {
-      text.setPlaceholder("500");
-      text.setValue(String(this.settings.previewDelay));
-      text.onChange(async (value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9884\u89C8\u66F4\u65B0\u5EF6\u8FDF").setDesc("\u9884\u89C8\u81EA\u52A8\u5237\u65B0\u7684\u5EF6\u8FDF\u65F6\u95F4\uFF08\u6BEB\u79D2\uFF09").addText((text) => {
+      text.setPlaceholder("500").setValue(String(this.settings.previewDelay)).onChange(async (value) => {
         const delay = parseInt(value);
         if (!isNaN(delay) && delay >= 0) {
           this.settings.previewDelay = delay;
           await this.plugin.saveSettings();
         }
-      });
-      text.inputEl.classList.add("wdwx-setting-input-sm");
+      }).inputEl.setAttr("style", "width: 120px;");
     });
     containerEl.createEl("h2", { text: "\u516C\u4F17\u53F7\u914D\u7F6E" });
-    new import_obsidian12.Setting(containerEl).setName("\u9ED8\u8BA4\u516C\u4F17\u53F7").setDesc("\u9009\u62E9\u9ED8\u8BA4\u4F7F\u7528\u7684\u516C\u4F17\u53F7\u8D26\u53F7").addDropdown((dropdown) => {
+    new import_obsidian11.Setting(containerEl).setName("\u9ED8\u8BA4\u516C\u4F17\u53F7").setDesc("\u9009\u62E9\u9ED8\u8BA4\u4F7F\u7528\u7684\u516C\u4F17\u53F7\u8D26\u53F7").addDropdown((dropdown) => {
       dropdown.addOption("", "\u8BF7\u9009\u62E9");
       if (this.settings.wxInfo && this.settings.wxInfo.length > 0) {
         for (let wx of this.settings.wxInfo) {
@@ -75225,41 +75010,26 @@ var WxSettingTab = class extends import_obsidian12.PluginSettingTab {
     });
     let authKeyValue = "";
     let authKeyVerified = false;
-    new import_obsidian12.Setting(containerEl).setName("\u8BA4\u8BC1\u5BC6\u94A5 (AuthKey)").setDesc("\u8BF7\u5148\u8F93\u5165\u7531\u7BA1\u7406\u5458\u63D0\u4F9B\u7684AuthKey\uFF0C\u9A8C\u8BC1\u901A\u8FC7\u540E\u624D\u80FD\u4FDD\u5B58\u516C\u4F17\u53F7\u4FE1\u606F").addText((text) => {
-      text.setPlaceholder("\u8BF7\u8F93\u5165AuthKey");
-      text.setValue("");
-      text.onChange((value) => {
+    new import_obsidian11.Setting(containerEl).setName("\u8BA4\u8BC1\u5BC6\u94A5 (AuthKey)").setDesc("\u8BF7\u8F93\u5165\u5185\u7F6E\u5BC6\u94A5\u8FDB\u884C\u9A8C\u8BC1").addText((text) => {
+      text.setPlaceholder("\u8BF7\u8F93\u5165AuthKey").setValue("").onChange((value) => {
         authKeyValue = value;
         authKeyVerified = false;
       });
-      text.inputEl.classList.add("wdwx-setting-input-lg");
+      text.inputEl.setAttr("style", "width: 400px;");
     }).addButton((button) => {
       button.setButtonText("\u9A8C\u8BC1AuthKey");
       button.onClick(async () => {
         if (!authKeyValue || authKeyValue.trim().length === 0) {
-          new import_obsidian12.Notice("\u8BF7\u8F93\u5165AuthKey");
+          new import_obsidian11.Notice("\u8BF7\u8F93\u5165AuthKey");
           return;
         }
-        button.setButtonText("\u9A8C\u8BC1\u4E2D...");
-        try {
-          const { getWechatClient: getWechatClient3 } = await Promise.resolve().then(() => (init_api(), api_exports));
-          const wechatClient = getWechatClient3();
-          const result = await wechatClient.verifyAuthKey(authKeyValue.trim());
-          if (result.is_valid) {
-            authKeyVerified = true;
-            const vipText = result.is_vip ? " (VIP\u8D26\u6237)" : " (\u666E\u901A\u8D26\u6237)";
-            const accountText = result.can_register ? `\u53EF\u6CE8\u518C ${result.max_accounts - result.registered_accounts} \u4E2A\u516C\u4F17\u53F7` : "\u5DF2\u8FBE\u5230\u6700\u5927\u8D26\u6237\u6570\u91CF";
-            new import_obsidian12.Notice(`AuthKey\u9A8C\u8BC1\u6210\u529F${vipText}
-${accountText}`);
-            button.setButtonText("\u2713 \u5DF2\u9A8C\u8BC1");
-          } else {
-            authKeyVerified = false;
-            new import_obsidian12.Notice("AuthKey\u65E0\u6548\u6216\u5DF2\u8FC7\u671F");
-            button.setButtonText("\u9A8C\u8BC1AuthKey");
-          }
-        } catch (error) {
+        if (isAuthKeyValid(authKeyValue.trim())) {
+          authKeyVerified = true;
+          new import_obsidian11.Notice("AuthKey\u9A8C\u8BC1\u6210\u529F\uFF01");
+          button.setButtonText("\u2713 \u5DF2\u9A8C\u8BC1");
+        } else {
           authKeyVerified = false;
-          new import_obsidian12.Notice(`\u9A8C\u8BC1\u5931\u8D25\uFF1A${error.message || error}`);
+          new import_obsidian11.Notice("AuthKey\u65E0\u6548");
           button.setButtonText("\u9A8C\u8BC1AuthKey");
         }
       });
@@ -75267,16 +75037,13 @@ ${accountText}`);
     let isClear = this.settings.wxInfo.length > 0;
     let isRealClear = false;
     const buttonText = isClear ? "\u6E05\u7A7A\u516C\u4F17\u53F7\u4FE1\u606F" : "\u4FDD\u5B58\u516C\u4F17\u53F7\u4FE1\u606F";
-    new import_obsidian12.Setting(containerEl).setName("\u516C\u4F17\u53F7\u4FE1\u606F").addTextArea((text) => {
+    new import_obsidian11.Setting(containerEl).setName("\u516C\u4F17\u53F7\u4FE1\u606F").addTextArea((text) => {
       this.wxTextArea = text;
-      text.setPlaceholder("\u8BF7\u8F93\u5165\u516C\u4F17\u53F7\u4FE1\u606F\n\u683C\u5F0F\uFF1A\u516C\u4F17\u53F7\u540D\u79F0|\u516C\u4F17\u53F7AppID|\u516C\u4F17\u53F7AppSecret\n\u591A\u4E2A\u516C\u4F17\u53F7\u8BF7\u6362\u884C\u8F93\u5165\n\u8F93\u5165\u5B8C\u6210\u540E\u70B9\u51FB\u4FDD\u5B58\u6309\u94AE");
-      text.setValue(this.wxInfo);
-      text.onChange((value) => {
+      text.setPlaceholder("\u8BF7\u8F93\u5165\u516C\u4F17\u53F7\u4FE1\u606F\n\u683C\u5F0F\uFF1A\u516C\u4F17\u53F7\u540D\u79F0|\u516C\u4F17\u53F7AppID|\u516C\u4F17\u53F7AppSecret\n\u591A\u4E2A\u516C\u4F17\u53F7\u8BF7\u6362\u884C\u8F93\u5165\n\u8F93\u5165\u5B8C\u6210\u540E\u70B9\u51FB\u4FDD\u5B58\u6309\u94AE").setValue(this.wxInfo).onChange((value) => {
         this.wxInfo = value;
-      });
-      text.inputEl.classList.add("wdwx-setting-input-xl", "wdwx-setting-textarea-lg");
+      }).inputEl.setAttr("style", "width: 520px; height: 120px;");
     });
-    new import_obsidian12.Setting(containerEl).addButton((button) => {
+    new import_obsidian11.Setting(containerEl).addButton((button) => {
       button.setButtonText(buttonText);
       button.onClick(async () => {
         if (isClear) {
@@ -75290,7 +75057,7 @@ ${accountText}`);
           button.setButtonText("\u4FDD\u5B58\u516C\u4F17\u53F7\u4FE1\u606F");
         } else {
           if (!authKeyVerified) {
-            new import_obsidian12.Notice("\u8BF7\u5148\u9A8C\u8BC1AuthKey");
+            new import_obsidian11.Notice("\u8BF7\u5148\u9A8C\u8BC1AuthKey");
             return;
           }
           button.setButtonText("\u4FDD\u5B58\u4E2D...");
@@ -75316,7 +75083,7 @@ ${accountText}`);
 
 // src/core/main.ts
 init_api();
-var WxEditPlugin = class extends import_obsidian13.Plugin {
+var WxEditPlugin = class extends import_obsidian12.Plugin {
   // 初始化状态标志
   constructor(app, manifest) {
     super(app, manifest);
@@ -75329,6 +75096,7 @@ var WxEditPlugin = class extends import_obsidian13.Plugin {
     await this.assetsManager.loadAssets();
     this.isInitialized = true;
   }
+  // Claude Code Update
   async onload() {
     setVersion(this.manifest.version);
     uevent("load");
@@ -75336,6 +75104,7 @@ var WxEditPlugin = class extends import_obsidian13.Plugin {
       try {
         initApiClients();
       } catch (error) {
+        console.error("API\u5BA2\u6237\u7AEF\u521D\u59CB\u5316\u5931\u8D25:", error);
       }
     }, 1e3);
     this.app.workspace.onLayoutReady(async () => {
@@ -75371,15 +75140,15 @@ var WxEditPlugin = class extends import_obsidian13.Plugin {
             menu.addItem((item) => {
               item.setTitle("\u53D1\u5E03\u5230\u516C\u4F17\u53F7").setIcon("fish-symbol").onClick(async () => {
                 var _a, _b, _c, _d, _e, _f;
-                if (file instanceof import_obsidian13.TFile) {
+                if (file instanceof import_obsidian12.TFile) {
                   if (file.extension.toLowerCase() !== "md") {
-                    new import_obsidian13.Notice("\u53EA\u80FD\u53D1\u5E03 Markdown \u6587\u4EF6");
+                    new import_obsidian12.Notice("\u53EA\u80FD\u53D1\u5E03 Markdown \u6587\u4EF6");
                     return;
                   }
                   await this.activateView();
                   await ((_b = (_a = this.getWxPreview()) == null ? void 0 : _a.getController()) == null ? void 0 : _b.renderMarkdown(file));
                   await ((_d = (_c = this.getWxPreview()) == null ? void 0 : _c.getController()) == null ? void 0 : _d.postArticle());
-                } else if (file instanceof import_obsidian13.TFolder) {
+                } else if (file instanceof import_obsidian12.TFolder) {
                   await this.activateView();
                   await ((_f = (_e = this.getWxPreview()) == null ? void 0 : _e.getController()) == null ? void 0 : _f.batchPost(file));
                 }
@@ -75388,6 +75157,7 @@ var WxEditPlugin = class extends import_obsidian13.Plugin {
           })
         );
       } catch (error) {
+        console.error("WxEdit \u63D2\u4EF6\u521D\u59CB\u5316\u5931\u8D25:", error);
       }
     });
   }
@@ -75433,6 +75203,7 @@ var WxEditPlugin = class extends import_obsidian13.Plugin {
     }
     return null;
   }
+  // 刷新所有预览视图
   refreshAllPreviews() {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WX_PREVIEW);
     leaves.forEach((leaf) => {
