@@ -11,8 +11,7 @@
 ## 📦 下载安装
 
 - **GitHub Release**: https://github.com/IsHexx/WDWXEdit/releases/latest
-- **开发仓库**（私有）: https://github.com/IsHexx/WeWxEdit
-- **公开仓库**: https://github.com/IsHexx/WDWXEdit
+- **仓库地址**: https://github.com/IsHexx/WDWXEdit
 
 ## 🌟 功能特性
 
@@ -41,12 +40,18 @@
    - 进入设置 → 基本设置
    - 获取 AppID 和 AppSecret
 
-2. **配置插件**:
+2. **配置 IP 白名单**:
+   - 在微信公众号后台进入「设置与开发」→「基本配置」
+   - 找到「IP白名单」设置
+   - 将你的服务器 IP 或本地公网 IP 添加到白名单中
+   - ⚠️ **重要**: 未配置白名单将无法正常调用微信 API 获取 access_token
+
+3. **配置插件**:
    - 打开插件设置
    - 输入 AppID 和 AppSecret
    - 保存设置
 
-3. **开始发布**:
+4. **开始发布**:
    - 打开任意笔记
    - 点击左侧边栏的"微信"图标
    - 选择复制内容或创建草稿
@@ -125,10 +130,10 @@ watermark: true
 
 ## 🏗️ 开发
 
-本项目使用私有仓库进行开发，通过 GitHub Actions 自动同步到公开仓库。
+欢迎参与项目开发和贡献！
 
-- **私有开发仓库**: https://github.com/IsHexx/WeWxEdit
-- **公开发布仓库**: https://github.com/IsHexx/WDWXEdit
+- **项目仓库**: https://github.com/IsHexx/WDWXEdit
+- **问题反馈**: https://github.com/IsHexx/WDWXEdit/issues
 
 ---
 
